@@ -29,6 +29,12 @@ def _deterministic_local_embedding(text: str, dim: int = EMBEDDING_DIM) -> list[
     return _normalize(vector)
 
 
+def embed_texts(texts: list[str]) -> list[list[float]]:
+    """OpenAI embeddings of several texts in one request (unit length); needs ``OPENAI_API_KEY``."""
+    response = OpenAI(api_key=OPENAI_API_KEY).embeddings.create(model=OPENAI_EMBEDDING_MODEL, input=texts)
+    return [_normalize(item.embedding) for item in sorted(response.data, key=lambda item: item.index)]
+
+
 def embed_text(text: str) -> List[float]:
     """Embed text."""
     if OPENAI_API_KEY:

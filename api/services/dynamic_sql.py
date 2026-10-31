@@ -42,6 +42,7 @@ from api.services.config import (
     SQL_CACHE_MAX_ENTRIES,
     SQL_CACHE_TTL_SECONDS,
 )
+from api.services.embeddings import embed_texts
 from api.services.mart import entities, examples, safe_sql
 
 log = logging.getLogger(__name__)
@@ -228,13 +229,65 @@ SHARED_RELATIONS = (
 )
 
 
+def _keyword_prefixes(question: str) -> list[str]:
+    """Relation prefixes of the ``FAMILY_KEYWORDS`` groups the question names."""
+    folded = entities.fold(question)
+    return [p for pattern, group in FAMILY_KEYWORDS.items() if re.search(pattern, folded) for p in group]
+
+
 def relevant_relations(question: str, available: list[str]) -> list[str]:
     """Relations to describe in the prompt for ``question`` (all of them when no kind is named)."""
-    folded = entities.fold(question)
-    prefixes = [p for pattern, group in FAMILY_KEYWORDS.items() if re.search(pattern, folded) for p in group]
+    prefixes = _keyword_prefixes(question)
     if not set(prefixes) - set(ADD_ONLY_PREFIXES):
         return list(available)
     return [r for r in available if r in SHARED_RELATIONS or r.startswith(tuple(prefixes))]
+
+
+SCHEMA_TOP_K = 8
+_RELATION_VECTORS: dict[str, dict[str, list[float]]] = {}
+
+
+def semantic_relations(question: str, described: dict[str, str], version: str) -> list[str]:
+    """The ``SCHEMA_TOP_K`` relations whose description is closest to the question by embeddings.
+
+    Relation descriptions (their schema comments) are embedded once per mart ``version``. Empty without
+    an OpenAI key or when the embedding request fails: the keywords alone choose then.
+    """
+    if not OPENAI_API_KEY:
+        return []
+    try:
+        if version not in _RELATION_VECTORS:
+            names = list(described)
+            _RELATION_VECTORS.clear()
+            _RELATION_VECTORS[version] = dict(zip(names, embed_texts([described[n][:4000] for n in names])))
+        vectors = _RELATION_VECTORS[version]
+        query = embed_texts([question])[0]
+    except Exception as exc:  # the keywords still choose the schema
+        log.warning("schema embeddings unavailable: %s", exc)
+        return []
+    score = {name: sum(a * b for a, b in zip(query, vector)) for name, vector in vectors.items()}
+    return sorted(score, key=score.__getitem__, reverse=True)[:SCHEMA_TOP_K]
+
+
+def select_relations(question: str, described: dict[str, str], version: str) -> tuple[list[str], str]:
+    """Relations for the prompt and how they were chosen (``keywords``, ``keywords+embeddings``, ``embeddings``).
+
+    Keywords are the safety net: every relation they name stays. Embeddings add the closest relations,
+    and when the question names no election kind they replace the whole schema (keeping the shared
+    relations and the add-only groups the keywords found, such as GUS statistics).
+    """
+    available = list(described)
+    keyword = relevant_relations(question, available)
+    semantic = semantic_relations(question, described, version)
+    if not semantic:
+        return keyword, "keywords"
+    if len(keyword) < len(available):
+        chosen, how = set(keyword) | set(semantic), "keywords+embeddings"
+    else:
+        added = tuple(_keyword_prefixes(question))
+        chosen = {r for r in available if r in SHARED_RELATIONS or (added and r.startswith(added))} | set(semantic)
+        how = "embeddings"
+    return [r for r in available if r in chosen], how
 
 
 def data_context() -> tuple[str, str]:
@@ -502,7 +555,7 @@ def build_context(
     elections, version = data_context()
     described = schema_description(version)
     scope = f"{previous['question']} {question}" if previous else question
-    relations = relevant_relations(scope, list(described))
+    relations, selection = select_relations(scope, described, version)
     if len(relations) == len(described):  # no election kind named: whole schema, base tables compact
         described = schema_description(version, compact=True)
     similar = examples.similar_examples(question)
@@ -530,6 +583,7 @@ def build_context(
     used = {
         "examples": [{"question": e["question"], "source": e.get("source")} for e in similar],
         "schema_relations": len(relations),
+        "schema_selection": selection,
         "prompt_chars": len(context),
     }
     return context, version, used
@@ -547,7 +601,7 @@ def try_dynamic_query(
 
     Returns ``(rows, sql, error, meta)``. ``meta["status"]`` is one of skipped / clarify / rejected /
     failed / cached / first_pass / repaired. ``meta`` also holds ``entities``, ``examples``,
-    ``timings_ms``, ``tokens``, ``schema_relations`` and ``prompt_chars``; for ``clarify`` it holds
+    ``timings_ms``, ``tokens``, ``schema_relations``, ``schema_selection`` and ``prompt_chars``; for ``clarify`` it holds
     ``clarification`` (see ``entities.find_ambiguity``). ``previous`` is the preceding turn of the
     conversation (``{"question", "sql", "entity_refs"}``) for follow-up questions.
     """

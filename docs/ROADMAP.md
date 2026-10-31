@@ -98,7 +98,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 15. Pytania geograficzne przez widoki atrybutów jednostek.
 
 **Generowanie SQL**
-- [ ] 16. Wybór schematu przez embeddingi (`FAMILY_KEYWORDS` jako zabezpieczenie).
+- [x] 16. Wybór schematu przez embeddingi (`FAMILY_KEYWORDS` jako zabezpieczenie).
 - [ ] 17. Plan zapytania, potem SQL.
 - [ ] 18. Routing modeli: tańszy najpierw, droższy przy naprawie.
 - [ ] 19. Prompt caching stałej części promptu.

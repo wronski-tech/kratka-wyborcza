@@ -692,8 +692,15 @@ would answer it from Sejm data.
    "radnych", "europejskiego", ...) to relation prefixes; the prompt then describes those relations
    plus `SHARED_RELATIONS` (elections, persons, cross-election views). A question that names no
    kind gets every relation, base tables in compact form (table comment and column names, no column
-   comments; `schema_description(compact=True)`), views in full: about 31k instead of 46k characters. `params._dynamic_sql_meta` reports `schema_relations` and
-   `prompt_chars`. When adding a relation group, add its prefix to `FAMILY_KEYWORDS`.
+   comments; `schema_description(compact=True)`), views in full: about 31k instead of 46k characters.
+   With an OpenAI key, embeddings refine this (`dynamic_sql.select_relations`): the relation
+   descriptions are embedded once per mart load, and the `SCHEMA_TOP_K` (8) relations closest to the
+   question are added to the keyword choice; when no kind is named they replace the whole schema
+   (shared relations and add-only keyword groups such as GUS stay). The keywords are the safety net:
+   every relation they name is always described, and without a key or when the embedding request
+   fails they choose alone. `params._dynamic_sql_meta` reports `schema_relations`,
+   `schema_selection` (`keywords`, `keywords+embeddings`, `embeddings`) and `prompt_chars`. When
+   adding a relation group, add its prefix to `FAMILY_KEYWORDS`.
 5. **Validation** (`mart/safe_sql.py`). sqlglot parses the query. Only one SELECT (CTEs and UNION
    allowed) over mart relations is accepted. DML, DDL, `SET`, `SELECT INTO`, `pg_*` functions and
    functions such as `set_config`, `dblink` or `nextval` are rejected, also when quoted

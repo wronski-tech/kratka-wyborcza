@@ -171,6 +171,7 @@ def evaluate(item: dict) -> dict:
         "ms": int((time.monotonic() - started) * 1000),
         "sql": sql,
         "error": error,
+        "schema_selection": meta.get("schema_selection"),
     }
 
 

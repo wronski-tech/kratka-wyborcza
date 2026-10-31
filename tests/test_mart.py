@@ -1132,6 +1132,33 @@ class TestPromptRelations(unittest.TestCase):
         self.assertNotIn("pe_lists", relations)
         self.assertNotIn("v_precinct_results", dynamic_sql.relevant_relations("Kto wygrał wybory prezydenckie w 2020?", self.AVAILABLE))
 
+    def test_embeddings_narrow_the_whole_schema_and_keywords_stay(self) -> None:
+        described = {"elections": "loaded elections", "v_turnout": "turnout per unit", "sejm_lists": "sejm lists",
+                     "prezydent_results": "president candidates", "rada_candidates": "council candidates",
+                     "unit_attributes": "coast and border of gminas", "gus_indicators": "unemployment statistics"}
+        topics = ("turnout", "coast", "president", "council")
+
+        def embed(texts: list[str]) -> list[list[float]]:
+            # One axis per topic; a question also matches its Polish words.
+            words = {"turnout": "frekwencj", "coast": "nadmorsk", "president": "prezyden", "council": "radn"}
+            return [[float(t in x.lower() or words[t] in entities.fold(x)) for t in topics] for x in texts]
+
+        dynamic_sql._RELATION_VECTORS.clear()
+        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "SCHEMA_TOP_K", 2), \
+                patch.object(dynamic_sql, "embed_texts", side_effect=embed) as fake:
+            # No election named: instead of the whole schema, the shared relations, the keyword groups found
+            # (the add-only unit attributes) and the closest relations.
+            relations, how = dynamic_sql.select_relations("Frekwencja w gminach nadmorskich", described, "v1")
+            self.assertEqual((relations, how), (["elections", "v_turnout", "unit_attributes"], "embeddings"))
+            # An election named by keywords keeps its relations; embeddings only add.
+            relations, how = dynamic_sql.select_relations("Ilu radnych wybrano w wyborach prezydenckich?", described, "v1")
+            self.assertEqual(how, "keywords+embeddings")
+            self.assertTrue({"prezydent_results", "rada_candidates"} <= set(relations))
+            self.assertEqual(len([c for c in fake.call_args_list if len(c.args[0]) > 1]), 1, "descriptions embedded once per version")
+        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "embed_texts", side_effect=RuntimeError("down")):
+            dynamic_sql._RELATION_VECTORS.clear()
+            self.assertEqual(dynamic_sql.select_relations("Frekwencja w gminach nadmorskich", described, "v2"), (list(described), "keywords"))
+
     def test_geographic_questions_get_the_unit_attributes(self) -> None:
         available = [*self.AVAILABLE, "unit_attributes"]
         for question in ("Frekwencja w gminach nadmorskich w 2023", "Wynik PiS przy granicy z Niemcami w wyborach do Sejmu 2023",
