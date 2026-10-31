@@ -638,6 +638,15 @@ no model call), so definitions never come from the model's own knowledge. A defi
 a term the file does not cover goes on to SQL. Evaluation items with `"definition": "<section title>"`
 check that the right section is found and that no data question is caught.
 
+**Prompt versions** (`dynamic_sql.PROMPT_VERSION`). A short hash of `SQL_RULES` and of the code that
+builds the SQL model calls and their context (`_llm_sql`, `_llm_interpretations`, `build_context`):
+any wording or call-parameter change gives a new version, while schema comments, curated examples and
+the loaded elections do not. Every question log entry carries it (`prompt_version`), as does every
+evaluation report. After changing the prompt, run `scripts/run_eval.py --record` with an OpenAI key and
+commit `tests/eval/prompt_versions.jsonl` with the change: one line per run with the version, date,
+models, item count and accuracy per family. `run_eval.py --check` (CI) names the current version's last
+recorded result, or says it has none.
+
 **Routing** (`router.route_question`). Every question goes to dynamic SQL over the mart first. The
 legacy Sejm templates run only when dynamic SQL returned no rows (no OpenAI key, mart unreachable,
 failed or empty query) and the request is none of: an answer to a clarification (`entity_refs`), a
@@ -818,7 +827,7 @@ answer with the reasons in Polish.
 Every `/ask` writes one log line (`ask intent=… status=… rows=… latency_ms=… answer=… tokens=…/…`)
 and one OpenSearch document in the question log with `status` (`template`, `first_pass`, `repaired`,
 `cached`, `clarify`, `rejected`, `failed`, `skipped`), `latency_ms`, `row_count`, `answer_source`,
-`prompt_tokens`, `completion_tokens` and `error`. `params._dynamic_sql_meta` in the response holds
+`prompt_tokens`, `completion_tokens`, `error` and `prompt_version`. `params._dynamic_sql_meta` in the response holds
 the matched entities, examples used, `schema_relations`, `prompt_chars` and per-phase
 `timings_ms`. Logging never fails a request. Dashboards over the question log: see
 [DEPLOYMENT.md](DEPLOYMENT.md#telemetry-dashboards).

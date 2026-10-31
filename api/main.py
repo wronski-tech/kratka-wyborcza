@@ -647,7 +647,7 @@ def kbw_catalog_summary() -> KbwCatalogSummaryResponse:
 
 
 def _telemetry(result: dict[str, Any], started: float) -> dict[str, Any]:
-    """Flat telemetry fields for the question log (status, latency, rows, answer source, tokens)."""
+    """Flat telemetry fields for the question log (status, latency, rows, answer source, tokens, prompt version)."""
     meta = (result.get("params") or {}).get("_dynamic_sql_meta") or {}
     tokens = dict(meta.get("tokens") or {})
     for name, value in ((result.get("answer") or {}).get("tokens") or {}).items():
@@ -662,6 +662,7 @@ def _telemetry(result: dict[str, Any], started: float) -> dict[str, Any]:
         "cached_tokens": tokens.get("cached_tokens", 0),
         "cost_usd": round(costs.spent(_tokens_by_model(result)), 6),
         "error": meta.get("error") or (result.get("params") or {}).get("_dynamic_sql_error"),
+        "prompt_version": dynamic_sql.PROMPT_VERSION,
     }
 
 

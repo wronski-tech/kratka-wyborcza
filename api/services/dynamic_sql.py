@@ -22,6 +22,8 @@ Answers therefore always come from SQL over official data; the LLM only writes t
 
 from __future__ import annotations
 
+import hashlib
+import inspect
 import json
 import logging
 import re
@@ -897,3 +899,15 @@ def try_dynamic_query(
                 meta["explain"] = bool(explained)
                 repair_note = error + (f"\nEXPLAIN of the failed query:\n{explained}" if explained else "")
     return [], sql, error, {**meta, "status": "failed", "error": error}
+
+
+def _prompt_version() -> str:
+    """Short hash of the fixed part of the SQL prompts: ``SQL_RULES`` and the code that builds the model
+    calls and their context. Any change of wording or call parameters gives a new version; schema
+    comments, curated examples and the loaded elections are data and do not change it."""
+    source = SQL_RULES + "".join(inspect.getsource(f) for f in (_llm_sql, _llm_interpretations, build_context))
+    return hashlib.sha256(source.encode()).hexdigest()[:12]
+
+
+# Recorded with every question (telemetry) and evaluation run (scripts/run_eval.py, tests/eval/prompt_versions.jsonl).
+PROMPT_VERSION = _prompt_version()

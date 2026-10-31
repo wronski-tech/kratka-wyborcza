@@ -1065,6 +1065,25 @@ class TestEvaluationSet(unittest.TestCase):
         self.assertIn("model m1, prompt p1", text)
 
 
+    def test_prompt_versions_record_accuracy(self) -> None:
+        # The version follows the prompt text; schema and examples are not part of it.
+        with patch.object(dynamic_sql, "SQL_RULES", dynamic_sql.SQL_RULES + "\n- One more rule."):
+            self.assertNotEqual(dynamic_sql._prompt_version(), dynamic_sql.PROMPT_VERSION)
+        self.assertEqual(dynamic_sql._prompt_version(), dynamic_sql.PROMPT_VERSION)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "versions.jsonl"
+            with patch.object(run_eval, "ROOT", Path(tmp)):
+                self.assertIn("has no recorded evaluation", run_eval.recorded_result(path))
+                results = [{"family": "sejm", "passed": True}, {"family": "sejm", "passed": False},
+                           {"family": "pe", "passed": True}]
+                with patch.object(run_eval.dynamic_sql, "PROMPT_VERSION", "old"):
+                    run_eval.record(results[:1], path)
+                entry = run_eval.record(results, path)
+                self.assertEqual(entry["accuracy"], {"pe": 100.0, "sejm": 50.0, "total": 66.7})
+                self.assertEqual(entry["prompt_version"], dynamic_sql.PROMPT_VERSION)
+                # Only the current version's run counts, not the older version's 100%.
+                self.assertIn(f"Prompt {dynamic_sql.PROMPT_VERSION}: 66.7% of 3 questions", run_eval.recorded_result(path))
+
 class TestDynamicQueryFlow(unittest.TestCase):
     """``try_dynamic_query`` with the LLM, the mart context and the database stubbed."""
 

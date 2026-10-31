@@ -18,10 +18,14 @@ texts instead. Extra columns and extra rows do not fail an item.
             passed there and fail now, and exits with an error when there are more than
             --max-regressions of them; the report records the model and the prompt version, so a
             regression after changing either is attributed to that change
+  --record  appends the run's accuracy per family to tests/eval/prompt_versions.jsonl under the prompt
+            version (``dynamic_sql.PROMPT_VERSION``); commit it with the prompt change. --check names
+            the current version's last recorded result, or that it has none
 
 Examples:
   python3 scripts/run_eval.py --check
   python3 scripts/run_eval.py --family sejm --limit 20 --out eval_report.json
+  python3 scripts/run_eval.py --record
   python3 scripts/run_eval.py --out eval_report.json --baseline previous/eval_report.json --max-regressions 5
 
 Needs ``MART_DATABASE_URL`` (the read-only role) pointing at a built mart; the evaluation itself also
@@ -33,7 +37,6 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import hashlib
 import json
 import os
 import sys
@@ -51,6 +54,7 @@ from api.services.mart.entities import fold  # noqa: E402
 from api.services.mart.safe_sql import check_cost, run_readonly, validate_mart_sql  # noqa: E402
 
 EVAL_PATH = ROOT / "tests" / "eval" / "questions.jsonl"
+VERSIONS_PATH = ROOT / "tests" / "eval" / "prompt_versions.jsonl"
 TOLERANCE = 0.0501  # half of 0.1, plus float error
 
 
@@ -206,9 +210,30 @@ def summarize(results: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def prompt_version() -> str:
-    """Short hash of the fixed SQL rules sent with every question (changes when the prompt does)."""
-    return hashlib.sha256(dynamic_sql.SQL_RULES.encode()).hexdigest()[:12]
+def record(results: list[dict], path: Path = VERSIONS_PATH) -> dict:
+    """Append the run's accuracy (percent passed, per family and total) under the current prompt version."""
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for result in results:
+        groups[result["family"]].append(result)
+    accuracy = {family: round(100 * sum(r["passed"] for r in group) / len(group), 1)
+                for family, group in [*sorted(groups.items()), ("total", results)]}
+    entry = {"prompt_version": dynamic_sql.PROMPT_VERSION, "date": dt.date.today().isoformat(),
+             "model": dynamic_sql.OPENAI_CHAT_MODEL, "repair_model": dynamic_sql.OPENAI_REPAIR_MODEL,
+             "items": len(results), "accuracy": accuracy}
+    with path.open("a", encoding="utf-8") as out:
+        out.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    return entry
+
+
+def recorded_result(path: Path = VERSIONS_PATH) -> str:
+    """The current prompt version's last recorded evaluation, or a note that it has none."""
+    runs = [r for r in load_items(path) if r["prompt_version"] == dynamic_sql.PROMPT_VERSION] if path.exists() else []
+    if not runs:
+        return (f"Prompt {dynamic_sql.PROMPT_VERSION} has no recorded evaluation: run run_eval.py --record "
+                f"with an OpenAI key and commit {path.relative_to(ROOT)}.")
+    last = runs[-1]
+    return (f"Prompt {dynamic_sql.PROMPT_VERSION}: {last['accuracy']['total']}% of {last['items']} questions "
+            f"with {last['model']} on {last['date']}.")
 
 
 def compare(baseline: dict, results: list[dict]) -> tuple[str, list[dict]]:
@@ -223,7 +248,7 @@ def compare(baseline: dict, results: list[dict]) -> tuple[str, list[dict]]:
         f"Baseline: model {baseline.get('model', '?')}"
         + (f" (repair {baseline['repair_model']})" if baseline.get("repair_model") else "")
         + f", prompt {baseline.get('prompt_version', '?')}; now: model {dynamic_sql.OPENAI_CHAT_MODEL} "
-        f"(repair {dynamic_sql.OPENAI_REPAIR_MODEL}), prompt {prompt_version()}.",
+        f"(repair {dynamic_sql.OPENAI_REPAIR_MODEL}), prompt {dynamic_sql.PROMPT_VERSION}.",
         f"Same {len(common)} questions: {old} -> {new} passed; {len(regressed)} regressed, {len(fixed)} fixed.",
     ]
     lines += [f"- regressed {r['id']} ({r['status']}): {r['question']}" for r in regressed]
@@ -239,12 +264,14 @@ def main() -> None:
     parser.add_argument("--out", type=Path, help="Write the per-item report as JSON")
     parser.add_argument("--baseline", type=Path, help="Earlier report to compare with (regression check)")
     parser.add_argument("--max-regressions", type=int, default=0, help="Regressed questions tolerated (default 0)")
+    parser.add_argument("--record", action="store_true", help="Append the accuracy to tests/eval/prompt_versions.jsonl")
     args = parser.parse_args()
 
     items = [i for i in load_items() if not args.family or i["family"] == args.family][: args.limit]
     if args.check:
         if check(items):
             raise SystemExit("evaluation set has failing items")
+        print(recorded_result())
         return
     dynamic_sql.SQL_CACHE.ttl = 0  # grade the model, not SQL cached from an earlier run in this process
     results = []
@@ -252,15 +279,18 @@ def main() -> None:
         result = evaluate(item)
         results.append(result)
         print(f"[{'ok' if result['passed'] else 'FAIL'}] {result['id']} {result['status']}: {item['question']}", flush=True)
-    summary = summarize(results)
+    summary = (f"Prompt {dynamic_sql.PROMPT_VERSION}, model {dynamic_sql.OPENAI_CHAT_MODEL} "
+               f"(repair {dynamic_sql.OPENAI_REPAIR_MODEL}).\n\n" + summarize(results))
     regressed: list[dict] = []
     if args.baseline:
         comparison, regressed = compare(json.loads(args.baseline.read_text(encoding="utf-8")), results)
         summary += "\n\n" + comparison
     print(summary)
     if args.out:
-        report = {"model": dynamic_sql.OPENAI_CHAT_MODEL, "repair_model": dynamic_sql.OPENAI_REPAIR_MODEL, "prompt_version": prompt_version(), "summary": summary, "results": results}
+        report = {"model": dynamic_sql.OPENAI_CHAT_MODEL, "repair_model": dynamic_sql.OPENAI_REPAIR_MODEL, "prompt_version": dynamic_sql.PROMPT_VERSION, "summary": summary, "results": results}
         args.out.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    if args.record:
+        record(results)
     if len(regressed) > args.max_regressions:
         raise SystemExit(f"{len(regressed)} regressed question(s), more than --max-regressions {args.max_regressions}")
 

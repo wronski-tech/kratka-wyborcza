@@ -138,7 +138,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 47. Anonimizacja logów przed analizą przez LLM.
 - [x] 48. Limit długości i liczby pytań na sesję.
 - [x] 49. Ocena pewności SQL widoczna w UI.
-- [ ] 50. Wersjonowanie promptów z wynikami ewaluacji.
+- [x] 50. Wersjonowanie promptów z wynikami ewaluacji.
 
 ## Etap 3 — przygotowanie do produkcji
 

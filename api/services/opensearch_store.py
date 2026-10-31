@@ -48,6 +48,7 @@ def ensure_index() -> None:
                 "prompt_tokens": {"type": "integer"},
                 "completion_tokens": {"type": "integer"},
                 "error": {"type": "text"},
+                "prompt_version": {"type": "keyword"},
                 "question_embedding": {
                     "type": "knn_vector",
                     "dimension": 128,
