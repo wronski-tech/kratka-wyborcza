@@ -213,8 +213,10 @@ def compare(baseline: dict, results: list[dict]) -> tuple[str, list[dict]]:
     old = sum(before[r["id"]]["passed"] for r in common)
     new = sum(r["passed"] for r in common)
     lines = [
-        f"Baseline: model {baseline.get('model', '?')}, prompt {baseline.get('prompt_version', '?')}; "
-        f"now: model {dynamic_sql.OPENAI_CHAT_MODEL}, prompt {prompt_version()}.",
+        f"Baseline: model {baseline.get('model', '?')}"
+        + (f" (repair {baseline['repair_model']})" if baseline.get("repair_model") else "")
+        + f", prompt {baseline.get('prompt_version', '?')}; now: model {dynamic_sql.OPENAI_CHAT_MODEL} "
+        f"(repair {dynamic_sql.OPENAI_REPAIR_MODEL}), prompt {prompt_version()}.",
         f"Same {len(common)} questions: {old} -> {new} passed; {len(regressed)} regressed, {len(fixed)} fixed.",
     ]
     lines += [f"- regressed {r['id']} ({r['status']}): {r['question']}" for r in regressed]
@@ -250,7 +252,7 @@ def main() -> None:
         summary += "\n\n" + comparison
     print(summary)
     if args.out:
-        report = {"model": dynamic_sql.OPENAI_CHAT_MODEL, "prompt_version": prompt_version(), "summary": summary, "results": results}
+        report = {"model": dynamic_sql.OPENAI_CHAT_MODEL, "repair_model": dynamic_sql.OPENAI_REPAIR_MODEL, "prompt_version": prompt_version(), "summary": summary, "results": results}
         args.out.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     if len(regressed) > args.max_regressions:
         raise SystemExit(f"{len(regressed)} regressed question(s), more than --max-regressions {args.max_regressions}")

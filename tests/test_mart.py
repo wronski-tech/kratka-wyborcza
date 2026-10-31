@@ -932,6 +932,27 @@ class TestDynamicQueryFlow(unittest.TestCase):
             self.assertEqual((meta["status"], cached_sql), ("cached", sql))
             self.assertEqual(fake_llm.call_count, 2)
 
+    def test_repair_uses_the_stronger_model(self) -> None:
+        def client(sql: str) -> MagicMock:
+            response = MagicMock(usage=None, choices=[MagicMock(message=MagicMock(content=json.dumps({"plan": "p", "sql": sql})))])
+            return MagicMock(chat=MagicMock(completions=MagicMock(create=MagicMock(return_value=response))))
+
+        bad, good = client("SELECT frekwencja FROM mart.v_turnout LIMIT 5"), client(self.GOOD)
+
+        def run(sql: str):
+            if "frekwencja" in sql:
+                raise psycopg.errors.UndefinedColumn('column "frekwencja" does not exist')
+            return [{"turnout_pct": 1}]
+
+        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "OPENAI_CHAT_MODEL", "cheap"), \
+                patch.object(dynamic_sql, "OPENAI_REPAIR_MODEL", "strong"), patch.object(dynamic_sql, "OpenAI", side_effect=[bad, good]), \
+                patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=run):
+            _, _, _, meta = dynamic_sql.try_dynamic_query("Frekwencja w 2023 (repair)?")
+        self.assertEqual(meta["status"], "repaired")
+        self.assertEqual(meta["models"], {"first_pass": "cheap", "repaired": "strong"})
+        self.assertEqual(bad.chat.completions.create.call_args.kwargs["model"], "cheap")
+        self.assertEqual(good.chat.completions.create.call_args.kwargs["model"], "strong")
+
     def test_unsafe_sql_is_rejected_without_running(self) -> None:
         with patch.object(dynamic_sql, "_llm_sql", return_value=("DELETE FROM mart.persons", {}, "")), \
                 patch.object(dynamic_sql.safe_sql, "run_readonly") as run:

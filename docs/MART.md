@@ -764,6 +764,7 @@ the matched entities, examples used, `schema_relations`, `prompt_chars` and per-
 | `MART_DATABASE_URL` | `postgresql://plujka_mart_reader:plujka_mart_reader@localhost:5432/plujka` | Read-only role. `build_mart.py` creates it with this user and password (Compose: `MART_READER_PASSWORD`). |
 | `MART_STATEMENT_TIMEOUT_MS` | `5000` | Server-side limit for one generated query |
 | `MART_MAX_ROWS` | `500` | Row cap added to generated queries |
+| `OPENAI_CHAT_MODEL` / `OPENAI_REPAIR_MODEL` | `gpt-4o-mini` / `gpt-4o` | First SQL attempt (also clarification queries and answer text) / the repair after a failed query; set both to one model to turn routing off |
 | `SQL_CACHE_TTL_SECONDS` / `SQL_CACHE_MAX_ENTRIES` | `3600` / `512` | Validated SQL cache (0 disables) |
 | `SQL_EXAMPLES_INDEX` / `SQL_EXAMPLES_K` | `sql_examples` / `4` | Few-shot examples |
 | `ANSWER_SUMMARY_ENABLED` | `1` | LLM answer text (numbers are always checked) |

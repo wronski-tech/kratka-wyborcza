@@ -39,6 +39,7 @@ from api.services.config import (
     MART_MAX_ROWS,
     OPENAI_API_KEY,
     OPENAI_CHAT_MODEL,
+    OPENAI_REPAIR_MODEL,
     SQL_CACHE_MAX_ENTRIES,
     SQL_CACHE_TTL_SECONDS,
 )
@@ -325,7 +326,8 @@ def _llm_sql(
 ) -> tuple[str, dict[str, int], str]:
     """Ask the chat model for a query plan and the SQL that follows it, in one call.
 
-    Returns (sql, token usage, plan). Raises ValueError when the response is unusable.
+    The first attempt uses ``OPENAI_CHAT_MODEL``; a repair (``previous_sql`` set) the stronger
+    ``OPENAI_REPAIR_MODEL``. Returns (sql, token usage, plan). Raises ValueError when the response is unusable.
     """
     if not OPENAI_API_KEY:
         raise ValueError("OPENAI_API_KEY is missing.")
@@ -333,7 +335,7 @@ def _llm_sql(
     if previous_sql:
         repair = f"\nThe previous query failed. Fix it.\nPrevious SQL: {previous_sql}\nError: {previous_error}\n"
     response = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
-        model=OPENAI_CHAT_MODEL,
+        model=OPENAI_REPAIR_MODEL if previous_sql else OPENAI_CHAT_MODEL,
         temperature=0,
         response_format={"type": "json_object"},
         messages=[
@@ -609,7 +611,7 @@ def try_dynamic_query(
 
     Returns ``(rows, sql, error, meta)``. ``meta["status"]`` is one of skipped / clarify / rejected /
     failed / cached / first_pass / repaired. ``meta`` also holds ``entities``, ``examples``,
-    ``timings_ms``, ``tokens``, ``schema_relations``, ``schema_selection``, ``prompt_chars`` and the model's query ``plan``; for ``clarify`` it holds
+    ``timings_ms``, ``tokens``, ``schema_relations``, ``schema_selection``, ``prompt_chars``, the model's query ``plan`` and the ``models`` used per attempt; for ``clarify`` it holds
     ``clarification`` (see ``entities.find_ambiguity``). ``previous`` is the preceding turn of the
     conversation (``{"question", "sql", "entity_refs"}``) for follow-up questions.
     """
@@ -649,6 +651,7 @@ def try_dynamic_query(
             phase = time.monotonic()
             raw, used, plan = _llm_sql(question, context, previous_sql=sql, previous_error=error)
             timings[f"llm_{attempt}"] = _ms(phase)
+            meta.setdefault("models", {})[attempt] = OPENAI_REPAIR_MODEL if attempt == "repaired" else OPENAI_CHAT_MODEL
             if plan:
                 meta["plan"] = plan
             for name, value in used.items():
