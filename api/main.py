@@ -25,7 +25,7 @@ from fastapi.responses import JSONResponse
 from psycopg.conninfo import conninfo_to_dict
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from api.services import answer, config, db, dynamic_sql, feedback_store, mcp, opensearch_store, report_pdf, router, speech
+from api.services import answer, config, costs, db, dynamic_sql, feedback_store, mcp, opensearch_store, report_pdf, router, speech
 from api.services.mart import derived as mart_derived
 from api.services.mart import examples as sql_examples
 from api.services.mart import safe_sql
@@ -659,6 +659,7 @@ def _telemetry(result: dict[str, Any], started: float) -> dict[str, Any]:
         "prompt_tokens": tokens.get("prompt_tokens", 0),
         "completion_tokens": tokens.get("completion_tokens", 0),
         "cached_tokens": tokens.get("cached_tokens", 0),
+        "cost_usd": round(costs.spent(_tokens_by_model(result)), 6),
         "error": meta.get("error") or (result.get("params") or {}).get("_dynamic_sql_error"),
     }
 
@@ -1190,7 +1191,7 @@ def require_admin_key(x_api_key: str | None = Header(default=None)) -> None:
 
 
 @app.get("/costs", response_model=list[CostRow], tags=["health"], dependencies=[Depends(require_admin_key)])
-def costs(days: int = Query(30, ge=1, le=366)) -> list[CostRow]:
+def cost_panel(days: int = Query(30, ge=1, le=366)) -> list[CostRow]:
     """LLM tokens per day, API key and model of /ask (and the MCP ask tool), with a USD estimate."""
     try:
         rows = db.usage_rows(days)
@@ -1198,9 +1199,8 @@ def costs(days: int = Query(30, ge=1, le=366)) -> list[CostRow]:
         raise HTTPException(status_code=503, detail="Database is unavailable; try again later.") from exc
     out = []
     for r in rows:
-        price = config.LLM_PRICES_USD_PER_1M.get(r["model"])
-        usd = None if not price else round(((r["prompt_tokens"] - r["cached_tokens"]) * price[0] + r["cached_tokens"] * price[1]
-                                            + r["completion_tokens"] * price[2]) / 1_000_000, 4)
+        usd = costs.usd(r["model"], r)
+        usd = None if usd is None else round(usd, 4)
         out.append(CostRow(day=r["day"], key=r["key_id"], model=r["model"], questions=r["questions"],
                            prompt_tokens=r["prompt_tokens"], completion_tokens=r["completion_tokens"],
                            cached_tokens=r["cached_tokens"], usd=usd))
@@ -1615,7 +1615,7 @@ def ask(request: AskRequest, http_request: Request, api_key: str | None = Depend
     result = router.route_question(request.question, entity_refs=refs, previous=previous)
     if not result.get("clarification") and not result.get("answer"):
         result["answer"] = answer.compose_answer(request.question, result.get("result") or [], result.get("sql") or "",
-                                                 style=request.style)
+                                                 style=request.style, spent=_tokens_by_model(result))
         if result.get("sql") and (result.get("intent") == "dynamic_sql" or not result.get("result")):
             try:  # follow-ups and empty-result reasons need the loaded years; the answer is complete without them
                 loaded = dynamic_sql.loaded_years()

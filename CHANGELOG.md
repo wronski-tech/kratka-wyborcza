@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cost limit per question: `QUESTION_COST_LIMIT_USD` (default 0.05 USD). Model calls have output ceilings, and a call that could cross the limit is skipped (the repair, clarification queries, the answer text, which then falls back to the deterministic summary); the question log records `cost_usd`.
+
 - Semantic SQL cache: a paraphrase of an earlier question („W której gminie frekwencja była najwyższa w 2023?”) reuses its validated SQL without a model call, when the embeddings are close (`SEMANTIC_CACHE_MIN_SIMILARITY`, default 0.92) and both questions name the same entities, numbers, elections and meaning words (highest/lowest, level, measure, round…) and share most content words; the SQL expander names the earlier question.
 
 - Cost panel: every `/ask` adds its tokens per model to `token_usage` (UTC day × API key hash × model); `GET /costs` (admin keys, `ADMIN_API_KEYS`) returns them with a USD estimate (`LLM_PRICES_USD_PER_1M`), and the UI shows them at `?panel=koszty`: total cost, tokens per day by model, usage by key and model.

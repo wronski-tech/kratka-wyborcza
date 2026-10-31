@@ -18,12 +18,14 @@ import sqlglot
 from openai import OpenAI
 from sqlglot import exp
 
+from api.services import costs
 from api.services.config import ANSWER_SUMMARY_ENABLED, MART_MAX_ROWS, OPENAI_API_KEY, OPENAI_CHAT_MODEL
 from api.services.dynamic_sql import split_parts
 
 log = logging.getLogger(__name__)
 
 MAX_ROWS_IN_PROMPT = 30
+ANSWER_MAX_TOKENS = 400  # 1-3 sentences; bounds the call for the per-question cost limit
 
 # A number in Polish or English formatting: "7 640 854", "7,640,854", "35,38", "35.4", "2023".
 _NUMBER_RE = re.compile(r"(?<![\w.,])\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:,\d+)?(?![\d])|(?<![\w])\d+(?:[.,]\d+)*")
@@ -490,6 +492,7 @@ def _llm_answer(question: str, rows: list[dict[str, Any]], style: str = "journal
     response = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
         model=OPENAI_CHAT_MODEL,
         temperature=0,
+        max_tokens=ANSWER_MAX_TOKENS,
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": f"{ANSWER_PROMPT}\n{ANSWER_STYLES[style]}"},
@@ -503,18 +506,24 @@ def _llm_answer(question: str, rows: list[dict[str, Any]], style: str = "journal
     return text, tokens
 
 
-def compose_answer(question: str, rows: list[dict[str, Any]], sql: str = "", style: str = "journalistic") -> dict[str, Any]:
+def compose_answer(question: str, rows: list[dict[str, Any]], sql: str = "", style: str = "journalistic",
+                   spent: dict[str, dict[str, int]] | None = None) -> dict[str, Any]:
     """Answer text for the rows: LLM text when every number checks out, otherwise the fallback summary.
 
     Returns ``{"text", "source": "llm" | "fallback", "verified": bool, "caveats": [...], ...}``;
     ``rejected_numbers`` lists the numbers that made an LLM text fail the check; ``caveats`` are fixed
     Polish notes about data gaps that apply to these rows (see ``CAVEATS``); ``explanation`` describes the
-    query in Polish (``explain_sql``); ``style`` (``ANSWER_STYLES``) shapes the LLM text only.
+    query in Polish (``explain_sql``); ``style`` (``ANSWER_STYLES``) shapes the LLM text only. ``spent`` is
+    the question's token usage so far per model: when the answer call could cross ``QUESTION_COST_LIMIT_USD``
+    the fallback summary is used (``cost_limited``).
     """
     result: dict[str, Any] = {"text": fallback_answer(rows, is_english(question)), "source": "fallback", "verified": True,
                               "caveats": caveats(rows, sql), "explanation": explain_sql(sql)}
     if not rows or not ANSWER_SUMMARY_ENABLED or not OPENAI_API_KEY:
         return result
+    prompt = ANSWER_PROMPT + question + json.dumps(_rows_for_prompt(rows), ensure_ascii=False, default=str)
+    if not costs.within_limit(spent or {}, OPENAI_CHAT_MODEL, prompt, ANSWER_MAX_TOKENS):
+        return {**result, "cost_limited": True}
     try:
         text, tokens = _llm_answer(question, rows, style)
     except Exception as exc:  # the answer text is optional; rows are still returned

@@ -38,6 +38,9 @@ REPORT_FONT_DIR = os.getenv("REPORT_FONT_DIR", "/usr/share/fonts/truetype/dejavu
 # Validated question -> SQL pairs are reused for this long (seconds); 0 disables the cache.
 SQL_CACHE_TTL_SECONDS = int(os.getenv("SQL_CACHE_TTL_SECONDS", "3600"))
 SQL_CACHE_MAX_ENTRIES = int(os.getenv("SQL_CACHE_MAX_ENTRIES", "512"))
+# Ceiling of the OpenAI cost of one question in USD (prices: LLM_PRICES_USD_PER_1M): no call that could cross it
+# (the repair, clarification queries or the answer text are skipped then); 0 disables.
+QUESTION_COST_LIMIT_USD = float(os.getenv("QUESTION_COST_LIMIT_USD", "0.05"))
 # Semantic SQL cache: a new question reuses the validated SQL of an earlier one at this cosine similarity of their
 # embeddings (and the same entities, numbers, elections and meaning words); 0 disables it.
 SEMANTIC_CACHE_MIN_SIMILARITY = float(os.getenv("SEMANTIC_CACHE_MIN_SIMILARITY", "0.92"))

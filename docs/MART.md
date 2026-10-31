@@ -815,6 +815,7 @@ the matched entities, examples used, `schema_relations`, `prompt_chars` and per-
 | `MART_MAX_PLAN_COST` | `5000000` | Planner cost above which a generated query is not run but repaired (0 disables); the heaviest evaluation reference query costs about 360k, and `run_eval.py --check` fails a reference query above the limit |
 | `OPENAI_CHAT_MODEL` / `OPENAI_REPAIR_MODEL` | `gpt-4o-mini` / `gpt-4o` | First SQL attempt (also clarification queries and answer text) / the repair after a failed query; set both to one model to turn routing off |
 | `SQL_CACHE_TTL_SECONDS` / `SQL_CACHE_MAX_ENTRIES` | `3600` / `512` | Validated SQL cache (0 disables) |
+| `QUESTION_COST_LIMIT_USD` | `0.05` | OpenAI cost ceiling of one question (prices from `LLM_PRICES_USD_PER_1M`); 0 disables |
 | `SEMANTIC_CACHE_MIN_SIMILARITY` | `0.92` | Cosine similarity at which a paraphrase reuses a cached SQL (0 disables the semantic cache) |
 | `SQL_EXAMPLES_INDEX` / `SQL_EXAMPLES_K` | `sql_examples` / `4` | Few-shot examples |
 | `ANSWER_SUMMARY_ENABLED` | `1` | LLM answer text (numbers are always checked) |

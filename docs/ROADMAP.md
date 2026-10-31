@@ -132,7 +132,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 41. Testy prompt injection (pytania, nazwy komitetów i osób).
 - [x] 42. Panel kosztów: tokeny dziennie według klucza i modelu.
 - [x] 43. Cache semantyczny: podobne pytanie → ten sam zwalidowany SQL.
-- [ ] 44. Limit kosztu jednego pytania.
+- [x] 44. Limit kosztu jednego pytania.
 - [ ] 45. Tryb awaryjny: przy błędzie OpenAI tryb „Przeglądaj” zamiast szablonów Sejmu.
 - [ ] 46. Inny dostawca LLM (np. Azure OpenAI w UE) przez konfigurację.
 - [ ] 47. Anonimizacja logów przed analizą przez LLM.

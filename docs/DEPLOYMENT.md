@@ -110,6 +110,14 @@ returns the rows with a USD estimate from `LLM_PRICES_USD_PER_1M`; it needs one 
 when `API_KEYS` is set and no admin key is configured). The UI shows it at `?panel=koszty`, where the admin
 key is typed in; do not give the UI an admin key. Speech transcription and embeddings are not counted.
 
+`QUESTION_COST_LIMIT_USD` (default 0.05) caps one question: every model call has an output ceiling
+(`max_tokens`), and before each call the cost so far plus that call priced from above (prompt length / 3
+tokens, full output) must stay within the limit. Otherwise the call is skipped: no repair (status
+`failed`, `cost_limited` in the meta), clarification options without ready queries, or the deterministic
+summary instead of the model's text. A model without a price in `LLM_PRICES_USD_PER_1M` counts as free,
+so add a price when you change `OPENAI_CHAT_MODEL` or `OPENAI_REPAIR_MODEL`. The question log has
+`cost_usd` per question.
+
 ## Backups
 
 `scripts/backup_db.sh` writes a compressed `pg_dump` (custom format) to `backups/` (gitignored) and

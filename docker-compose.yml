@@ -56,6 +56,7 @@ services:
       # Keys that may read GET /costs (the cost panel, ?panel=koszty in the UI).
       ADMIN_API_KEYS: ${ADMIN_API_KEYS:-}
       LLM_PRICES_USD_PER_1M: ${LLM_PRICES_USD_PER_1M:-}
+      QUESTION_COST_LIMIT_USD: ${QUESTION_COST_LIMIT_USD:-0.05}
       OPENSEARCH_URL: http://opensearch:9200
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}

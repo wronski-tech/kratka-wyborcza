@@ -548,6 +548,20 @@ class TestAnswerNumbers(unittest.TestCase):
             result = answer.compose_answer("Wynik PiS?", self.ROWS)
         self.assertEqual((result["source"], result["rejected_numbers"]), ("fallback", ["40"]))
 
+    def test_answer_text_stays_within_the_question_cost_limit(self) -> None:
+        rows = [{"party": "PiS", "pct": 35.38}]
+        prices = {"gpt-4o-mini": [0.15, 0.075, 0.6], "gpt-4o": [2.5, 1.25, 10.0]}
+        with patch.object(answer, "OPENAI_API_KEY", "k"), patch.object(answer, "ANSWER_SUMMARY_ENABLED", True), \
+                patch.object(answer, "OPENAI_CHAT_MODEL", "gpt-4o-mini"), patch("api.services.config.LLM_PRICES_USD_PER_1M", prices), \
+                patch("api.services.config.QUESTION_COST_LIMIT_USD", 0.05), \
+                patch.object(answer, "_llm_answer", return_value=("PiS: 35,4%.", {})) as llm:
+            # 19 950 prompt tokens on gpt-4o already cost 0.049875 USD; 400 output tokens of gpt-4o-mini add 0.00024.
+            spent = {"gpt-4o": {"prompt_tokens": 19_950}}
+            limited = answer.compose_answer("Wynik PiS?", rows, spent=spent)
+            self.assertEqual((limited["source"], limited.get("cost_limited")), ("fallback", True))
+            llm.assert_not_called()
+            self.assertEqual(answer.compose_answer("Wynik PiS?", rows, spent={"gpt-4o": {"prompt_tokens": 10_000}})["source"], "llm")
+
     def test_answer_style_reaches_the_model(self) -> None:
         def system_prompt(style: str) -> str:
             client = MagicMock()
@@ -1238,6 +1252,25 @@ class TestDynamicQueryFlow(unittest.TestCase):
                 _, _, _, meta = dynamic_sql.try_dynamic_query(question)
             self.assertEqual(meta["status"], "rejected")
             run_mock.assert_not_called()
+
+    def test_question_cost_limit_skips_calls_that_could_cross_it(self) -> None:
+        """Default prices: first pass on gpt-4o-mini about 0.0015 USD at most, a repair on gpt-4o about 0.025 USD
+        (prompt ~1 500 tokens, up to 2 000 output tokens)."""
+        def run(sql: str):
+            raise psycopg.errors.UndefinedColumn('column "x" does not exist')
+
+        for limit, calls, status in ((0.0, 2, "failed"), (0.05, 2, "failed"), (0.01, 1, "failed"), (0.001, 0, "skipped")):
+            dynamic_sql.SQL_CACHE._data.clear()
+            llm = MagicMock(return_value=("SELECT x FROM mart.v_turnout LIMIT 5", {"prompt_tokens": 1500, "completion_tokens": 150}, {}))
+            with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "_llm_sql", llm), \
+                    patch.object(dynamic_sql, "OPENAI_CHAT_MODEL", "gpt-4o-mini"), patch.object(dynamic_sql, "OPENAI_REPAIR_MODEL", "gpt-4o"), \
+                    patch.object(dynamic_sql, "SEMANTIC_CACHE_MIN_SIMILARITY", 0), \
+                    patch("api.services.config.QUESTION_COST_LIMIT_USD", limit), \
+                    patch("api.services.config.LLM_PRICES_USD_PER_1M", {"gpt-4o-mini": [0.15, 0.075, 0.6], "gpt-4o": [2.5, 1.25, 10.0]}), \
+                    patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=run):
+                _, _, _, meta = dynamic_sql.try_dynamic_query("Frekwencja w 2023?")
+            self.assertEqual((llm.call_count, meta["status"]), (calls, status), limit)
+            self.assertEqual(meta.get("cost_limited"), {0.01: "repaired", 0.001: "first_pass"}.get(limit), limit)
 
     def test_paraphrase_reuses_validated_sql_only_with_the_same_meaning(self) -> None:
         dynamic_sql.SEMANTIC_CACHE._data.clear()

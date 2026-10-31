@@ -44,6 +44,7 @@ from api.services.config import (
     SQL_CACHE_MAX_ENTRIES,
     SQL_CACHE_TTL_SECONDS,
 )
+from api.services import costs
 from api.services.embeddings import embed_texts
 from api.services.mart import entities, examples, safe_sql
 
@@ -178,6 +179,11 @@ class _SqlCache:
 
 
 SQL_CACHE = _SqlCache(SQL_CACHE_MAX_ENTRIES, SQL_CACHE_TTL_SECONDS)
+
+# Output ceilings of the model calls (a plan with one or a few queries; one query per interpretation): they
+# bound the cost of every call for the per-question limit (``costs.within_limit``).
+SQL_MAX_TOKENS = 2000
+INTERPRETATIONS_MAX_TOKENS = 3000
 
 
 # Words that change what a question asks while barely moving its embedding ("najwyższa" / "najniższa
@@ -462,6 +468,7 @@ def _llm_sql(
     response = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
         model=OPENAI_REPAIR_MODEL if previous_sql else OPENAI_CHAT_MODEL,
         temperature=0,
+        max_tokens=SQL_MAX_TOKENS,
         response_format={"type": "json_object"},
         messages=[
             {
@@ -510,6 +517,7 @@ def _llm_interpretations(question: str, context: str, options: list[dict]) -> tu
     response = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
         model=OPENAI_CHAT_MODEL,
         temperature=0,
+        max_tokens=INTERPRETATIONS_MAX_TOKENS,
         response_format={"type": "json_object"},
         messages=[
             {
@@ -560,6 +568,9 @@ def add_interpretations(
         return plain
     try:
         context, version, _ = build_context(question, matches, previous)
+        if not costs.within_limit(by_model, OPENAI_CHAT_MODEL, SQL_RULES + context + question, INTERPRETATIONS_MAX_TOKENS):
+            log.info("clarification interpretations skipped: question cost limit")
+            return plain
         found, used = _llm_interpretations(question, context, options)
     except Exception as exc:  # interpretations are an optimisation; the plain choice still works
         log.warning("clarification interpretations skipped: %s", exc)
@@ -838,11 +849,18 @@ def try_dynamic_query(
     error: str | None = None
     repair_note: str | None = None
     for attempt in ("first_pass", "repaired"):
+        model = OPENAI_REPAIR_MODEL if attempt == "repaired" else OPENAI_CHAT_MODEL
+        prompt = SQL_RULES + context + question + (sql or "") + (repair_note or "")
+        if OPENAI_API_KEY and not costs.within_limit(by_model, model, prompt, SQL_MAX_TOKENS):
+            limited = "Question cost limit (QUESTION_COST_LIMIT_USD) reached before the " + attempt.replace("_", " ")
+            log.info("dynamic SQL: %s", limited)
+            status = "skipped" if attempt == "first_pass" else "failed"
+            return [], sql, error or limited, {**meta, "status": status, "phase": attempt, "error": error or limited,
+                                               "cost_limited": attempt}
         try:
             phase = time.monotonic()
             raw, used, notes = _llm_sql(question, context, previous_sql=sql, previous_error=repair_note)
             timings[f"llm_{attempt}"] = _ms(phase)
-            model = OPENAI_REPAIR_MODEL if attempt == "repaired" else OPENAI_CHAT_MODEL
             meta.setdefault("models", {})[attempt] = model
             for key in ("plan", "chart"):
                 if notes.get(key):
