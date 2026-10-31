@@ -26,6 +26,9 @@ MART_MAX_PLAN_COST = float(os.getenv("MART_MAX_PLAN_COST", "5000000"))
 MART_DEFAULT_READER_PASSWORD = "plujka_mart_reader"
 # "development" or "production". Production refuses to start with default credentials.
 PLUJKA_ENV = os.getenv("PLUJKA_ENV", "development").strip().lower()
+# Folder with DejaVuSans.ttf and DejaVuSans-Bold.ttf for the PDF reports (Polish letters); Debian's
+# fonts-dejavu-core installs them here (docker/api.Dockerfile).
+REPORT_FONT_DIR = os.getenv("REPORT_FONT_DIR", "/usr/share/fonts/truetype/dejavu")
 # Validated question -> SQL pairs are reused for this long (seconds); 0 disables the cache.
 SQL_CACHE_TTL_SECONDS = int(os.getenv("SQL_CACHE_TTL_SECONDS", "3600"))
 SQL_CACHE_MAX_ENTRIES = int(os.getenv("SQL_CACHE_MAX_ENTRIES", "512"))

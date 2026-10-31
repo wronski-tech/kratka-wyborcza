@@ -7,3 +7,4 @@ pydantic==2.14.2
 xlrd==2.0.2
 sqlglot==25.34.1
 redis==5.0.8
+fpdf2==2.8.8

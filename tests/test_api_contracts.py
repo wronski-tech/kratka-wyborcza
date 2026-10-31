@@ -5,11 +5,14 @@ from __future__ import annotations
 import io
 import unittest
 import zipfile
+from pathlib import Path
 from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+
+from api.services import config, report_pdf
 
 from api.main import (
     AskResponse,
@@ -247,6 +250,16 @@ class TestBrowseEndpoints(unittest.TestCase):
         if "v_gus_units" in sql:
             return [{"year": 2024, "name": "Gdów", "population": Decimal("21000")}]
         return [{"election": "sejm", "year": 2023, "round": 1, "name": "KO", "votes": Decimal("100"), "pct": Decimal("40.5")}]
+
+    @unittest.skipUnless((Path(config.REPORT_FONT_DIR) / "DejaVuSans.ttf").exists(), "DejaVu fonts not installed")
+    def test_unit_pdf_report(self) -> None:
+        response = self.client.get("/pdf/units/121903")
+        self.assertEqual((response.status_code, response.headers["content-type"]), (200, "application/pdf"))
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn('filename="plujka-121903.pdf"', response.headers["content-disposition"])
+        self.assertEqual(self.client.get("/pdf/units/999999").status_code, 404)
+        self.assertEqual(report_pdf.number(Decimal("7640753")), "7 640 753")
+        self.assertEqual(report_pdf.number(39.0, 2), "39,00")
 
     def test_unit_level_from_key(self) -> None:
         for unit, level, column in [("121903", "gmina", "teryt_gmina"), ("1219", "powiat", "teryt_powiat"),

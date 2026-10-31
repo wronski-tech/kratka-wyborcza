@@ -22,7 +22,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Reques
 from psycopg.conninfo import conninfo_to_dict
 from pydantic import BaseModel, ConfigDict, Field
 
-from api.services import answer, config, db, dynamic_sql, feedback_store, opensearch_store, router
+from api.services import answer, config, db, dynamic_sql, feedback_store, opensearch_store, report_pdf, router
 from api.services.mart import derived as mart_derived
 from api.services.mart import examples as sql_examples
 from api.services.mart import safe_sql
@@ -1425,6 +1425,38 @@ def get_unit(unit: str = Path(max_length=40, description="Gmina TERYT (6 digits)
         "winners": _mart_rows(UNIT_WINNERS_SQL, params),
         "gus": gus[0] if gus else None,
     })
+
+
+PDF_RESPONSE: dict[int | str, dict[str, Any]] = {200: {"content": {"application/pdf": {}}}, 404: {"description": "Not loaded"}}
+
+
+def _pdf(content: bytes, name: str) -> Response:
+    return Response(content, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@app.get("/pdf/units/{unit}", tags=["browse"], dependencies=[Depends(require_api_key)], response_class=Response,
+         responses=PDF_RESPONSE)
+def unit_pdf(unit: str = Path(max_length=40, description="Gmina TERYT (6 digits), powiat TERYT (4 digits) or voivodeship name")) -> Response:
+    """PDF report of one unit: the unit card (GUS statistics, turnout and winner of every election). Fixed SQL."""
+    card = get_unit(unit).model_dump()
+    return _pdf(report_pdf.unit_report(card), f"plujka-{re.sub(r'[^0-9A-Za-z-]+', '_', unit)}.pdf")
+
+
+@app.get("/pdf/elections/{election}/{year}", tags=["browse"], dependencies=[Depends(require_api_key)],
+         response_class=Response, responses=PDF_RESPONSE)
+def election_pdf(
+    election: Literal[RESULT_ELECTIONS] = Path(),  # type: ignore[valid-type]
+    year: int = Path(ge=1989, le=2100),
+) -> Response:
+    """PDF report of one election: the election card and the national results of every round. Fixed SQL."""
+    rounds = sorted(r["round"] for r in _mart_rows(ELECTIONS_SQL, {}) if (r["election"], r["year"]) == (election, year))
+    if not rounds:
+        raise HTTPException(status_code=404, detail="Election not loaded.")
+    content = report_pdf.election_report([
+        (election_card(election, year, rnd).model_dump(), get_results(election, year, rnd, "country", None, None).model_dump()["rows"])
+        for rnd in rounds
+    ])
+    return _pdf(content, f"plujka-{election}-{year}.pdf")
 
 
 class SeatSimulationRow(BaseModel):

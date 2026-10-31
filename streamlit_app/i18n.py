@@ -10,6 +10,7 @@ EN = {
     "Wyślij zapytanie": "Ask",
     "Dopytaj o poprzedni wynik": "Follow up on the previous result",
     "Możesz dopytać:": "You can ask next:",
+    "Przygotuj raport PDF": "Prepare a PDF report",
     "Styl odpowiedzi": "Answer style",
     "Dziennikarski": "Journalistic",
     "Techniczny": "Technical",

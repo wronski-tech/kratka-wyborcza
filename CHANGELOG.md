@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- PDF reports: `GET /pdf/units/{teryt}` (unit card: GUS statistics, turnout and the winner of every election) and `GET /pdf/elections/{election}/{year}` (election card and national results of every round), with bars, Polish formatting and the sources in the footer; „Przygotuj raport PDF” on the unit and election cards. Fixed SQL, no model; fpdf2 with DejaVu Sans (`fonts-dejavu-core` in the API image, `REPORT_FONT_DIR`).
+
 - Answer style: `/ask` takes `style` (`journalistic`, default: plain language, rounded; `technical`: exact values, named measures and units), chosen in the UI next to the question; the number check is the same for both, and the technical style opens the SQL section.
 
 - Suggested follow-up questions: answers from generated SQL carry up to three next questions (`answer.follow_ups`) built from the result and the loaded elections, without the model: the previous election of the same kind, a finer territorial level and the change against that election; a click in the UI asks one as a follow-up.

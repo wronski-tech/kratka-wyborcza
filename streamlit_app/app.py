@@ -1037,6 +1037,7 @@ def _election_card(kind: str, year: int, rnd: int) -> None:
     st.caption(" · ".join(n for n in notes if n))
     if kind in RESULT_ELECTIONS:
         _package_download(kind, year)
+        _pdf_download(f"/pdf/elections/{kind}/{year}", f"plujka-{kind}-{year}.pdf", "election_pdf")
     sources = _source_files_markdown([(kind, year)])
     checks = _api_get(f"/checks/{kind}/{year}") or []
     left, right, _ = st.columns([1, 1, 2])
@@ -1089,6 +1090,25 @@ def _package_download(kind: str, year: int) -> None:
         st.session_state["package_name"], st.session_state["package_bytes"] = name, response.content
     slot.download_button(f"Pobierz {name}", data=st.session_state["package_bytes"], file_name=name,
                        mime="application/zip", key="package_download")
+
+
+def _pdf_download(path: str, name: str, key: str) -> None:
+    """PDF report from the API (fixed SQL), fetched on request and kept until another report is chosen."""
+    slot = st.empty()
+    if st.session_state.get(f"{key}_name") != name:
+        if not slot.button(_t("Przygotuj raport PDF"), key=f"{key}_prepare"):
+            return
+        try:
+            response = requests.get(f"{API_URL}{path}", headers=API_HEADERS, timeout=120)
+        except requests.RequestException as error:
+            st.error(f"Coś poszło nie tak z API: {error}")
+            return
+        if not response.ok:
+            st.error(f"Nie udało się przygotować raportu: HTTP {response.status_code}")
+            return
+        st.session_state[f"{key}_name"], st.session_state[f"{key}_bytes"] = name, response.content
+    slot.download_button(f"Pobierz {name}", data=st.session_state[f"{key}_bytes"], file_name=name,
+                         mime="application/pdf", key=f"{key}_download")
 
 
 def _unit_rows(rows: list[dict], level: str, value: str) -> list[dict]:
@@ -1370,6 +1390,7 @@ def _unit_card() -> None:
             st.markdown("**Zwycięzcy**")
             st.dataframe(winners.rename(columns={"election": "wybory", "year": "rok", "round": "tura", "name": "komitet / kandydat",
                                                  "votes": "głosy", "pct": "%"}), hide_index=True, use_container_width=True)
+        _pdf_download(f"/pdf/units/{card['unit']}", f"plujka-{card['unit']}.pdf", "unit_pdf")
 
 
 SEAT_METHODS = {
