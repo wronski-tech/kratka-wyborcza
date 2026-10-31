@@ -500,7 +500,7 @@ class AskResponse(BaseModel):
     )
     answer: dict[str, Any] | None = Field(
         default=None,
-        description="Answer text: {text, source: llm|fallback|docs|refusal, verified, caveats}; LLM text only when its numbers match the rows; docs: a definition from docs/DEFINITIONS.md with `sources`; refusal: a fixed text for polls, forecasts and future results; caveats are fixed notes about data gaps; follow_ups: up to three questions to ask next with this turn as `previous` (dynamic SQL answers only); explanation: Polish lines describing the SQL (sources, conditions, calculations, grouping, order), derived from the query itself",
+        description="Answer text: {text, source: llm|fallback|docs|refusal, verified, caveats}; LLM text only when its numbers match the rows; docs: a definition from docs/DEFINITIONS.md with `sources`; refusal: a fixed text for polls, forecasts and future results; caveats are fixed notes about data gaps; follow_ups: up to three questions to ask next with this turn as `previous` (dynamic SQL answers only); empty_reasons: why the query found no rows (an election-year not loaded, or the conditions no row met); explanation: Polish lines describing the SQL (sources, conditions, calculations, grouping, order), derived from the query itself",
     )
     clarification: dict[str, Any] | None = Field(
         default=None,
@@ -1510,12 +1510,17 @@ def ask(request: AskRequest, http_request: Request, api_key: str | None = Depend
     if not result.get("clarification") and not result.get("answer"):
         result["answer"] = answer.compose_answer(request.question, result.get("result") or [], result.get("sql") or "",
                                                  style=request.style)
-        if result.get("intent") == "dynamic_sql" and result.get("result"):
-            try:  # follow-ups need the loaded years; an answer without them is still complete
-                result["answer"]["follow_ups"] = answer.follow_ups(
-                    request.question, result["result"], result.get("sql") or "", dynamic_sql.loaded_years())
+        if result.get("sql") and (result.get("intent") == "dynamic_sql" or not result.get("result")):
+            try:  # follow-ups and empty-result reasons need the loaded years; the answer is complete without them
+                loaded = dynamic_sql.loaded_years()
+                if result.get("result"):
+                    result["answer"]["follow_ups"] = answer.follow_ups(
+                        request.question, result["result"], result["sql"], loaded)
+                elif (result.get("params") or {}).get("_dynamic_sql_meta", {}).get("status") not in ("failed", "rejected", "skipped"):
+                    # Only a query that ran found no rows; a failed one has no conditions to explain.
+                    result["answer"]["empty_reasons"] = answer.explain_empty(result["sql"], loaded)
             except psycopg.Error as exc:
-                log.warning("follow-up suggestions skipped: %s", exc)
+                log.warning("follow-ups and empty-result reasons skipped: %s", exc)
     result["result"] = [{k: _json_value(v) for k, v in row.items()} for row in result.get("result") or []]
     telemetry = _telemetry(result, started)
     token_budget.add(client_key, telemetry["prompt_tokens"] + telemetry["completion_tokens"])

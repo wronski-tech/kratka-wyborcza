@@ -13,15 +13,12 @@ from typing import Any
 
 from fpdf import FPDF
 
+from api.services.answer import ELECTION_NAMES
 from api.services.config import REPORT_FONT_DIR
 
 # fontTools logs every font subset at INFO.
 logging.getLogger("fontTools").setLevel(logging.WARNING)
 
-ELECTION_NAMES = {
-    "sejm": "Sejm", "senat": "Senat", "prezydent": "Prezydent", "pe": "Parlament Europejski",
-    "referendum": "Referendum", "sejmik": "Sejmiki", "wbp": "Wójtowie i burmistrzowie",
-}
 LEVEL_NAMES = {"gmina": "gmina", "powiat": "powiat", "wojewodztwo": "województwo"}
 SOURCES = ("Źródła: oficjalne wyniki PKW i KBW (danewyborcze.kbw.gov.pl), statystyki GUS, Bank Danych "
            "Lokalnych (CC BY 4.0). Każda liczba pochodzi z zapytania SQL do bazy Plujki, bez modelu językowego.")

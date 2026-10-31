@@ -579,6 +579,17 @@ class TestAnswerNumbers(unittest.TestCase):
         # Two rows or rows without a label keep the first-row summary.
         self.assertIn("Pierwszy:", answer.fallback_answer([{"year": 2019, "pct": 1.0}, {"year": 2023, "pct": 2.0}, {"year": 2024, "pct": 3.0}]))
 
+    def test_empty_result_is_explained(self) -> None:
+        loaded = {"sejm": [2019, 2023], "prezydent": [2020, 2025]}
+        self.assertEqual(answer.explain_empty("SELECT * FROM mart.v_turnout WHERE election = 'sejm' AND year = 2021", loaded),
+                         ["W bazie nie ma wyborów: Sejm 2021. Wczytane lata: 2019, 2023."])
+        narrow = ("SELECT * FROM mart.v_party_results WHERE election = 'sejm' AND year = 2023 AND level = 'gmina' "
+                  "AND teryt_gmina = '999999'")
+        self.assertEqual(answer.explain_empty(narrow, loaded), [
+            "Żaden wiersz nie spełnia warunków zapytania (wybory = sejm; rok = 2023; poziom = gmina; kod gminy = 999999). "
+            "Sprawdź pisownię nazw i lata albo zapytaj szerzej."])
+        self.assertEqual(answer.explain_empty("SELECT payload FROM kbw_facts", loaded), [])
+
     def test_follow_ups_come_from_the_result(self) -> None:
         loaded = {"sejm": [2015, 2019, 2023], "pe": [2019, 2024]}
         by_voivodeship = [{"wojewodztwo": "mazowieckie", "party": "PiS", "pct": 33.0}, {"wojewodztwo": "lubelskie", "party": "PiS", "pct": 48.0}]

@@ -119,7 +119,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 32. Styl odpowiedzi: dziennikarski / techniczny.
 - [x] 33. Raport PDF dla gminy lub wyborów.
 - [x] 34. Opis mapy tekstem (dostępność).
-- [ ] 35. Wyjaśnienie pustego wyniku.
+- [x] 35. Wyjaśnienie pustego wyniku.
 
 **Interakcja**
 - [ ] 36. Wejście głosowe.

@@ -117,6 +117,16 @@ class TestAskEndpoint(unittest.TestCase):
         answer = self.client.post("/ask", json={"question": "Wynik PiS w 2023?"}).json()["answer"]
         self.assertEqual(answer["follow_ups"], ["A w 2019?", "A w podziale na województwa?", "Jak to się zmieniło w porównaniu z 2019?"])
 
+    def test_empty_result_reasons(self) -> None:
+        sql = "SELECT pct FROM mart.v_party_results WHERE election = 'sejm' AND year = 2021"
+        failed = {**self.ROUTED, "sql": sql, "result": [], "params": {"_dynamic_sql_meta": {"status": "failed"}}}
+        with patch("api.main.answer.compose_answer", side_effect=lambda *a, **k: {"text": "t", "source": "fallback"}):
+            self.route.return_value = {**self.ROUTED, "sql": sql, "result": []}
+            answer = self.client.post("/ask", json={"question": "Wynik PiS w 2021?"}).json()["answer"]
+            self.assertEqual(answer["empty_reasons"], ["W bazie nie ma wyborów: Sejm 2021. Wczytane lata: 2019, 2023."])
+            self.route.return_value = failed
+            self.assertNotIn("empty_reasons", self.client.post("/ask", json={"question": "q"}).json()["answer"])
+
     def test_answer_style_is_passed_and_checked(self) -> None:
         self.route.side_effect = lambda *a, **k: dict(self.ROUTED)
         with patch("api.main.answer.compose_answer", return_value={"text": "t", "source": "fallback"}) as compose:

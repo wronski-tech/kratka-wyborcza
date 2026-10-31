@@ -567,7 +567,8 @@ def _render_result_emotes(data: dict) -> None:
     """Small visual summary for the first row in results."""
     rows = data.get("result") or []
     if not rows:
-        st.info("😕 Brak wyników dla tego pytania.")
+        reasons = (data.get("answer") or {}).get("empty_reasons") or []
+        st.info("😕 Brak wyników dla tego pytania." + "".join(f"\n\n{r}" for r in reasons))
         return
 
     first = rows[0] if isinstance(rows[0], dict) else {}

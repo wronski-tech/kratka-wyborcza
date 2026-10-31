@@ -777,7 +777,9 @@ SQL and the loaded years, never by the model: the previous election of the same 
 finer level („A w podziale na powiaty?”) and the change against that election; the UI asks a clicked one
 as a follow-up of the answer. `style` of `/ask` (`journalistic`, the default, or `technical`) adds one
 line from `answer.ANSWER_STYLES` to the answer prompt; the number check and the fallback are the same,
-and the UI opens the SQL section in the technical style. They contain no
+and the UI opens the SQL section in the technical style. A query that ran and found no rows gets
+`answer.empty_reasons` (`answer.explain_empty`): an election-year that is not loaded, with the loaded
+years, otherwise the conditions no row met, read from the SQL; a failed query gets none. They contain no
 numbers of their own. When you document a new known gap that changes how a result reads, add a rule.
 
 ## Observability

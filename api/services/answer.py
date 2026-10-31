@@ -431,6 +431,29 @@ def follow_ups(question: str, rows: list[dict[str, Any]], sql: str, loaded: dict
     return out[:3]
 
 
+ELECTION_NAMES = {
+    "sejm": "Sejm", "senat": "Senat", "prezydent": "Prezydent", "pe": "Parlament Europejski",
+    "referendum": "Referendum", "sejmik": "Sejmiki", "wbp": "Wójtowie i burmistrzowie", "rada": "Rady",
+}
+
+
+def explain_empty(sql: str, loaded: dict[str, list[int]]) -> list[str]:
+    """Polish reasons why a query returned no rows: an election-year that is not loaded (with the loaded
+    years), otherwise the conditions no row met (read from the SQL). Facts come from ``loaded`` only."""
+    reasons = []
+    for election in sorted(_sql_values(sql, "election") & set(loaded)):
+        missing = sorted(int(y) for y in _sql_values(sql, "year") if y.isdigit() and int(y) not in loaded[election])
+        if missing:
+            reasons.append(f"W bazie nie ma wyborów: {ELECTION_NAMES.get(election, election)} "
+                           f"{', '.join(map(str, missing))}. Wczytane lata: {', '.join(map(str, loaded[election]))}.")
+    if not reasons:
+        conditions = next((line for line in explain_sql(sql) if line.startswith("Warunki: ")), None)
+        if conditions:
+            reasons.append("Żaden wiersz nie spełnia warunków zapytania (" + conditions[len("Warunki: "):].rstrip(".")
+                           + "). Sprawdź pisownię nazw i lata albo zapytaj szerzej.")
+    return reasons
+
+
 def explain_sql(sql: str) -> list[str]:
     """Polish description of what a mart query does (sources, conditions, calculations, grouping, order),
     read from the SQL itself, so it never differs from the query that produced the rows. Empty when the
