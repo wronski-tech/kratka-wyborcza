@@ -4,10 +4,23 @@ from __future__ import annotations
 
 import unittest
 
-from streamlit_app.chart_columns import line_series, numeric_columns, scatter_columns
+from streamlit_app.chart_columns import chart_kind, line_series, numeric_columns, scatter_columns
 
 
 class TestChartColumns(unittest.TestCase):
+    def test_model_chart_choice_only_when_the_rows_fit(self) -> None:
+        trend = [{"year": y, "party": p, "pct": 30.0 + i} for i, (y, p) in enumerate((y, p) for y in (2019, 2023) for p in ("PiS", "KO"))]
+        units = [{"wojewodztwo": f"W{n}", "teryt": f"{n:02d}", "pct": 30.0 + n, "turnout_pct": 60.0 + n} for n in range(3)]
+        # A time series: the deterministic rule draws a line; the model may prefer bars only when labels are distinct.
+        self.assertEqual(chart_kind(trend, None, 40), ("line", ("party",)))
+        self.assertEqual(chart_kind(trend, "bar", 40), ("line", ("party",)), "repeated party labels do not fit bars")
+        self.assertEqual(chart_kind(units, "bar", 40), ("bar", ("wojewodztwo", "pct")))
+        self.assertEqual(chart_kind(units, None, 40), ("scatter", ("wojewodztwo", "pct", "turnout_pct")))
+        self.assertEqual(chart_kind(units, "line", 40), ("scatter", ("wojewodztwo", "pct", "turnout_pct")), "no years")
+        self.assertIsNone(chart_kind(units, "none", 40))
+        self.assertEqual(chart_kind(units, "pie", 40)[0], "scatter")
+        self.assertIsNone(chart_kind(units * 20, "bar", 40), "too many bars, repeated units")
+
     def test_codes_are_not_measures(self) -> None:
         row = {
             "year": 2023, "round": 1, "teryt_powiat": "1465", "district_no": 19, "person_id": 7,

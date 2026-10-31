@@ -111,8 +111,8 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 
 **Odpowiedzi**
 - [x] 26. Wyjaśnienie zapytania po polsku, generowane z SQL.
-- [ ] 27. Wybór typu wykresu spośród dozwolonych, reguła deterministyczna jako zabezpieczenie.
-- [ ] 28. Tytuły i podpisy wykresów.
+- [x] 27. Wybór typu wykresu spośród dozwolonych, reguła deterministyczna jako zabezpieczenie.
+- [x] 28. Tytuły i podpisy wykresów.
 - [ ] 29. Podsumowanie dużego wyniku (liczby z wierszy).
 - [ ] 30. Zastrzeżenia dobrane do wyniku.
 - [ ] 31. Proponowane pytania uzupełniające.

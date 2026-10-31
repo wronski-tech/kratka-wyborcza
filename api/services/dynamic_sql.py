@@ -81,7 +81,13 @@ SQL_RULES = f"""Rules:
 - Plan before writing SQL: first fill "plan" with 2-4 short English lines - which relations, which
   filters (election, year, round, level, units, entities' keys), which grouping and output columns -
   then write the SQL that follows the plan.
-Return JSON: {{"plan": "...", "sql": "..."}} (or {{"plan": "...", "parts": [...]}})"""
+- Pick the chart for the rows: "bar" (one number per unit or committee), "line" (values over years),
+  "scatter" (two measures per territorial unit), or "none" (one row, lists of names); give it a short
+  Polish title with no numbers except years named in the question.
+Return JSON: {{"plan": "...", "sql": "...", "chart": {{"type": "...", "title": "..."}}}}
+(or {{"plan": "...", "parts": [...]}})"""
+
+CHART_TYPES = ("bar", "line", "scatter", "none")
 
 # A multi-part answer is kept as one text: "-- part: <title>" + SELECT, parts joined by PART_SEPARATOR.
 PART_SEPARATOR = "\n;\n"
@@ -351,11 +357,12 @@ def _usage(response: Any) -> dict[str, int]:
 
 def _llm_sql(
     question: str, context: str, previous_sql: str | None = None, previous_error: str | None = None
-) -> tuple[str, dict[str, int], str]:
-    """Ask the chat model for a query plan and the SQL that follows it, in one call.
+) -> tuple[str, dict[str, int], dict[str, Any]]:
+    """Ask the chat model for a query plan, the SQL that follows it and a chart choice, in one call.
 
     The first attempt uses ``OPENAI_CHAT_MODEL``; a repair (``previous_sql`` set) the stronger
-    ``OPENAI_REPAIR_MODEL``. Returns (sql, token usage, plan). Raises ValueError when the response is unusable.
+    ``OPENAI_REPAIR_MODEL``. Returns (sql, token usage, notes) with notes ``{"plan": str, "chart": dict}``
+    (``_chart``). Raises ValueError when the response is unusable.
     """
     if not OPENAI_API_KEY:
         raise ValueError("OPENAI_API_KEY is missing.")
@@ -391,7 +398,18 @@ def _llm_sql(
         raise ValueError("Model returned no SQL.")
     plan = payload.get("plan")
     plan = "\n".join(str(p) for p in plan) if isinstance(plan, list) else str(plan or "").strip()
-    return sql, tokens, plan
+    return sql, tokens, {"plan": plan, "chart": _chart(payload.get("chart"), question)}
+
+
+def _chart(value: Any, question: str) -> dict[str, str]:
+    """The model's chart choice when its type is allowed; a title with numbers not in the question is dropped
+    (a title names the subject, it carries no facts). The UI still checks that the rows fit the type."""
+    if not isinstance(value, dict) or value.get("type") not in CHART_TYPES:
+        return {}
+    title = " ".join(str(value.get("title") or "").split())[:100]
+    if any(number not in question for number in re.findall(r"\d+", title)):
+        title = ""
+    return {"type": value["type"], **({"title": title} if title else {})}
 
 
 MAX_INTERPRETATIONS = 4
@@ -702,11 +720,12 @@ def try_dynamic_query(
     for attempt in ("first_pass", "repaired"):
         try:
             phase = time.monotonic()
-            raw, used, plan = _llm_sql(question, context, previous_sql=sql, previous_error=repair_note)
+            raw, used, notes = _llm_sql(question, context, previous_sql=sql, previous_error=repair_note)
             timings[f"llm_{attempt}"] = _ms(phase)
             meta.setdefault("models", {})[attempt] = OPENAI_REPAIR_MODEL if attempt == "repaired" else OPENAI_CHAT_MODEL
-            if plan:
-                meta["plan"] = plan
+            for key in ("plan", "chart"):
+                if notes.get(key):
+                    meta[key] = notes[key]
             for name, value in used.items():
                 tokens[name] = tokens.get(name, 0) + value
             sql = validate_parts(raw)

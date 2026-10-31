@@ -1,4 +1,5 @@
-"""Which result columns the UI charts: measures versus codes, and the label and axes of a scatter plot."""
+"""Which chart the UI draws for a result and from which columns: measures versus codes, the label and axes
+of a scatter plot, the series of a line chart, and Polish axis titles."""
 
 from __future__ import annotations
 
@@ -60,3 +61,52 @@ def line_series(rows: list[dict], max_series: int = 12) -> tuple[str | None] | N
     if len(set(keys)) != len(keys) or (series and len({k[1] for k in keys}) > max_series):
         return None
     return (series,)
+
+
+# Polish axis titles of common result columns; others are shown by name.
+AXIS_TITLES = {
+    "pct": "poparcie (%)", "votes": "głosy", "seats": "mandaty", "turnout_pct": "frekwencja (%)",
+    "change_pp": "zmiana (pkt proc.)", "prev_pct": "poparcie wcześniej (%)", "valid_votes": "głosy ważne",
+    "eligible_voters": "uprawnieni", "year": "rok", "party": "partia", "wojewodztwo": "województwo",
+    "committee_name": "komitet", "candidate": "kandydat", "r": "korelacja (r)",
+}
+# Chart types the model may pick (dynamic_sql.CHART_TYPES); the rows must still fit the type.
+CHART_KINDS = ("bar", "line", "scatter", "none")
+
+
+def axis_title(column: str) -> str:
+    return AXIS_TITLES.get(column, column)
+
+
+def value_column(rows: list[dict]) -> str | None:
+    """Column to chart: a change in points first, then a percentage, votes, seats, then any other number."""
+    numeric = numeric_columns(rows)
+    for pattern in ("_pp", "pct", "votes", "seats", "mandat"):
+        for name in numeric:
+            if pattern in name:
+                return name
+    return numeric[0] if numeric else None
+
+
+def bar_columns(rows: list[dict], max_rows: int) -> tuple[str, str] | None:
+    """(label, value) when each of 2..max_rows rows is one distinctly labelled item with a number, else None."""
+    if not 2 <= len(rows) <= max_rows:
+        return None
+    value = value_column(rows)
+    labels = [n for n, v in rows[0].items() if isinstance(v, str) and not n.startswith("teryt")]
+    if not value or not labels:
+        return None
+    names = [row.get(labels[0]) for row in rows if row.get(value) is not None]
+    if len(set(names)) != len(names):
+        return None
+    return labels[0], value
+
+
+def chart_kind(rows: list[dict], preferred: str | None, max_bar_rows: int) -> tuple[str, tuple] | None:
+    """(kind, columns) of the chart to draw: the model's ``preferred`` type when the rows fit it ("none": no
+    chart), otherwise the first that fits of scatter, line and bar (the deterministic rule); None for no chart."""
+    if preferred == "none":
+        return None
+    fits: dict[str, tuple | None] = {"scatter": scatter_columns(rows), "line": line_series(rows), "bar": bar_columns(rows, max_bar_rows)}
+    order = ([preferred] if preferred in fits else []) + list(fits)
+    return next(((kind, columns) for kind in order if (columns := fits[kind])), None)

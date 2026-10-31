@@ -716,7 +716,10 @@ would answer it from Sejm data.
    The model answers with a short query plan first (relations, filters, grouping, output columns) and
    then the SQL, in the same JSON response (`{"plan", "sql"}`), so it decides what to query before
    writing it, at no extra request. The plan of the query that ran is `params._dynamic_sql_meta.plan`
-   and shows above the SQL in the UI.
+   and shows above the SQL in the UI. The same response picks a chart (`"chart": {"type", "title"}`,
+   type one of `dynamic_sql.CHART_TYPES`, title without numbers the question does not name), kept in
+   `params._dynamic_sql_meta.chart`; the UI draws it only when the rows fit the type
+   (`chart_columns.chart_kind`), otherwise its deterministic choice.
 5. **Validation** (`mart/safe_sql.py`). sqlglot parses the query. Only one SELECT (CTEs and UNION
    allowed) over mart relations is accepted. DML, DDL, `SET`, `SELECT INTO`, `pg_*` functions and
    functions such as `set_config`, `dblink` or `nextval` are rejected, also when quoted

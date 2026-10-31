@@ -19,7 +19,7 @@ import requests
 import streamlit as st
 import vl_convert as vlc
 
-from chart_columns import line_series, numeric_columns, scatter_columns
+from chart_columns import axis_title, chart_kind, value_column
 from i18n import EN
 from map_units import boundaries, district_borders, feature_key, features_svg, is_osm, unit_values, visible_features, voivodeship_level
 
@@ -182,17 +182,16 @@ def _remember(question: str, data: dict, entity_refs: list[dict] | None, previou
     del history[HISTORY_SIZE:]
 
 
-def _value_column(rows: list[dict]) -> str | None:
-    """Column to chart: a percentage first, then votes, then any other number."""
-    numeric = numeric_columns(rows)
-    for pattern in ("pct", "votes", "seats", "mandat"):
-        for name in numeric:
-            if pattern in name:
-                return name
-    return numeric[0] if numeric else None
+def _chart_title(title: str | None, source: str | None) -> alt.TitleParams | str:
+    """Chart title with the data source as its subtitle, so an exported image carries both."""
+    if not title:  # Vega draws no subtitle under an empty title: the source alone, in the subtitle style
+        return alt.TitleParams(text=f"Źródło: {source}", anchor="start", fontSize=11, fontWeight="normal",
+                               color="#64748b") if source else ""
+    return alt.TitleParams(text=title, subtitle=f"Źródło: {source}" if source else "", anchor="start",
+                           fontSize=15, subtitleColor="#64748b")
 
 
-def _render_scatter(rows: list[dict], label: str, x: str, y: str) -> None:
+def _render_scatter(rows: list[dict], label: str, x: str, y: str, title: alt.TitleParams | str = "") -> None:
     """One point per territorial unit: first measure on x, second on y, unit name on hover."""
     frame = pd.DataFrame(rows)[[label, x, y]].dropna()
     if frame.empty:
@@ -201,27 +200,29 @@ def _render_scatter(rows: list[dict], label: str, x: str, y: str) -> None:
         alt.Chart(frame)
         .mark_circle(color="#6366f1", size=60, opacity=0.7)
         .encode(
-            x=alt.X(f"{x}:Q", title=x, scale=alt.Scale(zero=False)),
-            y=alt.Y(f"{y}:Q", title=y, scale=alt.Scale(zero=False)),
+            x=alt.X(f"{x}:Q", title=axis_title(x), scale=alt.Scale(zero=False)),
+            y=alt.Y(f"{y}:Q", title=axis_title(y), scale=alt.Scale(zero=False)),
             tooltip=[label, x, y],
         )
-        .properties(height=420, description=f"Wykres punktowy: {x} i {y} dla {len(frame)} jednostek ({label}).")
+        .properties(height=420, title=title,
+                    description=f"Wykres punktowy: {x} i {y} dla {len(frame)} jednostek ({label}).")
     )
     _altair(chart, f"wykres {x} {y}")
-    st.caption(f"Każdy punkt to jedna jednostka ({len(frame)}): {x} (oś pozioma) i {y} (oś pionowa).")
+    st.caption(f"Każdy punkt to jedna jednostka ({len(frame)}): {axis_title(x)} (oś pozioma) "
+               f"i {axis_title(y)} (oś pionowa).")
 
 
-def _render_line(rows: list[dict], series: str | None) -> None:
+def _render_line(rows: list[dict], series: str | None, title: alt.TitleParams | str = "") -> None:
     """Value over the years, one line per series (e.g. party) when the rows have one."""
-    value = _value_column(rows)
+    value = value_column(rows)
     frame = pd.DataFrame(rows)[["year", value] + ([series] if series else [])].dropna()
     encoding = {"color": alt.Color(f"{series}:N", title=None)} if series else {}
     chart = (
         alt.Chart(frame)
         .mark_line(point=True, **({} if series else {"color": "#6366f1"}))
-        .encode(x=alt.X("year:O", title="Rok"), y=alt.Y(f"{value}:Q", title=value),
+        .encode(x=alt.X("year:O", title="Rok"), y=alt.Y(f"{value}:Q", title=axis_title(value)),
                 tooltip=["year", value] + ([series] if series else []), **encoding)
-        .properties(height=360, description=(
+        .properties(height=360, title=title, description=(
             f"Wykres liniowy: {value} w latach {frame['year'].min()}–{frame['year'].max()}"
             + (f", serie: {', '.join(map(str, frame[series].unique()))}." if series else ".")))
     )
@@ -255,38 +256,34 @@ def _bar_description(frame: pd.DataFrame, label: str, value: str) -> str:
             f"Najwyżej: {top[label]} ({top[value]}); najniżej: {bottom[label]} ({bottom[value]}).")
 
 
-def _render_chart(rows: list[dict]) -> None:
-    """Scatter plot for two measures per territorial unit, a line chart for a time series (one row per year
-    and series), otherwise a horizontal bar chart when each row is one labelled unit with a number."""
-    scatter = scatter_columns(rows)
-    if scatter:
-        _render_scatter(rows, *scatter)
+def _render_chart(rows: list[dict], chart: dict | None = None, source: str | None = None) -> None:
+    """The chart the model picked (``chart``: type and title) when the rows fit it, otherwise a scatter plot
+    for two measures per territorial unit, a line chart for a time series, or a horizontal bar chart for
+    labelled items with a number (``chart_columns.chart_kind``). ``source`` becomes the subtitle."""
+    picked = chart_kind(rows, (chart or {}).get("type"), MAX_CHART_ROWS)
+    if not picked:
         return
-    line = line_series(rows)
-    if line:
-        _render_line(rows, *line)
+    kind, columns = picked
+    title = _chart_title((chart or {}).get("title"), source)
+    if kind == "scatter":
+        _render_scatter(rows, *columns, title=title)
         return
-    if not 2 <= len(rows) <= MAX_CHART_ROWS:
+    if kind == "line":
+        _render_line(rows, *columns, title=title)
         return
-    value = _value_column(rows)
-    labels = [n for n, v in rows[0].items() if isinstance(v, str) and not n.startswith("teryt")]
-    if not value or not labels:
-        return
-    label = labels[0]
+    label, value = columns
     frame = pd.DataFrame(rows)[[label, value]].dropna()
-    if frame[label].duplicated().any():
-        return
-    chart = (
+    bars = (
         alt.Chart(frame)
         .mark_bar(color="#6366f1")
         .encode(
-            x=alt.X(f"{value}:Q", title=value),
+            x=alt.X(f"{value}:Q", title=axis_title(value)),
             y=alt.Y(f"{label}:N", sort="-x", title=None, axis=alt.Axis(labelOverlap=False, labelLimit=240)),
             tooltip=[label, value],
         )
-        .properties(height=max(120, 26 * len(frame)), description=_bar_description(frame, label, value))
+        .properties(height=max(120, 26 * len(frame)), title=title, description=_bar_description(frame, label, value))
     )
-    _altair(chart, f"wykres {value}")
+    _altair(bars, f"wykres {value}")
 
 
 def _points(coordinates: list) -> list[list[float]]:
@@ -348,7 +345,7 @@ def _district_borders(pairs: tuple[tuple[str, int], ...]) -> dict:
 
 def _render_map(rows: list[dict], key: str = "answer", borders: dict | None = None) -> None:
     """Choropleth of a number per gmina, powiat or voivodeship when the rows carry the unit code."""
-    value = _value_column(rows) if rows else None
+    value = value_column(rows) if rows else None
     if not value:
         return
     for column, level in MAP_LEVELS:
@@ -1896,9 +1893,12 @@ if last:
             parts[title] = part_rows
         _csv_download(data["result"], q, key=f"csv_{fp}")
     _render_person_links(data, entity_refs, fp)
-    for i, part_rows in enumerate(parts.values()):
+    # The model's chart choice describes a single query; parts get the deterministic choice and their title.
+    chart = ((data.get("params") or {}).get("_dynamic_sql_meta") or {}).get("chart") if len(parts) == 1 else None
+    source = "PKW, KBW" + (", GUS BDL" if "gus_" in (data.get("sql") or "").lower() else "")
+    for i, (title, part_rows) in enumerate(parts.items()):
         if part_rows:
-            _render_chart(part_rows)
+            _render_chart(part_rows, chart or ({"title": title} if title else None), source=source)
             _render_map(part_rows, key="answer" if i == 0 else f"answer_{i}")
 
     with st.expander(_t("Co zrozumiał system"), expanded=False):
