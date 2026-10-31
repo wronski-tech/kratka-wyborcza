@@ -1289,7 +1289,9 @@ def _browse() -> None:
         params = {"election": kind, "year": year, "round": rnd, "level": level,
                   "wojewodztwo": (voivodeship or "").strip().lower() or None}
         link = {"wybory": kind, "rok": year, "tura": rnd, "pokaz": view, "poziom": level, "woj": params["wojewodztwo"]}
-        st.query_params.from_dict({k: str(v) for k, v in {**link, "lang": "en" if LANG == "en" else None}.items() if v is not None})
+        # Other views' parameters (language, cost panel, saved view) stay: this runs on every rerun, even collapsed.
+        kept = {k: st.query_params.get(k) for k in ("lang", "panel", "zestawienie")}
+        st.query_params.from_dict({k: str(v) for k, v in {**link, **kept}.items() if v is not None})
         st.caption("Adres strony w przeglądarce otwiera ten widok — skopiuj go, aby go udostępnić.")
         if view in ("Wyniki", "Frekwencja") and level != "country":
             link["nazwa"] = st.session_state.get("browse_name") if view == "Wyniki" else None
