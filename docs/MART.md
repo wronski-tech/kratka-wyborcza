@@ -701,6 +701,11 @@ would answer it from Sejm data.
    fails they choose alone. `params._dynamic_sql_meta` reports `schema_relations`,
    `schema_selection` (`keywords`, `keywords+embeddings`, `embeddings`) and `prompt_chars`. When
    adding a relation group, add its prefix to `FAMILY_KEYWORDS`.
+   The prompt starts with what is the same for every question of a mart load (instructions, SQL
+   rules, loaded elections and main committees: about 8,400 characters, over OpenAI's 1,024-token
+   minimum), then the question-specific schema, periods, entities, examples and follow-up, so
+   OpenAI's automatic prompt caching serves the constant part at the cached-input price;
+   `tokens.cached_tokens` in the telemetry and the `cached` column of the evaluation report show it.
    The model answers with a short query plan first (relations, filters, grouping, output columns) and
    then the SQL, in the same JSON response (`{"plan", "sql"}`), so it decides what to query before
    writing it, at no extra request. The plan of the query that ran is `params._dynamic_sql_meta.plan`

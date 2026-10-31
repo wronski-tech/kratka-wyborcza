@@ -321,6 +321,17 @@ def data_context() -> tuple[str, str]:
     return text, version
 
 
+def _usage(response: Any) -> dict[str, int]:
+    """Token usage of a chat completion; ``cached_tokens`` are prompt tokens served from OpenAI's prompt cache."""
+    usage = response.usage
+    if not usage:
+        return {}
+    details = getattr(usage, "prompt_tokens_details", None)
+    cached = getattr(details, "cached_tokens", None)
+    return {"prompt_tokens": usage.prompt_tokens, "completion_tokens": usage.completion_tokens,
+            **({"cached_tokens": cached} if isinstance(cached, int) else {})}
+
+
 def _llm_sql(
     question: str, context: str, previous_sql: str | None = None, previous_error: str | None = None
 ) -> tuple[str, dict[str, int], str]:
@@ -347,8 +358,7 @@ def _llm_sql(
             {"role": "user", "content": question},
         ],
     )
-    usage = response.usage
-    tokens = {"prompt_tokens": usage.prompt_tokens, "completion_tokens": usage.completion_tokens} if usage else {}
+    tokens = _usage(response)
     try:
         payload = json.loads(response.choices[0].message.content or "{}")
     except json.JSONDecodeError as exc:
@@ -388,8 +398,7 @@ def _llm_interpretations(question: str, context: str, options: list[dict]) -> tu
             {"role": "user", "content": question},
         ],
     )
-    usage = response.usage
-    tokens = {"prompt_tokens": usage.prompt_tokens, "completion_tokens": usage.completion_tokens} if usage else {}
+    tokens = _usage(response)
     try:
         found = json.loads(response.choices[0].message.content or "{}").get("interpretations") or []
     except json.JSONDecodeError:
@@ -572,9 +581,11 @@ def build_context(
     # Periods ("lata 90.", "od 2005") become the loaded years, so the model does not guess them.
     periods = period_ranges(question)
     period = f"\n\n{period_hint(periods, loaded_years(), relations)}" if periods else ""
+    # Constant part first (rules, then the loaded elections, the same for every question of a mart load)
+    # so OpenAI's prompt caching reuses it; the question-specific schema, entities and examples follow.
     context = (
-        "Schema:\n" + "\n\n".join(described[r] for r in relations)
-        + f"\n\n{elections}{period}\n\nEntities matched in the question:\n{hints}"
+        f"{elections}\n\nSchema:\n" + "\n\n".join(described[r] for r in relations)
+        + f"{period}\n\nEntities matched in the question:\n{hints}"
         + (f"\n\n{examples.format_examples(similar)}" if similar else "")
     )
     if previous:

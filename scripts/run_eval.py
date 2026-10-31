@@ -25,7 +25,8 @@ Examples:
   python3 scripts/run_eval.py --out eval_report.json --baseline previous/eval_report.json --max-regressions 5
 
 Needs ``MART_DATABASE_URL`` (the read-only role) pointing at a built mart; the evaluation itself also
-needs ``OPENAI_API_KEY``. Cost uses ``EVAL_USD_PER_1M_INPUT`` / ``EVAL_USD_PER_1M_OUTPUT`` when set.
+needs ``OPENAI_API_KEY``. Cost uses ``EVAL_USD_PER_1M_INPUT`` / ``EVAL_USD_PER_1M_OUTPUT`` when set, and
+``EVAL_USD_PER_1M_CACHED_INPUT`` for prompt tokens served from OpenAI's prompt cache (default: the input price).
 """
 
 from __future__ import annotations
@@ -168,6 +169,7 @@ def evaluate(item: dict) -> dict:
         "passed": passed,
         "prompt_tokens": tokens.get("prompt_tokens", 0),
         "completion_tokens": tokens.get("completion_tokens", 0),
+        "cached_tokens": tokens.get("cached_tokens", 0),
         "ms": int((time.monotonic() - started) * 1000),
         "sql": sql,
         "error": error,
@@ -177,24 +179,27 @@ def evaluate(item: dict) -> dict:
 
 def summarize(results: list[dict]) -> str:
     """Markdown table of the metrics per family, with a total row."""
-    usd_in = float(os.getenv("EVAL_USD_PER_1M_INPUT", "0"))
-    usd_out = float(os.getenv("EVAL_USD_PER_1M_OUTPUT", "0"))
+    # Unset repository variables arrive as empty strings in the workflow.
+    usd_in = float(os.getenv("EVAL_USD_PER_1M_INPUT") or 0)
+    usd_out = float(os.getenv("EVAL_USD_PER_1M_OUTPUT") or 0)
+    usd_cached = float(os.getenv("EVAL_USD_PER_1M_CACHED_INPUT") or usd_in)
     groups: dict[str, list[dict]] = defaultdict(list)
     for result in results:
         groups[result["family"]].append(result)
     lines = [
-        "| family | items | accuracy | clarify | repaired | failed/rejected | tokens | cost USD | avg s |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| family | items | accuracy | clarify | repaired | failed/rejected | tokens | cached | cost USD | avg s |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for family, group in [*sorted(groups.items()), ("total", results)]:
         statuses = Counter(r["status"] for r in group)
         prompt = sum(r["prompt_tokens"] for r in group)
         completion = sum(r["completion_tokens"] for r in group)
-        cost = (prompt * usd_in + completion * usd_out) / 1_000_000
+        cached = sum(r.get("cached_tokens", 0) for r in group)
+        cost = ((prompt - cached) * usd_in + cached * usd_cached + completion * usd_out) / 1_000_000
         lines.append(
             f"| {family} | {len(group)} | {100 * sum(r['passed'] for r in group) / len(group):.1f}% "
             f"| {statuses['clarify']} | {statuses['repaired']} | {statuses['failed'] + statuses['rejected']} "
-            f"| {prompt + completion} | {cost:.3f} | {sum(r['ms'] for r in group) / len(group) / 1000:.1f} |"
+            f"| {prompt + completion} | {cached} | {cost:.3f} | {sum(r['ms'] for r in group) / len(group) / 1000:.1f} |"
         )
     return "\n".join(lines)
 

@@ -1,7 +1,7 @@
 # Nightly evaluation of LLM-written SQL (scripts/run_eval.py) against the mart published by CI
 # (release mart-latest) with the real model. Needs the OPENAI_API_KEY secret; without it the job only
-# checks the evaluation set. Optional repository variables: OPENAI_CHAT_MODEL, EVAL_USD_PER_1M_INPUT,
-# EVAL_USD_PER_1M_OUTPUT (prices for the cost column), EVAL_MAX_REGRESSIONS (questions that may stop
+# checks the evaluation set. Optional repository variables: OPENAI_CHAT_MODEL, OPENAI_REPAIR_MODEL,
+# EVAL_USD_PER_1M_INPUT, EVAL_USD_PER_1M_OUTPUT, EVAL_USD_PER_1M_CACHED_INPUT (prices for the cost column), EVAL_MAX_REGRESSIONS (questions that may stop
 # passing compared with the last successful full run before the job fails; default 5).
 name: Eval
 
@@ -44,6 +44,7 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       EVAL_USD_PER_1M_INPUT: ${{ vars.EVAL_USD_PER_1M_INPUT }}
       EVAL_USD_PER_1M_OUTPUT: ${{ vars.EVAL_USD_PER_1M_OUTPUT }}
+      EVAL_USD_PER_1M_CACHED_INPUT: ${{ vars.EVAL_USD_PER_1M_CACHED_INPUT }}
 
     steps:
       - uses: actions/checkout@v4
@@ -93,12 +94,14 @@ jobs:
         if: env.OPENAI_API_KEY != ''
         env:
           CHAT_MODEL: ${{ vars.OPENAI_CHAT_MODEL }}
+          REPAIR_MODEL: ${{ vars.OPENAI_REPAIR_MODEL }}
           FAMILY: ${{ inputs.family }}
           LIMIT: ${{ inputs.limit }}
           MAX_REGRESSIONS: ${{ vars.EVAL_MAX_REGRESSIONS }}
         run: |
           # An empty variable must not override the default model in api/services/config.py.
           if [ -n "$CHAT_MODEL" ]; then export OPENAI_CHAT_MODEL="$CHAT_MODEL"; fi
+          if [ -n "$REPAIR_MODEL" ]; then export OPENAI_REPAIR_MODEL="$REPAIR_MODEL"; fi
           args=(--out eval_report.json)
           if [ -n "$FAMILY" ]; then args+=(--family "$FAMILY"); fi
           if [ -n "$LIMIT" ]; then args+=(--limit "$LIMIT"); fi

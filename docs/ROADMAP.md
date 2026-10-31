@@ -101,7 +101,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 16. Wybór schematu przez embeddingi (`FAMILY_KEYWORDS` jako zabezpieczenie).
 - [x] 17. Plan zapytania, potem SQL.
 - [x] 18. Routing modeli: tańszy najpierw, droższy przy naprawie.
-- [ ] 19. Prompt caching stałej części promptu.
+- [x] 19. Prompt caching stałej części promptu.
 - [ ] 20. Naprawa SQL z `EXPLAIN` w drugiej próbie.
 - [ ] 21. Odrzucanie zbyt kosztownych zapytań przed uruchomieniem.
 - [ ] 22. Automatyczne `LIMIT` i sortowanie.

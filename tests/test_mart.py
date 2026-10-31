@@ -868,6 +868,15 @@ class TestEvaluationSet(unittest.TestCase):
                 else:
                     self.assertEqual(item.get("expect"), "clarify")
 
+    def test_cost_prices_cached_prompt_tokens_apart(self) -> None:
+        results = [{"family": "sejm", "status": "first_pass", "passed": True, "ms": 1000,
+                    "prompt_tokens": 1_000_000, "completion_tokens": 0, "cached_tokens": 600_000}]
+        with patch.dict("os.environ", {"EVAL_USD_PER_1M_INPUT": "1", "EVAL_USD_PER_1M_OUTPUT": "",
+                                       "EVAL_USD_PER_1M_CACHED_INPUT": "0.1"}):
+            table = run_eval.summarize(results)
+        # 400k uncached at $1/M plus 600k cached at $0.1/M.
+        self.assertIn("| 1000000 | 600000 | 0.460 |", table)
+
     def test_grading(self) -> None:
         expected = [{"name": "A", "seats": 1, "pct": Decimal("74.25")}, {"name": "B", "seats": 1, "pct": Decimal("25.75")}]
         # Rounded percentages, other names, extra columns and rows still pass.
@@ -934,7 +943,9 @@ class TestDynamicQueryFlow(unittest.TestCase):
 
     def test_repair_uses_the_stronger_model(self) -> None:
         def client(sql: str) -> MagicMock:
-            response = MagicMock(usage=None, choices=[MagicMock(message=MagicMock(content=json.dumps({"plan": "p", "sql": sql})))])
+            # Usage as OpenAI reports it: part of the prompt served from its prompt cache.
+            usage = MagicMock(prompt_tokens=1000, completion_tokens=50, prompt_tokens_details=MagicMock(cached_tokens=768))
+            response = MagicMock(usage=usage, choices=[MagicMock(message=MagicMock(content=json.dumps({"plan": "p", "sql": sql})))])
             return MagicMock(chat=MagicMock(completions=MagicMock(create=MagicMock(return_value=response))))
 
         bad, good = client("SELECT frekwencja FROM mart.v_turnout LIMIT 5"), client(self.GOOD)
@@ -950,6 +961,7 @@ class TestDynamicQueryFlow(unittest.TestCase):
             _, _, _, meta = dynamic_sql.try_dynamic_query("Frekwencja w 2023 (repair)?")
         self.assertEqual(meta["status"], "repaired")
         self.assertEqual(meta["models"], {"first_pass": "cheap", "repaired": "strong"})
+        self.assertEqual(meta["tokens"], {"prompt_tokens": 2000, "completion_tokens": 100, "cached_tokens": 1536})
         self.assertEqual(bad.chat.completions.create.call_args.kwargs["model"], "cheap")
         self.assertEqual(good.chat.completions.create.call_args.kwargs["model"], "strong")
 
@@ -1085,6 +1097,8 @@ class TestDynamicQueryFlow(unittest.TestCase):
             def context(question: str, prev: dict | None = previous) -> str:
                 return dynamic_sql.build_context(question, [], prev)[0]
 
+            # The part that is the same for every question comes first, so OpenAI's prompt cache can reuse it.
+            self.assertTrue(context("Frekwencja w Gdańsku", None).startswith("Elections: ...\n\nSchema:"))
             for question in ("A w porównaniu z 2019?", "Jak to się zmieniło od 2019?", "Czy więcej niż w 2019?"):
                 self.assertIn("compares with the previous result", context(question), question)
             # A plain follow-up keeps replacing the filter; a standalone question has no previous turn.

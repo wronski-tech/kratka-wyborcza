@@ -647,6 +647,7 @@ def _telemetry(result: dict[str, Any], started: float) -> dict[str, Any]:
         "answer_source": (result.get("answer") or {}).get("source"),
         "prompt_tokens": tokens.get("prompt_tokens", 0),
         "completion_tokens": tokens.get("completion_tokens", 0),
+        "cached_tokens": tokens.get("cached_tokens", 0),
         "error": meta.get("error") or (result.get("params") or {}).get("_dynamic_sql_error"),
     }
 
