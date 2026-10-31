@@ -255,6 +255,7 @@ def _chat_answer(i: int, turn: dict) -> None:
     if data.get("sql"):
         with st.expander(_t("Zapytanie SQL"), expanded=False):
             st.code(data["sql"], language="sql", wrap_lines=True)
+    _view_link(data)
 
 
 def _history_sidebar() -> None:
@@ -838,7 +839,7 @@ def _api_get(path: str, params: dict | None = None, invalid: str = "Nieprawidło
     if response.status_code == 422:
         st.info(invalid)
         return None
-    if response.status_code == 404:
+    if response.status_code in (404, 410):  # unknown, or a saved view that no longer runs
         return None
     if not response.ok:
         st.error(f"Coś poszło nie tak z API: HTTP {response.status_code}")
@@ -1777,15 +1778,45 @@ def _reports() -> None:
 def _show_report(report: dict, key: str) -> None:
     """Rows, chart, map and SQL of one ready-made report (fixed SQL, no LLM)."""
     data = _api_get(f"/reports/{report['id']}")
-    if not data:
-        return
-    st.caption("Sprawdzone zapytanie z zestawu przykładów; wynik prosto z bazy, bez modelu językowego.")
+    if data:
+        st.caption("Sprawdzone zapytanie z zestawu przykładów; wynik prosto z bazy, bez modelu językowego.")
+        _report_body(data, key)
+
+
+def _report_body(data: dict, key: str) -> None:
+    """Table, chart, map and SQL of a report or saved view (API ``ReportResult``)."""
     rows = data["rows"]
     st.dataframe(rows, use_container_width=True, hide_index=True, column_config=_code_columns(rows))
-    _csv_download(rows, report["question"], key=f"csv_{key}_{report['id']}")
+    _csv_download(rows, data["question"], key=f"csv_{key}_{data['id']}")
     _render_chart(rows)
-    _render_map(rows, key=f"{key}_{report['id']}")
+    _render_map(rows, key=f"{key}_{data['id']}")
     st.code(data["sql"], language="sql", wrap_lines=True)
+
+
+def _view_link(data: dict) -> None:
+    """"Zapisz jako zestawienie": the link to this answer's saved view (API ``view_id``), which runs without the LLM."""
+    if not data.get("view_id"):
+        return
+    with st.popover(_t("🔗 Zapisz jako zestawienie")):
+        st.code(f"{_page_url()}?{urlencode({'zestawienie': data['view_id']})}", language="text", wrap_lines=True)
+        st.caption(_t("Link otwiera to zestawienie: to samo sprawdzone zapytanie SQL na aktualnych danych, bez ponownego "
+                      "pytania modelu. Skopiuj go do zakładek albo udostępnij."))
+
+
+def _saved_view() -> None:
+    """A saved view opened by its link (``?zestawienie=``): the stored query re-run through the SQL guard."""
+    view_id = st.query_params.get("zestawienie", "")
+    if not view_id:
+        return
+    with st.container(border=True):
+        data = _api_get(f"/views/{view_id[:12]}", invalid=_t("To nie jest link do zestawienia."))
+        if not data:
+            st.info(_t("Nie ma takiego zestawienia albo nie działa już na obecnej bazie."))
+            return
+        st.markdown(f"**{_t('Zapisane zestawienie')}:** {data['question']}")
+        st.caption(_t("Zapytanie napisane wcześniej przez model i sprawdzone przez strażnika SQL; "
+                      "wynik prosto z bazy, bez ponownego pytania modelu."))
+        _report_body(data, "view")
 
 
 @st.fragment
@@ -1985,6 +2016,7 @@ def _kbw_table_stats_expander() -> None:
 _catalog_inventory_expander()
 _kbw_table_stats_expander()
 
+_saved_view()
 with st.container(border=True):
     chat_mode = st.toggle(_t("Tryb czatu"), key="chat_mode",
                           help=_t("Rozmowa: każde pytanie dopytuje o poprzednią odpowiedź; wcześniejsze pytanie można poprawić."))
@@ -2083,6 +2115,7 @@ if last:
             _render_chart(part_rows, chart or ({"title": title} if title else None), source=source)
             _render_map(part_rows, key="answer" if i == 0 else f"answer_{i}")
     _render_follow_ups(data, last["previous"], fp)
+    _view_link(data)
 
     with st.expander(_t("Co zrozumiał system"), expanded=False):
         c1, c2 = st.columns(2)

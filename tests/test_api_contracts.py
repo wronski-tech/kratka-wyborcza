@@ -97,6 +97,7 @@ class TestAskEndpoint(unittest.TestCase):
             patch("api.main.answer.compose_answer", return_value={"text": "t", "source": "fallback"}),
             patch("api.main.opensearch_store.log_question"),
             patch("api.main.dynamic_sql.loaded_years", return_value={"sejm": [2019, 2023]}),
+            patch("api.main.db.save_view", return_value="0123456789ab"),
         ]
         self.route = self.patches[0].start()
         for p in self.patches[1:]:
@@ -113,6 +114,30 @@ class TestAskEndpoint(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["result"], [{"party": "PiS", "pct": 34.27, "votes": 7640854, "year": 2023}])
         self.assertEqual(self.route.call_args.kwargs["previous"], {**previous, "entity_refs": None})
+
+    def test_answers_are_saved_as_views_that_rerun_through_the_guard(self) -> None:
+        previous = {"question": "Frekwencja w Krakowie w 2023?", "sql": "SELECT 2"}
+        with patch("api.main.db.save_view", return_value="0123456789ab") as save:
+            body = self.client.post("/ask", json={"question": "A w 2019?", "previous": previous}).json()
+            self.assertEqual(body["view_id"], "0123456789ab")
+            save.assert_called_once_with("Frekwencja w Krakowie w 2023? → A w 2019?", "SELECT 1")
+            self.route.return_value = {**self.ROUTED, "result": []}
+            self.assertIsNone(self.client.post("/ask", json={"question": "q"}).json()["view_id"])
+            self.route.return_value = {**self.ROUTED, "intent": "kbw_turnout"}
+            self.assertIsNone(self.client.post("/ask", json={"question": "q"}).json()["view_id"])
+            self.assertEqual(save.call_count, 1)
+        stored = {"question": "Wynik PiS?", "sql": "SELECT party, pct FROM mart.v_party_results WHERE year = 2023"}
+        with patch("api.main.db.saved_view", return_value=stored), \
+                patch("api.main.safe_sql.run_readonly", return_value=[{"party": "PiS", "pct": Decimal("35.38")}]) as run:
+            view = self.client.get("/views/0123456789ab").json()
+            self.assertEqual((view["question"], view["rows"]), ("Wynik PiS?", [{"party": "PiS", "pct": 35.38}]))
+            self.assertIn("LIMIT", run.call_args.args[0])  # validated (the guard adds a row limit), not the raw text
+            stored["sql"] = "SELECT * FROM public.saved_views"
+            self.assertEqual(self.client.get("/views/0123456789ab").status_code, 410)
+            self.assertEqual(run.call_count, 1)
+        with patch("api.main.db.saved_view", return_value=None):
+            self.assertEqual(self.client.get("/views/0123456789ab").status_code, 404)
+        self.assertEqual(self.client.get("/views/DROP").status_code, 422)
 
     def test_dynamic_answers_suggest_follow_ups(self) -> None:
         self.route.return_value = {**self.ROUTED, "sql": "SELECT party, pct FROM mart.v_party_results WHERE election = 'sejm' AND year = 2023 AND level = 'country'"}

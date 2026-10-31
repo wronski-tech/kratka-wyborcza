@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 import psycopg
@@ -333,6 +334,33 @@ def init_database() -> None:
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_kbw_cgv_person ON kbw_candidate_geo_votes (person_key);"
             )
+            # Saved views: generated queries the API answered with, re-run later without the LLM (GET /views).
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS saved_views (
+                    id TEXT PRIMARY KEY,
+                    question TEXT NOT NULL,
+                    sql TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            )
+
+
+def save_view(question: str, sql: str) -> str:
+    """Store a query the API generated and answered with; the id hashes both, so the same answer keeps its id."""
+    view_id = hashlib.sha256(f"{question}\n{sql}".encode()).hexdigest()[:12]
+    with get_connection() as conn:
+        conn.execute("INSERT INTO saved_views (id, question, sql) VALUES (%s, %s, %s) ON CONFLICT (id) DO NOTHING",
+                     (view_id, question, sql))
+    return view_id
+
+
+def saved_view(view_id: str) -> dict[str, str] | None:
+    """Question and SQL of a saved view, or None."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT question, sql FROM saved_views WHERE id = %s", (view_id,)).fetchone()
+    return {"question": row[0], "sql": row[1]} if row else None
 
 
 def kbw_data_ready() -> bool:

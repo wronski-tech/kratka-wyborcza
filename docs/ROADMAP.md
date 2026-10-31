@@ -125,7 +125,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 36. Wejście głosowe.
 - [x] 37. Tryb czatu z edycją poprzedniego pytania.
 - [x] 38. „Pokaż coś ciekawego” z biblioteki gotowych zestawień.
-- [ ] 39. Asystent tworzenia zestawień → zapisany widok.
+- [x] 39. Asystent tworzenia zestawień → zapisany widok.
 - [ ] 40. Interfejs MCP / API dla agentów z tymi samymi strażnikami.
 
 **Koszty i bezpieczeństwo**

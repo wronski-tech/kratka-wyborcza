@@ -508,6 +508,10 @@ class AskResponse(BaseModel):
         default=None,
         description="Set when the question is ambiguous: {prompt, kind, options: [{label, kind, ref}]}; re-ask with entity_refs",
     )
+    view_id: str | None = Field(
+        default=None,
+        description="Saved view of this answer: GET /views/{view_id} re-runs its SQL without the LLM (dynamic SQL answers with rows)",
+    )
 
 
 class FeedbackRequest(BaseModel):
@@ -1107,7 +1111,7 @@ _REPORT_LITERAL = re.compile(r"\belection\s*=\s*'(prezydent|referendum|sejmik|wb
 class ReportInfo(BaseModel):
     id: str
     question: str
-    family: str = Field(description="sejm, senat, prezydent, pe, referendum, sejmik, wbp, rada or inne")
+    family: str = Field(description="sejm, senat, prezydent, pe, referendum, sejmik, wbp, rada or inne; widok for a saved view")
 
 
 class ReportResult(ReportInfo):
@@ -1146,6 +1150,25 @@ def run_report(report_id: str = Path(pattern=r"^[0-9a-f]{12}$")) -> ReportResult
         log.warning("report %s failed: %s", report_id, exc)
         raise HTTPException(status_code=503, detail="Election database is unavailable; try again later.") from exc
     return ReportResult(id=report_id, question=report["question"], family=report["family"], sql=report["sql"],
+                        rows=[{k: _json_value(v) for k, v in row.items()} for row in rows])
+
+
+@app.get("/views/{view_id}", response_model=ReportResult, tags=["browse"], dependencies=[Depends(require_api_key)],
+         responses={404: {"description": "Unknown view"}})
+def run_view(view_id: str = Path(pattern=r"^[0-9a-f]{12}$")) -> ReportResult:
+    """Re-run a saved view (an answered question's generated SQL) through the guards, without the LLM."""
+    try:
+        view = db.saved_view(view_id)
+        if view is None:
+            raise HTTPException(status_code=404, detail="Unknown view.")
+        sql = dynamic_sql.validate_parts(view["sql"])
+        rows = dynamic_sql.run_parts(sql)
+    except safe_sql.UnsafeSqlError as exc:  # the schema changed since the view was saved
+        raise HTTPException(status_code=410, detail="This view no longer runs on the current database.") from exc
+    except psycopg.Error as exc:
+        log.warning("view %s failed: %s", view_id, exc)
+        raise HTTPException(status_code=503, detail="Election database is unavailable; try again later.") from exc
+    return ReportResult(id=view_id, question=view["question"], family="widok", sql=view["sql"],
                         rows=[{k: _json_value(v) for k, v in row.items()} for row in rows])
 
 
@@ -1552,6 +1575,13 @@ def ask(request: AskRequest, http_request: Request, api_key: str | None = Depend
                     result["answer"]["empty_reasons"] = answer.explain_empty(result["sql"], loaded)
             except psycopg.Error as exc:
                 log.warning("follow-ups and empty-result reasons skipped: %s", exc)
+    if result.get("intent") == "dynamic_sql" and result.get("result") and result.get("sql"):
+        # Only queries the API generated itself are saved, so a view link cannot carry someone else's SQL.
+        title = f"{previous['question']} → {request.question}" if previous else request.question
+        try:
+            result["view_id"] = db.save_view(title.strip(), result["sql"])
+        except psycopg.Error as exc:
+            log.warning("saved view skipped: %s", exc)
     result["result"] = [{k: _json_value(v) for k, v in row.items()} for row in result.get("result") or []]
     telemetry = _telemetry(result, started)
     token_budget.add(client_key, telemetry["prompt_tokens"] + telemetry["completion_tokens"])

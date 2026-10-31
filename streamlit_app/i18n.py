@@ -43,6 +43,14 @@ EN = {
     "🗳️ Wybrani według okręgu": "🗳️ Elected by district",
     "📋 Gotowe zestawienia (bez LLM)": "📋 Ready-made reports (no LLM)",
     "🎲 Pokaż coś ciekawego": "🎲 Show me something interesting",
+    "🔗 Zapisz jako zestawienie": "🔗 Save as a report",
+    "Link otwiera to zestawienie: to samo sprawdzone zapytanie SQL na aktualnych danych, bez ponownego pytania modelu. Skopiuj go do zakładek albo udostępnij.":
+        "The link opens this report: the same checked SQL query on current data, without asking the model again. Bookmark or share it.",
+    "To nie jest link do zestawienia.": "This is not a report link.",
+    "Nie ma takiego zestawienia albo nie działa już na obecnej bazie.": "No such report, or it no longer runs on the current database.",
+    "Zapisane zestawienie": "Saved report",
+    "Zapytanie napisane wcześniej przez model i sprawdzone przez strażnika SQL; wynik prosto z bazy, bez ponownego pytania modelu.":
+        "A query written earlier by the model and checked by the SQL guard; the result comes straight from the database, without asking the model again.",
     "Losowe gotowe zestawienie: sprawdzone zapytanie, bez LLM.": "A random ready-made report: a verified query, no LLM.",
     "🏅 Rankingi osób i zmiany komitetów": "🏅 Person rankings and committee switches",
     "ℹ️ Co jest w bazie": "ℹ️ What is in the database",
