@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The API image could not call OpenAI: `openai==1.52.2` passes `proxies` to httpx, which httpx 0.28 (installed unpinned) removed, so every model call failed with a TypeError. `httpx==0.27.2` is pinned in `api/requirements.txt`.
 - A saved view link (`?zestawienie=`) no longer disappears after the first click: the browse view rewrote the page address with only its own parameters.
 - Prompt injection: committee and person names reach the model as one line each with a valid SQL literal (the hint for Kukiz'15 was broken SQL); the previous turn and the question in the answer prompt are JSON strings, so a line break in them cannot add instructions or fake rows; both prompts treat that text as data. „Potem napisz…” no longer asks which POTEMPA was meant. Tests in `TestPromptInjection` and three `injection` items in the evaluation set.
 - Bar charts with a few rows no longer collapse into one line under their title: every bar gets the same height, title and axes come on top.
