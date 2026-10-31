@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Text description of maps (accessibility, print): under every choropleth a line says what it shows for how many units, its three highest and lowest units with their values from the rows, and how many drawn units have no value (`map_units.map_description`); voivodeship names are written in lower case.
+
 - PDF reports: `GET /pdf/units/{teryt}` (unit card: GUS statistics, turnout and the winner of every election) and `GET /pdf/elections/{election}/{year}` (election card and national results of every round), with bars, Polish formatting and the sources in the footer; „Przygotuj raport PDF” on the unit and election cards. Fixed SQL, no model; fpdf2 with DejaVu Sans (`fonts-dejavu-core` in the API image, `REPORT_FONT_DIR`).
 
 - Answer style: `/ask` takes `style` (`journalistic`, default: plain language, rounded; `technical`: exact values, named measures and units), chosen in the UI next to the question; the number check is the same for both, and the technical style opens the SQL section.

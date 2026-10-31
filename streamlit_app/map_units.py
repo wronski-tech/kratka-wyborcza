@@ -244,3 +244,25 @@ def district_borders(features: list[dict], districts: dict[str, set[int]], level
     lines = [[list(a), list(b)] for (a, b), sides in owners.items()
              if None not in sides and (len(sides) == 1 or len(set(sides)) > 1)]
     return {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": lines}, "properties": {}}
+
+
+# Genitive plural of the map levels ("dla 16 województw").
+LEVEL_GENITIVE = {"gminy": "gmin", "powiaty": "powiatów", "wojewodztwa": "województw", "wojewodztwa_1975": "dawnych województw"}
+
+
+def map_description(values: dict[str, float], names: dict[str, str], measure: str, level: str, missing: int,
+                    top: int = 3) -> str:
+    """Text alternative of a choropleth (screen readers, print): what it shows, its highest and lowest units
+    with their values as in the rows, and how many drawn units have no value (grey)."""
+    def unit(item: tuple[str, float]) -> str:
+        return f"{names.get(item[0], item[0])} ({item[1]:g})".replace(".", ",")
+
+    ranked = sorted(values.items(), key=lambda item: (-item[1], names.get(item[0], item[0])))
+    text = f"Mapa: {measure} dla {len(ranked)} {LEVEL_GENITIVE.get(level, level)}."
+    if len(ranked) > 2 * top:
+        text += f" Najwyższe: {', '.join(map(unit, ranked[:top]))}. Najniższe: {', '.join(map(unit, ranked[-top:][::-1]))}."
+    else:
+        text += f" Od najwyższej: {', '.join(map(unit, ranked))}."
+    if missing:
+        text += f" Bez wartości w wyniku (szare): {missing}."
+    return text

@@ -6,8 +6,8 @@ import json
 import unittest
 
 from streamlit_app.map_units import (
-    GEO_DIR, boundaries, district_borders, feature_key, features_svg, is_additive, is_osm, pre1999_codes, teryt_changes, unit_values,
-    visible_features, voivodeship_level,
+    GEO_DIR, boundaries, district_borders, feature_key, features_svg, is_additive, is_osm, map_description, pre1999_codes,
+    teryt_changes, unit_values, visible_features, voivodeship_level,
 )
 
 DISTRICTS = [f"1465{n:02d}" for n in range(2, 20)]
@@ -33,6 +33,19 @@ def contains(geometry: dict, lon: float, lat: float) -> bool:
 
 PRE1999 = json.loads((GEO_DIR / "gminy_pre1999.json").read_text(encoding="utf-8"))
 
+
+
+class TestMapDescription(unittest.TestCase):
+    def test_text_alternative_names_extremes_and_grey_units(self) -> None:
+        names = {f"0{n}": f"W{n}" for n in range(1, 9)}
+        values = {"01": 30.5, "02": 52.83, "03": 41.0, "04": 27.33, "05": 45.1, "06": 38.0, "07": 33.3}
+        self.assertEqual(
+            map_description(values, names, "poparcie (%)", "wojewodztwa", missing=1),
+            "Mapa: poparcie (%) dla 7 województw. Najwyższe: W2 (52,83), W5 (45,1), W3 (41). "
+            "Najniższe: W4 (27,33), W1 (30,5), W7 (33,3). Bez wartości w wyniku (szare): 1.")
+        # Few units: all of them, highest first.
+        self.assertEqual(map_description({"01": 1.5, "02": 2.0}, names, "frekwencja (%)", "powiaty", missing=0),
+                         "Mapa: frekwencja (%) dla 2 powiatów. Od najwyższej: W2 (2), W1 (1,5).")
 
 class TestTerytChanges(unittest.TestCase):
     def test_walbrzych_2011_colours_current_city(self) -> None:

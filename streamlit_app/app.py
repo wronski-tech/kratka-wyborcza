@@ -21,7 +21,9 @@ import vl_convert as vlc
 
 from chart_columns import axis_title, chart_kind, value_column
 from i18n import EN
-from map_units import boundaries, district_borders, feature_key, features_svg, is_osm, unit_values, visible_features, voivodeship_level
+from map_units import (
+    boundaries, district_borders, feature_key, features_svg, is_osm, map_description, unit_values, visible_features, voivodeship_level,
+)
 
 # UI language: ?lang=en shows English labels (i18n.EN); answers and data stay Polish.
 LANG = "en" if st.query_params.get("lang") == "en" else "pl"
@@ -422,7 +424,11 @@ def _render_map(rows: list[dict], key: str = "answer", borders: dict | None = No
         legend = [(_palette_color(stops, i / (MAP_CLASSES - 1)), f"{low + (high - low) * i / (MAP_CLASSES - 1):.4g}")
                   for i in range(MAP_CLASSES)]
     _map_legend(legend)
-    st.caption(f"Kolor: {value}. Szare jednostki nie występują w wyniku.")
+    # Voivodeship boundaries name units in capitals; Polish writes them in lower case.
+    names = {feature_key(f["properties"], level): f["properties"]["name"].lower() if f["properties"]["name"].isupper()
+             else f["properties"]["name"] for f in shown}
+    drawn_values = {k: values[k] for k in names if k in values}
+    st.caption(map_description(drawn_values, names, axis_title(value), level, len(names) - len(drawn_values)))
     _image_export(lambda: features_svg(features, value, legend), f"mapa {value}", key=f"map_export_{key}")
     if level == "wojewodztwa_1975":
         st.caption("Granice 49 województw z lat 1975–1998 złożone z obecnych gmin (przybliżone).")
@@ -433,7 +439,6 @@ def _render_map(rows: list[dict], key: str = "answer", borders: dict | None = No
         )
     if any(is_osm(f) for f in shown):
         st.caption("© OpenStreetMap contributors (ODbL)")
-    names = {feature_key(f["properties"], level): f["properties"]["name"] for f in shown}
     if merged:
         st.caption(
             "Dawne jednostki zsumowane w obecnych granicach: "

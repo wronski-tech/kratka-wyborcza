@@ -118,7 +118,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 31. Proponowane pytania uzupełniające.
 - [x] 32. Styl odpowiedzi: dziennikarski / techniczny.
 - [x] 33. Raport PDF dla gminy lub wyborów.
-- [ ] 34. Opis mapy tekstem (dostępność).
+- [x] 34. Opis mapy tekstem (dostępność).
 - [ ] 35. Wyjaśnienie pustego wyniku.
 
 **Interakcja**
