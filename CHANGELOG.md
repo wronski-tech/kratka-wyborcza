@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Chart choice, titles and captions: the SQL call also returns `chart` (type from bar, line, scatter or none, and a short Polish title); the UI uses the type only when the rows fit it, otherwise the deterministic rule (scatter, line, bar) decides, and drops a title with numbers the question does not name. Charts have Polish axis titles and the data source as subtitle, so exported images carry it; bars and maps of change rows show the change in points.
+- Summary of large results: a result above 30 rows reaches the answer model as its first and last rows plus the rows with the highest and lowest main value (not only the first 30 rows), and the deterministic summary names the highest and lowest value with its unit (and year in a time series), all copied from the rows.
 
 - Query explanation in Polish: every answer carries `answer.explanation`, lines read from the SQL itself with sqlglot (sources, conditions such as „rok (b) = 2023”, calculations such as korelacja or podział mandatów, grouping, order, row limit), shown above the SQL in the UI; it is derived from the query, not written by the model, so it cannot differ from what produced the rows.
 

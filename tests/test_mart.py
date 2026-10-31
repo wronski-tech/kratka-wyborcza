@@ -546,6 +546,25 @@ class TestAnswerNumbers(unittest.TestCase):
             result = answer.compose_answer("Wynik PiS?", self.ROWS)
         self.assertEqual((result["source"], result["rejected_numbers"]), ("fallback", ["40"]))
 
+    def test_large_result_is_summarized_from_its_extremes(self) -> None:
+        # Ordered by name, so the first rows are neither the highest nor the lowest value.
+        rows = [{"teryt_gmina": f"{n:06d}", "gmina": f"G{n:03d}", "year": 2023, "pct": Decimal(str(40 + (n * 37) % 50))}
+                for n in range(60)]
+        top, bottom = max(rows, key=lambda r: r["pct"]), min(rows, key=lambda r: r["pct"])
+        self.assertEqual(answer.fallback_answer(rows),
+                         f"Znaleziono 60 wierszy. Najwyższa wartość pct: {top['gmina']} (89,00); najniższa: {bottom['gmina']} (40,00).")
+        digest = answer._rows_for_prompt(rows)
+        self.assertEqual((digest["row_count"], digest["highest"], digest["lowest"]), (60, {"pct": top}, {"pct": bottom}))
+        self.assertEqual(len(digest["first_rows"]) + len(digest["last_rows"]), 25)
+        self.assertEqual(answer._rows_for_prompt(rows[:5]), rows[:5])
+        change = [{"powiat": f"P{n}", "prev_pct": 50.0 - n, "pct": 40.0 + n, "change_pp": -10.0 + 2 * n} for n in range(3)]
+        self.assertIn("Najwyższa wartość change_pp: P2", answer.fallback_answer(change))
+        trend = [{"year": y, "party": p, "pct": v} for y, p, v in ((2019, "PiS", 43.59), (2019, "KO", 27.4), (2023, "PiS", 35.38))]
+        self.assertEqual(answer.fallback_answer(trend),
+                         "Znaleziono 3 wierszy. Najwyższa wartość pct: PiS, 2019 (43,59); najniższa: KO, 2019 (27,40).")
+        # Two rows or rows without a label keep the first-row summary.
+        self.assertIn("Pierwszy:", answer.fallback_answer([{"year": 2019, "pct": 1.0}, {"year": 2023, "pct": 2.0}, {"year": 2024, "pct": 3.0}]))
+
     def test_explanation_is_read_from_the_sql(self) -> None:
         change = ("SELECT a.wojewodztwo, round(b.pct - a.pct, 2) AS change_pp FROM mart.v_party_results a "
                   "JOIN mart.v_party_results b ON b.unit_key = a.unit_key AND b.party = a.party "

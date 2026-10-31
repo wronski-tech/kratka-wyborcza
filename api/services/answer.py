@@ -121,9 +121,43 @@ def fallback_answer(rows: list[dict[str, Any]], english: bool = False) -> str:
     first = "; ".join(f"{column}: {format_number(value, column)}" for column, value in rows[0].items() if value is not None)
     if len(rows) == 1:
         return f"Result: {first}." if english else f"Wynik: {first}."
+    spread = _extremes(rows)
+    if spread:
+        label, measure, top, bottom = spread
+        # A time series names the year of each extreme.
+        when = (lambda r: f", {r['year']}") if len(_values(rows, "year")) > 1 else (lambda r: "")
+        top_text = f"{top[label]}{when(top)} ({format_number(top[measure], measure)})"
+        bottom_text = f"{bottom[label]}{when(bottom)} ({format_number(bottom[measure], measure)})"
+        if english:
+            return f"Found {format_number(len(rows))} rows. Highest {measure}: {top_text}; lowest: {bottom_text}."
+        return f"Znaleziono {format_number(len(rows))} wierszy. Najwyższa wartość {measure}: {top_text}; najniższa: {bottom_text}."
     if english:
         return f"Found {format_number(len(rows))} rows. First: {first}."
     return f"Znaleziono {format_number(len(rows))} wierszy. Pierwszy: {first}."
+
+
+def _measure(rows: list[dict[str, Any]]) -> str | None:
+    """Main number of the rows: a change in points first, then pct, another percentage, votes, seats, then any
+    other value (no codes)."""
+    numeric = [c for c, v in rows[0].items() if isinstance(v, (int, float, Decimal)) and not isinstance(v, bool)
+               and c not in _CODE_COLUMNS and not c.endswith(_CODE_SUFFIXES) and not c.startswith("teryt")]
+    preferences = (lambda c: c.endswith("_pp"), lambda c: c == "pct", lambda c: "pct" in c,
+                   lambda c: "votes" in c, lambda c: "seats" in c)
+    return next((c for prefer in preferences for c in numeric if prefer(c)), numeric[0] if numeric else None)
+
+
+def _extremes(rows: list[dict[str, Any]]) -> tuple[str, str, dict[str, Any], dict[str, Any]] | None:
+    """(label, measure, highest row, lowest row) of three or more rows labelled by a text column, else None."""
+    if len(rows) < 3:
+        return None
+    measure = _measure(rows)
+    label = next((c for c, v in rows[0].items() if isinstance(v, str) and not c.startswith("teryt")), None)
+    if not measure or not label:
+        return None
+    valued = [r for r in rows if isinstance(r.get(measure), (int, float, Decimal)) and r.get(label) is not None]
+    if len(valued) < 3:
+        return None
+    return label, measure, max(valued, key=lambda r: r[measure]), min(valued, key=lambda r: r[measure])
 
 
 def _values(rows: list[dict[str, Any]], column: str) -> set[Any]:
@@ -331,10 +365,26 @@ def explain_sql(sql: str) -> list[str]:
     return lines
 
 
+def _rows_for_prompt(rows: list[dict[str, Any]]) -> list[dict[str, Any]] | dict[str, Any]:
+    """All rows of a small result; of a large one its first and last rows and its extremes, all copied from
+    the rows (no computed numbers), so the summary covers the whole result rather than its first rows."""
+    if len(rows) <= MAX_ROWS_IN_PROMPT:
+        return rows
+    digest: dict[str, Any] = {"row_count": len(rows), "first_rows": rows[:20], "last_rows": rows[-5:]}
+    spread = _extremes(rows)
+    if spread:
+        _, measure, top, bottom = spread
+        digest["highest"], digest["lowest"] = {measure: top}, {measure: bottom}
+    return digest
+
+
 def _llm_answer(question: str, rows: list[dict[str, Any]]) -> tuple[str, dict[str, int]]:
     """Ask the chat model for a short answer; return (text, token usage)."""
-    payload = json.dumps(rows[:MAX_ROWS_IN_PROMPT], ensure_ascii=False, default=str)
-    note = f"\n(Showing {MAX_ROWS_IN_PROMPT} of {len(rows)} rows.)" if len(rows) > MAX_ROWS_IN_PROMPT else ""
+    payload = json.dumps(_rows_for_prompt(rows), ensure_ascii=False, default=str)
+    note = ""
+    if len(rows) > MAX_ROWS_IN_PROMPT:
+        note = (f"\n(The result has {len(rows)} rows in the order of the query: shown are the first and last rows "
+                "and the rows with the highest and lowest main value. Summarize the whole result from them.)")
     response = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
         model=OPENAI_CHAT_MODEL,
         temperature=0,
