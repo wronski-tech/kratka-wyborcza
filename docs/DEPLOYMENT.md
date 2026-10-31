@@ -101,6 +101,28 @@ once the day's total is reached; the request that crosses the limit still comple
 in Redis (`plujka:tokens:<key>:<day>`) when `REDIS_URL` is set, otherwise per process. Watch real
 usage in the cost panel (below) before choosing a value.
 
+## LLM provider
+
+All model calls (SQL, answers, clarification queries, embeddings, speech) go through
+`api/services/llm_client.py`. To keep the data processing in the EU, use Azure OpenAI with a resource in an EU
+region (for example Sweden Central or France Central) and deployments of the models:
+
+```bash
+LLM_PROVIDER=azure
+AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
+OPENAI_API_KEY=<the resource's key>
+OPENAI_CHAT_MODEL=<chat deployment>          # e.g. a gpt-4o-mini deployment
+OPENAI_REPAIR_MODEL=<repair deployment>      # e.g. a gpt-4o deployment
+OPENAI_EMBEDDING_MODEL=<embedding deployment>
+OPENAI_TRANSCRIBE_MODEL=<transcription deployment>
+LLM_PRICES_USD_PER_1M={"<chat deployment>": [0.15, 0.075, 0.6], "<repair deployment>": [2.5, 1.25, 10.0]}
+```
+
+The cost panel and the per-question limit look prices up by these names, so list the deployments in
+`LLM_PRICES_USD_PER_1M`. An OpenAI-compatible endpoint (another provider or a self-hosted server) works with
+`LLM_PROVIDER=openai` and `OPENAI_BASE_URL`; it must support JSON responses (`response_format`) and embeddings.
+The API refuses to start with an unknown `LLM_PROVIDER` or `azure` without an endpoint.
+
 ## Cost panel
 
 Every `/ask` (also the MCP `ask` tool) adds its OpenAI tokens to the table `token_usage`: one row per UTC

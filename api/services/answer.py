@@ -16,13 +16,13 @@ from typing import Any
 
 import openai
 import sqlglot
-from openai import OpenAI
 from sqlglot import exp
 
 from api.services import costs
 from api.services.config import ANSWER_SUMMARY_ENABLED, MART_MAX_ROWS, OPENAI_API_KEY, OPENAI_CHAT_MODEL
 from api.services.dynamic_sql import split_parts
 from api.services.embeddings import llm_available, llm_failed
+from api.services.llm_client import llm_client
 
 log = logging.getLogger(__name__)
 
@@ -491,7 +491,7 @@ def _llm_answer(question: str, rows: list[dict[str, Any]], style: str = "journal
     if len(rows) > MAX_ROWS_IN_PROMPT:
         note = (f"\n(The result has {len(rows)} rows in the order of the query: shown are the first and last rows "
                 "and the rows with the highest and lowest main value. Summarize the whole result from them.)")
-    response = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
+    response = llm_client().chat.completions.create(
         model=OPENAI_CHAT_MODEL,
         temperature=0,
         max_tokens=ANSWER_MAX_TOKENS,

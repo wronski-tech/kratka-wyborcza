@@ -33,7 +33,6 @@ from typing import Any
 
 import psycopg
 import openai
-from openai import OpenAI
 
 from api.services.config import (
     MART_DATABASE_URL,
@@ -48,6 +47,7 @@ from api.services.config import (
 from api.services import costs
 from api.services.embeddings import embed_texts, llm_available, llm_failed
 from api.services.mart import entities, examples, safe_sql
+from api.services.llm_client import llm_client
 
 log = logging.getLogger(__name__)
 
@@ -466,7 +466,7 @@ def _llm_sql(
         repair = (f"\nThe previous query failed. Fix it (a timeout: filter earlier, prefer the v_* views and the "
                   f"keys of the matched entities, avoid scanning precinct tables).\n"
                   f"Previous SQL: {previous_sql}\nError: {previous_error}\n")
-    response = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
+    response = llm_client().chat.completions.create(
         model=OPENAI_REPAIR_MODEL if previous_sql else OPENAI_CHAT_MODEL,
         temperature=0,
         max_tokens=SQL_MAX_TOKENS,
@@ -515,7 +515,7 @@ def _llm_interpretations(question: str, context: str, options: list[dict]) -> tu
     """Ask the chat model for one query per clarification option; return ([{ref, description, sql}], tokens)."""
     listing = "\n".join(f"- ref {o['ref']} ({o['kind']}): {o['label']}" for o in options)
     rules = SQL_RULES.rsplit("\n", 1)[0]
-    response = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
+    response = llm_client().chat.completions.create(
         model=OPENAI_CHAT_MODEL,
         temperature=0,
         max_tokens=INTERPRETATIONS_MAX_TOKENS,

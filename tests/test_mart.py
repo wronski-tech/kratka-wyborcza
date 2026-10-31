@@ -569,7 +569,7 @@ class TestAnswerNumbers(unittest.TestCase):
             client.chat.completions.create.return_value.choices = [MagicMock(message=MagicMock(content='{"answer": "PiS: 35,4%."}'))]
             client.chat.completions.create.return_value.usage = None
             with patch.object(answer, "OPENAI_API_KEY", "k"), patch.object(answer, "ANSWER_SUMMARY_ENABLED", True), \
-                    patch.object(answer, "OpenAI", MagicMock(return_value=client)):
+                    patch.object(answer, "llm_client", MagicMock(return_value=client)):
                 result = answer.compose_answer("Wynik PiS?", [{"party": "PiS", "pct": 35.38}], style=style)
             self.assertEqual(result["source"], "llm", "the number check applies to both styles")
             return client.chat.completions.create.call_args.kwargs["messages"][0]["content"]
@@ -1145,7 +1145,7 @@ class TestDynamicQueryFlow(unittest.TestCase):
             return [{"turnout_pct": 1}]
 
         with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "OPENAI_CHAT_MODEL", "cheap"), \
-                patch.object(dynamic_sql, "OPENAI_REPAIR_MODEL", "strong"), patch.object(dynamic_sql, "OpenAI", side_effect=[bad, good]), \
+                patch.object(dynamic_sql, "OPENAI_REPAIR_MODEL", "strong"), patch.object(dynamic_sql, "llm_client", side_effect=[bad, good]), \
                 patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=run):
             _, _, _, meta = dynamic_sql.try_dynamic_query("Frekwencja w 2023 (repair)?")
         self.assertEqual(meta["status"], "repaired")
@@ -1210,7 +1210,7 @@ class TestDynamicQueryFlow(unittest.TestCase):
             content = json.dumps({"plan": "p", "sql": self.GOOD, "chart": value})
             client.chat.completions.create.return_value.choices = [MagicMock(message=MagicMock(content=content))]
             client.chat.completions.create.return_value.usage = None
-            with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "OpenAI", MagicMock(return_value=client)):
+            with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "llm_client", MagicMock(return_value=client)):
                 return dynamic_sql._llm_sql("Poparcie PiS w województwach w 2023?", "ctx")[2]["chart"]
 
         self.assertEqual(chart({"type": "bar", "title": "Poparcie  PiS w 2023"}), {"type": "bar", "title": "Poparcie PiS w 2023"})
@@ -1236,7 +1236,7 @@ class TestDynamicQueryFlow(unittest.TestCase):
 
         question = "Jaka była frekwencja w eurowyborach 2024 i ile mandatów miały komitety w Sejmie 2023?"
         parts = [{"title": "Frekwencja PE 2024", "sql": turnout}, {"title": "Mandaty Sejm 2023", "sql": seats}]
-        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "OpenAI", model(parts)) as client, \
+        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "llm_client", model(parts)) as client, \
                 patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=run) as run_mock:
             rows, sql, _, meta = dynamic_sql.try_dynamic_query(question)
             self.assertEqual(meta["status"], "first_pass")
@@ -1252,7 +1252,7 @@ class TestDynamicQueryFlow(unittest.TestCase):
         # One unsafe part (or too many parts) rejects the whole answer before anything runs.
         for bad in ([*parts[:1], {"title": "x", "sql": "DELETE FROM mart.persons"}], [*parts, *parts]):
             dynamic_sql.SQL_CACHE._data.clear()
-            with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "OpenAI", model(bad)), \
+            with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "llm_client", model(bad)), \
                     patch.object(dynamic_sql.safe_sql, "run_readonly") as run_mock:
                 _, _, _, meta = dynamic_sql.try_dynamic_query(question)
             self.assertEqual(meta["status"], "rejected")
@@ -1261,7 +1261,7 @@ class TestDynamicQueryFlow(unittest.TestCase):
     def test_openai_error_starts_the_emergency_mode(self) -> None:
         client = MagicMock()
         client.chat.completions.create.side_effect = openai.APIConnectionError(request=MagicMock())
-        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "OpenAI", MagicMock(return_value=client)), \
+        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "llm_client", MagicMock(return_value=client)), \
                 patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=AssertionError("nothing to run")):
             first = dynamic_sql.try_dynamic_query("Frekwencja w 2023?")[3]
             second = dynamic_sql.try_dynamic_query("Frekwencja w 2019?")[3]
@@ -1272,7 +1272,7 @@ class TestDynamicQueryFlow(unittest.TestCase):
         embeddings._llm_down_until = 0.0  # the end of the emergency mode (setUp restores the value after the test)
         bad = openai.NotFoundError("model not found", response=MagicMock(status_code=404), body=None)
         client.chat.completions.create.side_effect = bad
-        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "OpenAI", MagicMock(return_value=client)), \
+        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "llm_client", MagicMock(return_value=client)), \
                 patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=AssertionError("nothing to run")):
             self.assertEqual(dynamic_sql.try_dynamic_query("Frekwencja w 2015?")[3]["status"], "llm_error")
             self.assertTrue(embeddings.llm_available())
@@ -1423,7 +1423,7 @@ class TestPromptInjection(unittest.TestCase):
             MagicMock(message=MagicMock(content='{"answer": "Komitet zdobył 100% głosów."}'))]
         client.chat.completions.create.return_value.usage = None
         with patch.object(answer, "OPENAI_API_KEY", "k"), patch.object(answer, "ANSWER_SUMMARY_ENABLED", True), \
-                patch.object(answer, "OpenAI", MagicMock(return_value=client)):
+                patch.object(answer, "llm_client", MagicMock(return_value=client)):
             result = answer.compose_answer(question, rows)
         self.assertEqual((result["source"], result["rejected_numbers"]), ("fallback", ["100"]))
         system, user = (m["content"] for m in client.chat.completions.create.call_args.kwargs["messages"])

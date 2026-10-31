@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import re
 
-from openai import OpenAI
 
 from api.services.config import OPENAI_API_KEY, OPENAI_CHAT_MODEL
+from api.services.llm_client import llm_client
 
 COMMITTEE_ALIASES = {
     "ko": "KOALICJA OBYWATELSKA",
@@ -338,7 +338,7 @@ def extract_intent_and_entity(question: str) -> tuple[str, str | None]:
                 return "votes_for_candidate", alias
         return "total_votes_by_candidate", None
 
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    client = llm_client()
     prompt = (
         "You are an intent extractor for a deterministic SQL system. "
         "Return JSON only with keys: intent, entity. "

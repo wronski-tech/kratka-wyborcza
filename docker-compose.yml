@@ -63,6 +63,12 @@ services:
       OPENAI_REPAIR_MODEL: ${OPENAI_REPAIR_MODEL:-gpt-4o}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
       OPENAI_TRANSCRIBE_MODEL: ${OPENAI_TRANSCRIBE_MODEL:-gpt-4o-mini-transcribe}
+      # LLM provider: openai (OPENAI_BASE_URL for an OpenAI-compatible endpoint) or azure (Azure OpenAI, model
+      # settings above are deployment names).
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-10-21}
       EMBEDDING_DIM: "128"
     ports:
       - "8000:8000"
@@ -98,6 +104,11 @@ services:
       MART_DATABASE_URL: postgresql://plujka_mart_reader:${MART_READER_PASSWORD:-plujka_mart_reader}@postgres:5432/plujka
       OPENSEARCH_URL: http://opensearch:9200
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-10-21}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
     volumes:
       - ./data:/app/data
     depends_on:

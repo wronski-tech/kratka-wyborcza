@@ -7,9 +7,9 @@ import time
 from typing import List
 
 import openai
-from openai import OpenAI
 
 from api.services.config import EMBEDDING_DIM, OPENAI_API_KEY, OPENAI_EMBEDDING_MODEL
+from api.services.llm_client import llm_client
 
 
 log = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     if not llm_available():
         raise RuntimeError("OpenAI is unavailable (emergency mode).")
     try:
-        response = OpenAI(api_key=OPENAI_API_KEY).embeddings.create(model=OPENAI_EMBEDDING_MODEL, input=texts)
+        response = llm_client().embeddings.create(model=OPENAI_EMBEDDING_MODEL, input=texts)
     except openai.OpenAIError as exc:
         llm_failed(exc)
         raise
@@ -77,7 +77,7 @@ def embed_text(text: str) -> List[float]:
     """OpenAI embedding of ``text``; the local deterministic one without a key or in the emergency mode."""
     if OPENAI_API_KEY and llm_available():
         try:
-            response = OpenAI(api_key=OPENAI_API_KEY).embeddings.create(model=OPENAI_EMBEDDING_MODEL, input=text)
+            response = llm_client().embeddings.create(model=OPENAI_EMBEDDING_MODEL, input=text)
             return response.data[0].embedding
         except openai.OpenAIError as exc:
             llm_failed(exc)

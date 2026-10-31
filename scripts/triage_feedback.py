@@ -24,11 +24,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from openai import OpenAI  # noqa: E402
 
 from api.services import dynamic_sql  # noqa: E402
 from api.services.config import FEEDBACK_JSONL_PATH, OPENAI_API_KEY, OPENAI_CHAT_MODEL  # noqa: E402
 from api.services.mart import examples, safe_sql  # noqa: E402
+from api.services.llm_client import llm_client  # noqa: E402
 
 GROUPING_PROMPT = """You triage answers that users of a Polish election Q&A tool marked as wrong.
 Each item has an index, the question, the answer route (intent), the SQL that ran (if any) and the
@@ -59,7 +59,7 @@ def llm_groups(items: list[dict]) -> list[dict]:
          "sql": r["ask_response"].get("sql"), "rows": (r["ask_response"].get("result") or [])[:3]}
         for i, r in enumerate(items)
     ]
-    response = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
+    response = llm_client().chat.completions.create(
         model=OPENAI_CHAT_MODEL,
         temperature=0,
         response_format={"type": "json_object"},

@@ -6,6 +6,16 @@ import os
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://plujka:plujka@localhost:5432/plujka")
 OPENSEARCH_URL = os.getenv("OPENSEARCH_URL", "http://localhost:9200")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+# LLM provider (api/services/llm_client.py): "openai" (or an OpenAI-compatible endpoint at OPENAI_BASE_URL) or
+# "azure" (Azure OpenAI at AZURE_OPENAI_ENDPOINT; the OPENAI_*_MODEL settings are then deployment names).
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").strip().lower()
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "").strip()
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "").strip()
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-10-21").strip()
+if LLM_PROVIDER not in ("openai", "azure"):
+    raise ValueError(f"LLM_PROVIDER must be openai or azure, not {LLM_PROVIDER!r}.")
+if LLM_PROVIDER == "azure" and not AZURE_OPENAI_ENDPOINT:
+    raise ValueError("LLM_PROVIDER=azure needs AZURE_OPENAI_ENDPOINT (https://<resource>.openai.azure.com).")
 OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
 # Stronger model for the second SQL attempt, after the first query failed (the cheap model writes first).
 OPENAI_REPAIR_MODEL = os.getenv("OPENAI_REPAIR_MODEL", "gpt-4o")

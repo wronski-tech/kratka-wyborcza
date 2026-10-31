@@ -14,7 +14,7 @@ import openai
 
 from fastapi.testclient import TestClient
 
-from api.services import config, report_pdf, speech
+from api.services import config, llm_client, report_pdf, speech
 
 from api.main import (
     AskResponse,
@@ -192,10 +192,20 @@ class TestAskEndpoint(unittest.TestCase):
                 patch("api.main.speech.transcribe", side_effect=openai.APIConnectionError(request=MagicMock())):
             self.assertEqual(post(wav).status_code, 502)
 
+    def test_llm_provider_from_configuration(self) -> None:
+        with patch("api.services.llm_client.openai") as sdk, patch.object(config, "OPENAI_API_KEY", "k"):
+            with patch.object(config, "LLM_PROVIDER", "azure"), patch.object(config, "AZURE_OPENAI_ENDPOINT", "https://plujka-eu.openai.azure.com"):
+                llm_client.llm_client()
+            sdk.AzureOpenAI.assert_called_once_with(api_key="k", azure_endpoint="https://plujka-eu.openai.azure.com",
+                                                    api_version=config.AZURE_OPENAI_API_VERSION)
+            with patch.object(config, "OPENAI_BASE_URL", ""):
+                llm_client.llm_client()
+            sdk.OpenAI.assert_called_once_with(api_key="k", base_url=None)
+
     def test_speech_asks_the_transcription_model(self) -> None:
         client = MagicMock()
         client.audio.transcriptions.create.return_value = MagicMock(text="  Ile mandatów\nmiał PiS?  ")
-        with patch("api.services.speech.OpenAI", return_value=client):
+        with patch("api.services.speech.llm_client", return_value=client):
             self.assertEqual(speech.transcribe(b"wav", "audio/wav"), "Ile mandatów miał PiS?")
         kwargs = client.audio.transcriptions.create.call_args.kwargs
         self.assertEqual((kwargs["model"], kwargs["file"]), (config.OPENAI_TRANSCRIBE_MODEL, ("question.wav", b"wav", "audio/wav")))

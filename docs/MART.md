@@ -820,6 +820,7 @@ the matched entities, examples used, `schema_relations`, `prompt_chars` and per-
 | `MART_STATEMENT_TIMEOUT_MS` | `5000` | Server-side limit for one generated query |
 | `MART_MAX_ROWS` | `500` | Row cap added to generated queries |
 | `MART_MAX_PLAN_COST` | `5000000` | Planner cost above which a generated query is not run but repaired (0 disables); the heaviest evaluation reference query costs about 360k, and `run_eval.py --check` fails a reference query above the limit |
+| `LLM_PROVIDER` | `openai` | `openai` (or an OpenAI-compatible endpoint at `OPENAI_BASE_URL`) or `azure` (Azure OpenAI at `AZURE_OPENAI_ENDPOINT`, API `AZURE_OPENAI_API_VERSION`, default `2024-10-21`; the `OPENAI_*_MODEL` settings are deployment names, the key is `OPENAI_API_KEY`) |
 | `OPENAI_CHAT_MODEL` / `OPENAI_REPAIR_MODEL` | `gpt-4o-mini` / `gpt-4o` | First SQL attempt (also clarification queries and answer text) / the repair after a failed query; set both to one model to turn routing off |
 | `SQL_CACHE_TTL_SECONDS` / `SQL_CACHE_MAX_ENTRIES` | `3600` / `512` | Validated SQL cache (0 disables) |
 | `QUESTION_COST_LIMIT_USD` | `0.05` | OpenAI cost ceiling of one question (prices from `LLM_PRICES_USD_PER_1M`); 0 disables |

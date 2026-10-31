@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Another LLM provider through configuration: `LLM_PROVIDER=azure` sends every model call (SQL, answers, embeddings, speech) to Azure OpenAI at `AZURE_OPENAI_ENDPOINT` (e.g. an EU region; model settings are deployment names), and `OPENAI_BASE_URL` points the default provider at an OpenAI-compatible endpoint (`api/services/llm_client.py`).
+
 - Emergency mode: an OpenAI error no longer ends in HTTP 500. The answer says the model is unavailable and offers the matching „Przeglądaj wyniki” view (election, year, round, turnout or results, level read from the question), opened with one click; for 60 s after the error no OpenAI call is made, so further questions get it at once (cached SQL still answers).
 
 - Cost limit per question: `QUESTION_COST_LIMIT_USD` (default 0.05 USD). Model calls have output ceilings, and a call that could cross the limit is skipped (the repair, clarification queries, the answer text, which then falls back to the deterministic summary); the question log records `cost_usd`.
