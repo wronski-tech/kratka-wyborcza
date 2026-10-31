@@ -778,7 +778,12 @@ appends it to the curated file when accepted (decisions in `example_reviews.json
 `scripts/triage_feedback.py` groups the thumbs-down answers by likely problem with the LLM
 (`feedback_groups.md`) and asks the usual SQL prompt for a corrected query, with the rejected one and
 the problem as the error to fix; proposals that pass the guard and return rows go to
-`example_proposals.jsonl`, which `--review` offers next.
+`example_proposals.jsonl`, which `--review` offers next. User text from the feedback log is anonymized
+before the LLM reads it (`api/services/anonymize.py`): the triage loads questions and SQL with e-mail
+addresses, links, IP addresses, account and card numbers, PESEL and phone numbers replaced by placeholders
+(`[e-mail]`, `[telefon]`…), and `--review` stores accepted questions the same way, since a curated example
+prompts the model for every user. Years, dates, TERYT codes and vote counts stay; names stay too (candidates
+are public persons, and a private name cannot be told apart by its form).
 Curated pairs are indexed in the OpenSearch index `SQL_EXAMPLES_INDEX` (anything else is removed at
 startup) and retrieved by kNN on the question embedding plus text match; without OpenSearch the
 curated file is searched by word overlap.

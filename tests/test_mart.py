@@ -24,6 +24,7 @@ import psycopg
 import sqlglot
 
 from api.services import answer, definitions, dynamic_sql, embeddings, scope
+from api.services.anonymize import anonymize
 from api.services.mart import entities, examples
 from api.services.mart.build_common import (
     create_committee_aliases,
@@ -965,7 +966,8 @@ class TestCuratedExamples(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             feedback = Path(tmp) / "feedback.jsonl"
             lines = [{"rating": "thumbs_down", "question": q, "needs_fix": True, "ask_response": {"intent": "dynamic_sql", "sql": sql}}
-                     for q, sql in (("Frekwencja w eurowyborach 2019", bad), ("Frekwencja PE 2014", fixed), ("Sondaż na 2027", None))]
+                     for q, sql in (("Frekwencja w eurowyborach 2019, wynik na jan.nowak@example.com lub 600 123 456", bad),
+                                    ("Frekwencja PE 2014", fixed), ("Sondaż na 2027", None))]
             # A definition answer gets no query proposal: its text in docs/DEFINITIONS.md needs the fix.
             lines.append({"rating": "thumbs_down", "question": "Co to jest próg wyborczy?", "ask_response": {"intent": "definition", "sql": ""}})
             feedback.write_text("".join(json.dumps(r) + "\n" for r in [*lines, {"rating": "thumbs_up", "question": "x"}]), encoding="utf-8")
@@ -975,11 +977,15 @@ class TestCuratedExamples(unittest.TestCase):
                     patch.object(dynamic_sql, "build_context", return_value=("ctx", "v", {})), \
                     patch.object(dynamic_sql, "_llm_sql", return_value=(fixed, {}, {})), \
                     patch("api.services.mart.safe_sql.run_readonly", return_value=[{"turnout_pct": 45.68}]):
-                self.assertEqual(triage.triage(feedback, group=lambda items: groups), 1)
+                seen: list[dict] = []
+                self.assertEqual(triage.triage(feedback, group=lambda items: (seen.extend(items), groups)[1]), 1)
                 self.assertEqual(triage.triage(feedback, group=lambda items: groups), 0, "a question is proposed once")
+            question = "Frekwencja w eurowyborach 2019, wynik na [e-mail] lub [telefon]"
+            self.assertEqual(seen[0]["question"], question, "the model groups anonymized questions")
             proposals = [json.loads(line) for line in (Path(tmp) / "example_proposals.jsonl").read_text(encoding="utf-8").splitlines()]
-            self.assertEqual(proposals, [{"question": "Frekwencja w eurowyborach 2019", "sql": validate_mart_sql(fixed), "note": "Election filter missing"}])
+            self.assertEqual(proposals, [{"question": question, "sql": validate_mart_sql(fixed), "note": "Election filter missing"}])
             report = (Path(tmp) / "feedback_groups.md").read_text(encoding="utf-8")
+            self.assertNotIn("example.com", report)
             self.assertIn("## Not in the database (2)", report)
             self.assertIn("- Co to jest próg wyborczy? — definition, fix docs/DEFINITIONS.md", report)
 
@@ -1372,6 +1378,17 @@ class TestDynamicQueryFlow(unittest.TestCase):
             self.assertNotIn("compares", context("A w 2019?"))
             self.assertNotIn("compares", context("Porównaj frekwencję w Krakowie i Gdańsku w 2023", None))
         self.patches[0].start()
+
+
+class TestAnonymize(unittest.TestCase):
+    def test_personal_data_goes_and_election_data_stays(self) -> None:
+        self.assertEqual(
+            anonymize("Pisze jan.nowak@example.com, tel. +48 600 123 456 albo 22 628 12 34, PESEL 90010112345, "
+                      "konto PL61 1090 1014 0000 0712 1981 2874, IP 192.168.1.10, https://example.pl/x"),
+            "Pisze [e-mail], tel. [telefon] albo [telefon], PESEL [PESEL], konto [konto], IP [IP], [link]")
+        for kept in ("PiS: 7 640 854 głosów (35,38%) w 2023", "29 532 595 uprawnionych, 21 966 891 głosów", "wybory 15.10.2023",
+                     "gmina 1465011, okręg 19, 460 mandatów", "KUKIZ'15 zdobył 8,81%"):
+            self.assertEqual(anonymize(kept), kept)
 
 
 class TestPromptInjection(unittest.TestCase):

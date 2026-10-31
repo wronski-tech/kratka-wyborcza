@@ -135,7 +135,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 44. Limit kosztu jednego pytania.
 - [x] 45. Tryb awaryjny: przy błędzie OpenAI tryb „Przeglądaj” zamiast szablonów Sejmu.
 - [x] 46. Inny dostawca LLM (np. Azure OpenAI w UE) przez konfigurację.
-- [ ] 47. Anonimizacja logów przed analizą przez LLM.
+- [x] 47. Anonimizacja logów przed analizą przez LLM.
 - [ ] 48. Limit długości i liczby pytań na sesję.
 - [ ] 49. Ocena pewności SQL widoczna w UI.
 - [ ] 50. Wersjonowanie promptów z wynikami ewaluacji.

@@ -26,6 +26,7 @@ if str(ROOT) not in sys.path:
 
 
 from api.services import dynamic_sql  # noqa: E402
+from api.services.anonymize import anonymize  # noqa: E402
 from api.services.config import FEEDBACK_JSONL_PATH, OPENAI_API_KEY, OPENAI_CHAT_MODEL  # noqa: E402
 from api.services.mart import examples, safe_sql  # noqa: E402
 from api.services.llm_client import llm_client  # noqa: E402
@@ -40,12 +41,16 @@ Every index appears in exactly one group."""
 
 
 def load_thumbs_down(path: Path) -> list[dict]:
-    """Thumbs-down records with their answer snapshot, latest per question."""
+    """Thumbs-down records with their answer snapshot, latest per question; the question and SQL anonymized
+    (``anonymize``), so no personal data a user typed reaches the model, the report or the proposals."""
     latest: dict[str, dict] = {}
     if path.exists():
         for line in path.read_text(encoding="utf-8").splitlines():
             record = json.loads(line) if line.strip() else {}
             if record.get("rating") == "thumbs_down" and record.get("ask_response"):
+                snapshot = record["ask_response"]
+                record = {**record, "question": anonymize(record["question"]),
+                          "ask_response": {**snapshot, "sql": anonymize(snapshot["sql"]) if snapshot.get("sql") else None}}
                 latest[examples.example_id(record["question"])] = record
     return list(latest.values())
 

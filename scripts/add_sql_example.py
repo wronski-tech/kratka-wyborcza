@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from api.services.anonymize import anonymize  # noqa: E402
 from api.services.config import FEEDBACK_JSONL_PATH  # noqa: E402
 from api.services.mart import examples  # noqa: E402
 from api.services.mart.safe_sql import run_readonly, validate_mart_sql  # noqa: E402
@@ -75,20 +76,22 @@ def review_candidates(feedback_path: Path, ask=input) -> int:
                     candidates[key] = record  # the latest SQL for a repeated question
     added = 0
     for key, record in candidates.items():
-        ok, message = check_example(record["question"], record["sql"])
+        # An accepted question prompts the model for every user: personal data a user typed stays out.
+        question = anonymize(record["question"])
+        ok, message = check_example(question, record["sql"])
         note = f"\n({record['note']})" if record.get("note") else ""
-        print(f"\nQ: {record['question']}{note}\n{record['sql']}\n-> {message[:300]}")
+        print(f"\nQ: {question}{note}\n{record['sql']}\n-> {message[:300]}")
         if not ok:
             answer = "n"
             print("rejected automatically")
         else:
             answer = ask("Add as a curated example? [y]es / [n]o / [s]kip for now: ").strip().lower()[:1]
         if answer == "y":
-            append_example(record["question"], record["sql"])
+            append_example(question, record["sql"])
             added += 1
         if answer in ("y", "n"):
             with reviews_path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps({"id": key, "question": record["question"], "accepted": answer == "y"},
+                handle.write(json.dumps({"id": key, "question": question, "accepted": answer == "y"},
                                         ensure_ascii=False) + "\n")
     print(f"{len(candidates)} candidate(s), {added} added")
     return added
