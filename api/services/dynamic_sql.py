@@ -66,7 +66,10 @@ SQL_RULES = f"""Rules:
 - When the question asks two or three separate things that one SELECT cannot answer together
   (e.g. turnout in one election and seats in another), return
   {{"parts": [{{"title": "<short Polish title>", "sql": "..."}}]}} instead, one SELECT per part.
-Return JSON: {{"sql": "..."}}"""
+- Plan before writing SQL: first fill "plan" with 2-4 short English lines - which relations, which
+  filters (election, year, round, level, units, entities' keys), which grouping and output columns -
+  then write the SQL that follows the plan.
+Return JSON: {{"plan": "...", "sql": "..."}} (or {{"plan": "...", "parts": [...]}})"""
 
 # A multi-part answer is kept as one text: "-- part: <title>" + SELECT, parts joined by PART_SEPARATOR.
 PART_SEPARATOR = "\n;\n"
@@ -319,8 +322,11 @@ def data_context() -> tuple[str, str]:
 
 def _llm_sql(
     question: str, context: str, previous_sql: str | None = None, previous_error: str | None = None
-) -> tuple[str, dict[str, int]]:
-    """Ask the chat model for one SQL query; return (sql, token usage). Raise ValueError when unusable."""
+) -> tuple[str, dict[str, int], str]:
+    """Ask the chat model for a query plan and the SQL that follows it, in one call.
+
+    Returns (sql, token usage, plan). Raises ValueError when the response is unusable.
+    """
     if not OPENAI_API_KEY:
         raise ValueError("OPENAI_API_KEY is missing.")
     repair = ""
@@ -352,7 +358,9 @@ def _llm_sql(
         sql = str((parts[0]["sql"] if parts else payload.get("sql")) or "").strip()
     if not sql:
         raise ValueError("Model returned no SQL.")
-    return sql, tokens
+    plan = payload.get("plan")
+    plan = "\n".join(str(p) for p in plan) if isinstance(plan, list) else str(plan or "").strip()
+    return sql, tokens, plan
 
 
 MAX_INTERPRETATIONS = 4
@@ -601,7 +609,7 @@ def try_dynamic_query(
 
     Returns ``(rows, sql, error, meta)``. ``meta["status"]`` is one of skipped / clarify / rejected /
     failed / cached / first_pass / repaired. ``meta`` also holds ``entities``, ``examples``,
-    ``timings_ms``, ``tokens``, ``schema_relations``, ``schema_selection`` and ``prompt_chars``; for ``clarify`` it holds
+    ``timings_ms``, ``tokens``, ``schema_relations``, ``schema_selection``, ``prompt_chars`` and the model's query ``plan``; for ``clarify`` it holds
     ``clarification`` (see ``entities.find_ambiguity``). ``previous`` is the preceding turn of the
     conversation (``{"question", "sql", "entity_refs"}``) for follow-up questions.
     """
@@ -639,8 +647,10 @@ def try_dynamic_query(
     for attempt in ("first_pass", "repaired"):
         try:
             phase = time.monotonic()
-            raw, used = _llm_sql(question, context, previous_sql=sql, previous_error=error)
+            raw, used, plan = _llm_sql(question, context, previous_sql=sql, previous_error=error)
             timings[f"llm_{attempt}"] = _ms(phase)
+            if plan:
+                meta["plan"] = plan
             for name, value in used.items():
                 tokens[name] = tokens.get(name, 0) + value
             sql = validate_parts(raw)

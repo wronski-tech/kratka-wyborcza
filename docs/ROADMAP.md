@@ -99,7 +99,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 
 **Generowanie SQL**
 - [x] 16. Wybór schematu przez embeddingi (`FAMILY_KEYWORDS` jako zabezpieczenie).
-- [ ] 17. Plan zapytania, potem SQL.
+- [x] 17. Plan zapytania, potem SQL.
 - [ ] 18. Routing modeli: tańszy najpierw, droższy przy naprawie.
 - [ ] 19. Prompt caching stałej części promptu.
 - [ ] 20. Naprawa SQL z `EXPLAIN` w drugiej próbie.

@@ -701,6 +701,10 @@ would answer it from Sejm data.
    fails they choose alone. `params._dynamic_sql_meta` reports `schema_relations`,
    `schema_selection` (`keywords`, `keywords+embeddings`, `embeddings`) and `prompt_chars`. When
    adding a relation group, add its prefix to `FAMILY_KEYWORDS`.
+   The model answers with a short query plan first (relations, filters, grouping, output columns) and
+   then the SQL, in the same JSON response (`{"plan", "sql"}`), so it decides what to query before
+   writing it, at no extra request. The plan of the query that ran is `params._dynamic_sql_meta.plan`
+   and shows above the SQL in the UI.
 5. **Validation** (`mart/safe_sql.py`). sqlglot parses the query. Only one SELECT (CTEs and UNION
    allowed) over mart relations is accepted. DML, DDL, `SET`, `SELECT INTO`, `pg_*` functions and
    functions such as `set_config`, `dblink` or `nextval` are rejected, also when quoted
