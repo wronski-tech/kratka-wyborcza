@@ -98,6 +98,7 @@ class TestAskEndpoint(unittest.TestCase):
             patch("api.main.opensearch_store.log_question"),
             patch("api.main.dynamic_sql.loaded_years", return_value={"sejm": [2019, 2023]}),
             patch("api.main.db.save_view", return_value="0123456789ab"),
+            patch("api.main.db.record_usage"),
         ]
         self.route = self.patches[0].start()
         for p in self.patches[1:]:
@@ -138,6 +139,36 @@ class TestAskEndpoint(unittest.TestCase):
         with patch("api.main.db.saved_view", return_value=None):
             self.assertEqual(self.client.get("/views/0123456789ab").status_code, 404)
         self.assertEqual(self.client.get("/views/DROP").status_code, 422)
+
+    def test_token_usage_per_model_and_cost_panel(self) -> None:
+        meta = {"tokens": {"prompt_tokens": 1500, "completion_tokens": 120},
+                "tokens_by_model": {"gpt-4o-mini": {"prompt_tokens": 1000, "completion_tokens": 100},
+                                    "gpt-4o": {"prompt_tokens": 500, "completion_tokens": 20}}}
+        self.route.return_value = {**self.ROUTED, "params": {"_dynamic_sql_meta": meta}}
+        answered = {"text": "t", "source": "llm", "tokens": {"prompt_tokens": 300, "completion_tokens": 30}}
+        with patch("api.main.config.API_KEYS", frozenset({"secret-1"})), patch("api.main.config.OPENAI_CHAT_MODEL", "gpt-4o-mini"), \
+                patch("api.main.answer.compose_answer", side_effect=lambda *a, **k: dict(answered)), \
+                patch("api.main.db.record_usage") as record:
+            self.client.post("/ask", json={"question": "q"}, headers={"X-API-Key": "secret-1"})
+        key, by_model = record.call_args.args
+        self.assertTrue(key.startswith("key ") and "secret" not in key)
+        # The answer text's tokens join the chat model; the repair model keeps its own.
+        self.assertEqual(by_model, {"gpt-4o-mini": {"prompt_tokens": 1300, "completion_tokens": 130},
+                                    "gpt-4o": {"prompt_tokens": 500, "completion_tokens": 20}})
+        self.assertEqual(meta["tokens_by_model"]["gpt-4o-mini"]["prompt_tokens"], 1000, "meta is not changed")
+        rows = [{"day": date(2026, 10, 31), "key_id": key, "model": "gpt-4o", "questions": 2, "prompt_tokens": 1_000_000,
+                 "completion_tokens": 100_000, "cached_tokens": 400_000},
+                {"day": date(2026, 10, 31), "key_id": key, "model": "own-model", "questions": 1, "prompt_tokens": 10,
+                 "completion_tokens": 1, "cached_tokens": 0}]
+        with patch("api.main.db.usage_rows", return_value=rows), \
+                patch("api.main.config.LLM_PRICES_USD_PER_1M", {"gpt-4o": [2.5, 1.25, 10.0]}):
+            # 600k uncached * 2.5 + 400k cached * 1.25 + 100k out * 10 (per million) = 1.5 + 0.5 + 1.0
+            self.assertEqual([r["usd"] for r in self.client.get("/costs").json()], [3.0, None])
+            with patch("api.main.config.API_KEYS", frozenset({"secret-1"})):
+                self.assertEqual(self.client.get("/costs", headers={"X-API-Key": "secret-1"}).status_code, 403)
+                with patch("api.main.config.ADMIN_API_KEYS", frozenset({"admin-1"})):
+                    self.assertEqual(self.client.get("/costs", headers={"X-API-Key": "secret-1"}).status_code, 401)
+                    self.assertEqual(self.client.get("/costs", headers={"X-API-Key": "admin-1"}).status_code, 200)
 
     def test_dynamic_answers_suggest_follow_ups(self) -> None:
         self.route.return_value = {**self.ROUTED, "sql": "SELECT party, pct FROM mart.v_party_results WHERE election = 'sejm' AND year = 2023 AND level = 'country'"}

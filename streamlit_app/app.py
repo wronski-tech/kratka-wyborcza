@@ -1805,6 +1805,56 @@ def _view_link(data: dict) -> None:
                       "pytania modelu. Skopiuj go do zakładek albo udostępnij."))
 
 
+def _costs_panel() -> None:
+    """"Koszty LLM" (``?panel=koszty``): tokens per day, API key and model from ``GET /costs``, with a USD estimate."""
+    with st.container(border=True):
+        st.markdown(f"##### {_t('💰 Koszty LLM')}")
+        c1, c2 = st.columns([1, 2])
+        days = c1.selectbox(_t("Okres"), [7, 30, 90], index=1, format_func=lambda d: _t(f"ostatnie {d} dni"), key="costs_days")
+        admin = c2.text_input(_t("Klucz administratora (ADMIN_API_KEYS)"), type="password", key="costs_key")
+        headers = {**API_HEADERS, **({"X-API-Key": admin} if admin else {})}
+        try:
+            response = requests.get(f"{API_URL}/costs", params={"days": days}, headers=headers, timeout=30)
+        except requests.RequestException as error:
+            st.error(f"Coś poszło nie tak z API: {error}")
+            return
+        if response.status_code in (401, 403):
+            st.info(_t("Panel kosztów wymaga klucza administratora."))
+            return
+        if not response.ok:
+            st.error(f"Coś poszło nie tak z API: HTTP {response.status_code}")
+            return
+        rows = response.json()
+        if not rows:
+            st.caption(_t("Brak zużycia tokenów w tym okresie."))
+            return
+        table = pd.DataFrame(rows)
+        usd = table["usd"].sum(skipna=True)
+        m1, m2, m3 = st.columns(3)
+        m1.metric(_t("Szacowany koszt"), f"{usd:,.2f} USD".replace(",", " ").replace(".", ","))
+        m2.metric(_t("Tokeny"), f"{int(table['prompt_tokens'].sum() + table['completion_tokens'].sum()):,}".replace(",", " "))
+        m3.metric(_t("Pytania z LLM"), f"{int(table.groupby(['day', 'key'])['questions'].max().sum()):,}".replace(",", " "))
+        table["tokens"] = table["prompt_tokens"] + table["completion_tokens"]
+        st.altair_chart(
+            alt.Chart(table).mark_bar().encode(
+                x=alt.X("day:O", title=None, axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("sum(tokens):Q", title=_t("tokeny")),
+                color=alt.Color("model:N", title=_t("model")),
+                tooltip=["day:O", "model:N", "key:N", "sum(tokens):Q", "sum(usd):Q"],
+            ).properties(height=220, title=_t("Tokeny dziennie według modelu")),
+            use_container_width=True,
+        )
+        by_key = (table.groupby(["key", "model"], as_index=False)
+                  [["questions", "prompt_tokens", "cached_tokens", "completion_tokens", "usd"]].sum(min_count=1))
+        st.markdown(f"**{_t('Według klucza i modelu')}**")
+        st.dataframe(by_key.sort_values("usd", ascending=False), hide_index=True, use_container_width=True)
+        with st.expander(_t("Dzień po dniu")):
+            st.dataframe(table.drop(columns=["tokens"]), hide_index=True, use_container_width=True)
+        missing = sorted(table.loc[table["usd"].isna(), "model"].unique())
+        st.caption(_t("Koszt to szacunek z cen w LLM_PRICES_USD_PER_1M (USD za milion tokenów); klucze API są pokazane "
+                      "jako skrót SHA-256.") + (f" {_t('Bez ceny')}: {', '.join(missing)}." if missing else ""))
+
+
 def _saved_view() -> None:
     """A saved view opened by its link (``?zestawienie=``): the stored query re-run through the SQL guard."""
     view_id = st.query_params.get("zestawienie", "")
@@ -2018,6 +2068,8 @@ def _kbw_table_stats_expander() -> None:
 _catalog_inventory_expander()
 _kbw_table_stats_expander()
 
+if st.query_params.get("panel") == "koszty":
+    _costs_panel()
 _saved_view()
 with st.container(border=True):
     chat_mode = st.toggle(_t("Tryb czatu"), key="chat_mode",

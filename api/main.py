@@ -663,6 +663,19 @@ def _telemetry(result: dict[str, Any], started: float) -> dict[str, Any]:
     }
 
 
+def _tokens_by_model(result: dict[str, Any]) -> dict[str, dict[str, int]]:
+    """Tokens of one answer per model: SQL generation (chat or repair model) and the answer text (chat model)."""
+    meta = (result.get("params") or {}).get("_dynamic_sql_meta") or {}
+    by_model = {model: dict(used) for model, used in (meta.get("tokens_by_model") or {}).items()}
+    dynamic_sql.add_usage({}, by_model, config.OPENAI_CHAT_MODEL, (result.get("answer") or {}).get("tokens") or {})
+    return {model: used for model, used in by_model.items() if any(used.values())}
+
+
+def _usage_key(api_key: str | None) -> str:
+    """How the cost panel names a client: a short hash of its API key (never the key), or "no key"."""
+    return f"key {hashlib.sha256(api_key.encode()).hexdigest()[:8]}" if api_key else "no key"
+
+
 def require_api_key(x_api_key: str | None = Header(default=None)) -> str | None:
     """Reject the request unless it carries one of ``API_KEYS`` (no keys configured: open API)."""
     if not config.API_KEYS:
@@ -1155,6 +1168,45 @@ def run_report(report_id: str = Path(pattern=r"^[0-9a-f]{12}$")) -> ReportResult
                         rows=[{k: _json_value(v) for k, v in row.items()} for row in rows])
 
 
+class CostRow(BaseModel):
+    day: date
+    key: str = Field(description='Client: "key <hash>" (first 8 hex digits of the API key\'s SHA-256) or "no key"')
+    model: str
+    questions: int = Field(description="Questions that used this model")
+    prompt_tokens: int
+    completion_tokens: int
+    cached_tokens: int = Field(description="Prompt tokens served from OpenAI's prompt cache (part of prompt_tokens)")
+    usd: float | None = Field(description="Estimate from LLM_PRICES_USD_PER_1M; null for a model without a price")
+
+
+def require_admin_key(x_api_key: str | None = Header(default=None)) -> None:
+    """Admin key (ADMIN_API_KEYS) for usage of every client; an API without any keys (development) is open."""
+    if not config.ADMIN_API_KEYS:
+        if config.API_KEYS:
+            raise HTTPException(status_code=403, detail="Set ADMIN_API_KEYS to read costs.")
+        return
+    if not x_api_key or not any(secrets.compare_digest(x_api_key, k) for k in config.ADMIN_API_KEYS):
+        raise HTTPException(status_code=401, detail="Missing or invalid admin X-API-Key.")
+
+
+@app.get("/costs", response_model=list[CostRow], tags=["health"], dependencies=[Depends(require_admin_key)])
+def costs(days: int = Query(30, ge=1, le=366)) -> list[CostRow]:
+    """LLM tokens per day, API key and model of /ask (and the MCP ask tool), with a USD estimate."""
+    try:
+        rows = db.usage_rows(days)
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="Database is unavailable; try again later.") from exc
+    out = []
+    for r in rows:
+        price = config.LLM_PRICES_USD_PER_1M.get(r["model"])
+        usd = None if not price else round(((r["prompt_tokens"] - r["cached_tokens"]) * price[0] + r["cached_tokens"] * price[1]
+                                            + r["completion_tokens"] * price[2]) / 1_000_000, 4)
+        out.append(CostRow(day=r["day"], key=r["key_id"], model=r["model"], questions=r["questions"],
+                           prompt_tokens=r["prompt_tokens"], completion_tokens=r["completion_tokens"],
+                           cached_tokens=r["cached_tokens"], usd=usd))
+    return out
+
+
 @app.get("/views/{view_id}", response_model=ReportResult, tags=["browse"], dependencies=[Depends(require_api_key)],
          responses={404: {"description": "Unknown view"}})
 def run_view(view_id: str = Path(pattern=r"^[0-9a-f]{12}$")) -> ReportResult:
@@ -1585,6 +1637,12 @@ def ask(request: AskRequest, http_request: Request, api_key: str | None = Depend
     result["result"] = [{k: _json_value(v) for k, v in row.items()} for row in result.get("result") or []]
     telemetry = _telemetry(result, started)
     token_budget.add(client_key, telemetry["prompt_tokens"] + telemetry["completion_tokens"])
+    by_model = _tokens_by_model(result)
+    if by_model:
+        try:
+            db.record_usage(_usage_key(api_key), by_model)
+        except psycopg.Error as exc:
+            log.warning("token usage not recorded: %s", exc)
     log.info(
         "ask intent=%s status=%s rows=%s latency_ms=%s answer=%s tokens=%s/%s",
         result["intent"], telemetry["status"], telemetry["row_count"], telemetry["latency_ms"],

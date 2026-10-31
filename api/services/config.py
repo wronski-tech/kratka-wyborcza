@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://plujka:plujka@localhost:5432/plujka")
@@ -50,6 +51,11 @@ REDIS_URL = os.getenv("REDIS_URL", "").strip()
 DAILY_TOKEN_LIMIT_PER_CLIENT = int(os.getenv("DAILY_TOKEN_LIMIT_PER_CLIENT", "0"))
 # Optional comma-separated API keys; when set, POST /ask and POST /feedback require X-API-Key.
 API_KEYS = frozenset(k.strip() for k in os.getenv("API_KEYS", "").split(",") if k.strip())
+# Keys that may read GET /costs (token usage of every key); without them only an API without API_KEYS shows it.
+ADMIN_API_KEYS = frozenset(k.strip() for k in os.getenv("ADMIN_API_KEYS", "").split(",") if k.strip())
+# USD per million tokens [input, cached input, output] per model, for the cost estimate of GET /costs.
+LLM_PRICES_USD_PER_1M: dict[str, list[float]] = json.loads(
+    os.getenv("LLM_PRICES_USD_PER_1M") or '{"gpt-4o-mini": [0.15, 0.075, 0.6], "gpt-4o": [2.5, 1.25, 10.0]}')
 SEED_SAMPLE_CSV = os.getenv("SEED_SAMPLE_CSV", "data/sample/sejm_results_sample_1000.csv")
 FEEDBACK_JSONL_PATH = os.getenv("FEEDBACK_JSONL_PATH", "data/feedback/feedback.jsonl")
 # Skip semantic (embedding) hints for very short fragments to save latency / OpenAI calls.

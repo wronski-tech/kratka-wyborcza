@@ -4,6 +4,7 @@ import hashlib
 from typing import Any
 
 import psycopg
+from psycopg.rows import dict_row
 
 from api.services.config import DATABASE_URL
 from api.services.kbw_geo import district_expr_sql
@@ -334,6 +335,21 @@ def init_database() -> None:
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_kbw_cgv_person ON kbw_candidate_geo_votes (person_key);"
             )
+            # LLM tokens per UTC day, API key (a hash, never the key) and model, for the cost panel (GET /costs).
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS token_usage (
+                    day DATE NOT NULL,
+                    key_id TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    questions INT NOT NULL,
+                    prompt_tokens BIGINT NOT NULL,
+                    completion_tokens BIGINT NOT NULL,
+                    cached_tokens BIGINT NOT NULL,
+                    PRIMARY KEY (day, key_id, model)
+                );
+                """
+            )
             # Saved views: generated queries the API answered with, re-run later without the LLM (GET /views).
             cur.execute(
                 """
@@ -354,6 +370,36 @@ def save_view(question: str, sql: str) -> str:
         conn.execute("INSERT INTO saved_views (id, question, sql) VALUES (%s, %s, %s) ON CONFLICT (id) DO NOTHING",
                      (view_id, question, sql))
     return view_id
+
+
+def record_usage(key_id: str, by_model: dict[str, dict[str, int]]) -> None:
+    """Add one question's tokens per model to today's (UTC) row of ``key_id``."""
+    with get_connection() as conn:
+        for model, used in by_model.items():
+            conn.execute(
+                """
+                INSERT INTO token_usage AS u (day, key_id, model, questions, prompt_tokens, completion_tokens, cached_tokens)
+                VALUES ((now() AT TIME ZONE 'UTC')::date, %s, %s, 1, %s, %s, %s)
+                ON CONFLICT (day, key_id, model) DO UPDATE SET
+                    questions = u.questions + 1, prompt_tokens = u.prompt_tokens + EXCLUDED.prompt_tokens,
+                    completion_tokens = u.completion_tokens + EXCLUDED.completion_tokens,
+                    cached_tokens = u.cached_tokens + EXCLUDED.cached_tokens
+                """,
+                (key_id, model, used.get("prompt_tokens", 0), used.get("completion_tokens", 0), used.get("cached_tokens", 0)),
+            )
+
+
+def usage_rows(days: int) -> list[dict[str, Any]]:
+    """Token usage of the last ``days`` UTC days (today included), newest first."""
+    with get_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT day, key_id, model, questions, prompt_tokens, completion_tokens, cached_tokens FROM token_usage
+            WHERE day > (now() AT TIME ZONE 'UTC')::date - %s ORDER BY day DESC, key_id, model
+            """,
+            (days,),
+        )
+        return cur.fetchall()
 
 
 def saved_view(view_id: str) -> dict[str, str] | None:

@@ -814,6 +814,8 @@ the matched entities, examples used, `schema_relations`, `prompt_chars` and per-
 | `REDIS_URL` | empty | Shares the rate limit and token budget across workers and replicas; empty: per process |
 | `DAILY_TOKEN_LIMIT_PER_CLIENT` | `0` | LLM tokens per API key or client IP and UTC day for `/ask` (429 above); 0 disables |
 | `API_KEYS` | empty | Comma-separated keys; when set, `/ask` and `/feedback` require `X-API-Key` |
+| `ADMIN_API_KEYS` | empty | Keys that may read `GET /costs`; without them only an API without `API_KEYS` shows it |
+| `LLM_PRICES_USD_PER_1M` | gpt-4o-mini, gpt-4o | JSON `{model: [input, cached input, output]}` in USD per million tokens, for the cost estimate |
 | `PLUJKA_ENV` | `development` | `production` refuses to start with default passwords or no rate limit |
 
 Production checklist: set `PLUJKA_ENV=production`, a strong `MART_READER_PASSWORD` and owner

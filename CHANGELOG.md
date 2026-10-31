@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cost panel: every `/ask` adds its tokens per model to `token_usage` (UTC day × API key hash × model); `GET /costs` (admin keys, `ADMIN_API_KEYS`) returns them with a USD estimate (`LLM_PRICES_USD_PER_1M`), and the UI shows them at `?panel=koszty`: total cost, tokens per day by model, usage by key and model.
+
 - Agents: `POST /mcp` is an MCP server with the tools `ask`, `schema` and `query`, and `POST /query` runs an agent's own SQL; both go through the same guards as the model's SQL (validation, cost limit, read-only role) and the `/ask` limits.
 
 - Saved views: „🔗 Zapisz jako zestawienie” under an answer (also in chat mode) gives a link `?zestawienie=<id>` that shows the same query's table, chart, map and SQL on current data without asking the model again. The API stores only queries it generated itself (`saved_views`, `view_id` in `/ask`, `GET /views/{id}` through the SQL guard).

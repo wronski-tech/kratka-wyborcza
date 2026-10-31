@@ -447,8 +447,17 @@ def _llm_interpretations(question: str, context: str, options: list[dict]) -> tu
     return [i for i in found if isinstance(i, dict)], tokens
 
 
+def add_usage(tokens: dict[str, int], by_model: dict[str, dict[str, int]], model: str, used: dict[str, int]) -> None:
+    """Add one model call's token usage to the totals and to its model's counts (the cost panel)."""
+    counts = by_model.setdefault(model, {})
+    for name, value in used.items():
+        tokens[name] = tokens.get(name, 0) + value
+        counts[name] = counts.get(name, 0) + value
+
+
 def add_interpretations(
-    question: str, matches: list[entities.EntityMatch], clarification: dict, previous: dict | None, tokens: dict[str, int]
+    question: str, matches: list[entities.EntityMatch], clarification: dict, previous: dict | None, tokens: dict[str, int],
+    by_model: dict[str, dict[str, int]],
 ) -> dict:
     """``clarification`` with at most MAX_INTERPRETATIONS options, each with a ready, validated query.
 
@@ -471,8 +480,7 @@ def add_interpretations(
     except Exception as exc:  # interpretations are an optimisation; the plain choice still works
         log.warning("clarification interpretations skipped: %s", exc)
         return plain
-    for name, value in used.items():
-        tokens[name] = tokens.get(name, 0) + value
+    add_usage(tokens, by_model, OPENAI_CHAT_MODEL, used)
     by_ref = {str(i.get("ref")): i for i in found}
     out = []
     for option in options:
@@ -687,19 +695,21 @@ def try_dynamic_query(
 
     Returns ``(rows, sql, error, meta)``. ``meta["status"]`` is one of skipped / clarify / rejected /
     failed / cached / first_pass / repaired. ``meta`` also holds ``entities``, ``examples``,
-    ``timings_ms``, ``tokens``, ``schema_relations``, ``schema_selection``, ``prompt_chars``, the model's query ``plan`` and the ``models`` used per attempt; for ``clarify`` it holds
+    ``timings_ms``, ``tokens`` (and ``tokens_by_model``), ``schema_relations``, ``schema_selection``, ``prompt_chars``, the model's query ``plan`` and the ``models`` used per attempt; for ``clarify`` it holds
     ``clarification`` (see ``entities.find_ambiguity``). ``previous`` is the preceding turn of the
     conversation (``{"question", "sql", "entity_refs"}``) for follow-up questions.
     """
     timings: dict[str, int] = {}
     tokens = {"prompt_tokens": 0, "completion_tokens": 0}
+    by_model: dict[str, dict[str, int]] = {}
     started = time.monotonic()
     try:
         matches, clarification = resolve_question_entities(question, entity_refs, previous)
-        meta: dict[str, Any] = {"entities": [m.__dict__ for m in matches], "timings_ms": timings, "tokens": tokens}
+        meta: dict[str, Any] = {"entities": [m.__dict__ for m in matches], "timings_ms": timings, "tokens": tokens,
+                                "tokens_by_model": by_model}
         if clarification:
             timings["entities"] = _ms(started)
-            clarification = add_interpretations(question, matches, clarification, previous, tokens)
+            clarification = add_interpretations(question, matches, clarification, previous, tokens, by_model)
             timings["interpretations"] = _ms(started)
             return [], None, None, {**meta, "status": "clarify", "clarification": clarification}
         context, version, used = build_context(question, matches, previous)
@@ -728,12 +738,12 @@ def try_dynamic_query(
             phase = time.monotonic()
             raw, used, notes = _llm_sql(question, context, previous_sql=sql, previous_error=repair_note)
             timings[f"llm_{attempt}"] = _ms(phase)
-            meta.setdefault("models", {})[attempt] = OPENAI_REPAIR_MODEL if attempt == "repaired" else OPENAI_CHAT_MODEL
+            model = OPENAI_REPAIR_MODEL if attempt == "repaired" else OPENAI_CHAT_MODEL
+            meta.setdefault("models", {})[attempt] = model
             for key in ("plan", "chart"):
                 if notes.get(key):
                     meta[key] = notes[key]
-            for name, value in used.items():
-                tokens[name] = tokens.get(name, 0) + value
+            add_usage(tokens, by_model, model, used)
             sql = validate_parts(raw)
         except safe_sql.UnsafeSqlError as exc:
             log.warning("dynamic SQL rejected: %s", exc)

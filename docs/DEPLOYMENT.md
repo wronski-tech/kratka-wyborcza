@@ -99,7 +99,16 @@ The bundled Redis keeps nothing on disk (counters are disposable).
 that one API key, or one client IP without keys, may use per UTC day. A request is refused with 429
 once the day's total is reached; the request that crosses the limit still completes. Counters live
 in Redis (`plujka:tokens:<key>:<day>`) when `REDIS_URL` is set, otherwise per process. Watch real
-usage in the dashboards (sum of `prompt_tokens` and `completion_tokens`) before choosing a value.
+usage in the cost panel (below) before choosing a value.
+
+## Cost panel
+
+Every `/ask` (also the MCP `ask` tool) adds its OpenAI tokens to the table `token_usage`: one row per UTC
+day, client and model (prompt, cached and completion tokens, questions). The client is `key <hash>`, the
+first 8 hex digits of the API key's SHA-256 (the key itself is never stored), or `no key`. `GET /costs?days=30`
+returns the rows with a USD estimate from `LLM_PRICES_USD_PER_1M`; it needs one of `ADMIN_API_KEYS` (403
+when `API_KEYS` is set and no admin key is configured). The UI shows it at `?panel=koszty`, where the admin
+key is typed in; do not give the UI an admin key. Speech transcription and embeddings are not counted.
 
 ## Backups
 
