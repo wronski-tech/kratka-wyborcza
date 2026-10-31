@@ -110,12 +110,16 @@ def _fetch_health_with_kb_stats() -> dict | None:
         return None
 
 
+# Answer styles of the API (``/ask`` ``style``) by their label in the UI.
+ANSWER_STYLES = {"Dziennikarski": "journalistic", "Techniczny": "technical"}
+
+
 def _ask(question: str, entity_refs: list[dict] | None = None, previous: dict | None = None) -> dict | None:
     """POST /ask; shows an error and returns None on failure.
 
     ``previous`` is the preceding turn ({question, sql, entity_refs}) for a follow-up question.
     """
-    payload: dict = {"question": question}
+    payload: dict = {"question": question, "style": ANSWER_STYLES[st.session_state.get("answer_style", "Dziennikarski")]}
     if entity_refs:
         payload["entity_refs"] = entity_refs
     if previous:
@@ -1848,6 +1852,8 @@ with st.container(border=True):
         value=_looks_like_follow_up(q_val),
         help=f"Poprzednie pytanie: {earlier['question']}" if can_follow else None,
     )
+    st.radio(_t("Styl odpowiedzi"), list(ANSWER_STYLES), key="answer_style", horizontal=True, format_func=_t,
+             help=_t("Dziennikarski: prosto, z zaokrągleniami. Techniczny: dokładne wartości, nazwy miar i SQL rozwinięty."))
     submitted = st.button(_t("Wyślij zapytanie"), type="primary", use_container_width=True)
 
 _person_search()
@@ -1937,7 +1943,8 @@ if last:
                 meta_lines.append(f"`mandate_extremes_source` → **{mand_src}**")
             st.markdown(" · ".join(meta_lines))
 
-    with st.expander(_t("Zapytanie SQL i źródło danych"), expanded=False):
+    technical = ANSWER_STYLES[st.session_state.get("answer_style", "Dziennikarski")] == "technical"
+    with st.expander(_t("Zapytanie SQL i źródło danych"), expanded=technical):
         explanation = (data.get("answer") or {}).get("explanation")
         if explanation:
             st.caption("Co robi to zapytanie (opis odczytany z SQL):")

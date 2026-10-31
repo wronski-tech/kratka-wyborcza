@@ -114,6 +114,15 @@ class TestAskEndpoint(unittest.TestCase):
         answer = self.client.post("/ask", json={"question": "Wynik PiS w 2023?"}).json()["answer"]
         self.assertEqual(answer["follow_ups"], ["A w 2019?", "A w podziale na województwa?", "Jak to się zmieniło w porównaniu z 2019?"])
 
+    def test_answer_style_is_passed_and_checked(self) -> None:
+        self.route.side_effect = lambda *a, **k: dict(self.ROUTED)
+        with patch("api.main.answer.compose_answer", return_value={"text": "t", "source": "fallback"}) as compose:
+            self.client.post("/ask", json={"question": "q", "style": "technical"})
+            self.assertEqual(compose.call_args.kwargs["style"], "technical")
+            self.client.post("/ask", json={"question": "q"})
+            self.assertEqual(compose.call_args.kwargs["style"], "journalistic")
+        self.assertEqual(self.client.post("/ask", json={"question": "q", "style": "poetic"}).status_code, 422)
+
     def test_api_keys_when_configured(self) -> None:
         with patch("api.main.config.API_KEYS", frozenset({"secret-1"})):
             self.assertEqual(self.client.post("/ask", json={"question": "q"}).status_code, 401)

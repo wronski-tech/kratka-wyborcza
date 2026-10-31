@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Answer style: `/ask` takes `style` (`journalistic`, default: plain language, rounded; `technical`: exact values, named measures and units), chosen in the UI next to the question; the number check is the same for both, and the technical style opens the SQL section.
+
 - Suggested follow-up questions: answers from generated SQL carry up to three next questions (`answer.follow_ups`) built from the result and the loaded elections, without the model: the previous election of the same kind, a finer territorial level and the change against that election; a click in the UI asks one as a follow-up.
 
 - Caveats chosen by the shape of the result, not only by data gaps: a result that reached the row cap (only part shown), percentages resting on fewer than 1,000 votes or voters (rankings of gminas and precincts now return their base), and Warsaw shown as separate districts in gmina rows.

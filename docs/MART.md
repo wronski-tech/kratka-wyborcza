@@ -775,7 +775,9 @@ return their base for this), Warsaw shown as districts; the UI shows them under 
 `answer.follow_ups` (dynamic SQL answers) suggests up to three next questions built from the rows, the
 SQL and the loaded years, never by the model: the previous election of the same kind („A w 2019?”), a
 finer level („A w podziale na powiaty?”) and the change against that election; the UI asks a clicked one
-as a follow-up of the answer. They contain no
+as a follow-up of the answer. `style` of `/ask` (`journalistic`, the default, or `technical`) adds one
+line from `answer.ANSWER_STYLES` to the answer prompt; the number check and the fallback are the same,
+and the UI opens the SQL section in the technical style. They contain no
 numbers of their own. When you document a new known gap that changes how a result reads, add a rule.
 
 ## Observability

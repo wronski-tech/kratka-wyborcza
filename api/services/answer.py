@@ -39,6 +39,14 @@ Rules:
 - If the rows do not answer the question, say so briefly.
 Return JSON: {"answer": "..."}"""
 
+# Answer styles (``/ask`` ``style``): how the text reads; the number check is the same for both.
+ANSWER_STYLES = {
+    "journalistic": "Style: plain language for a general reader. Lead with the main finding, round percentages "
+                    "to one decimal and do not name tables or columns.",
+    "technical": "Style: precise, for an analyst. Keep values exactly as in the rows, name the measure and its "
+                 "basis (e.g. pct of valid votes, turnout_pct) and the level of the units.",
+}
+
 
 def _number_variants(token: str) -> set[Decimal]:
     """All plausible values of a number token (``1,234`` may be 1234 or 1.234)."""
@@ -447,7 +455,7 @@ def _rows_for_prompt(rows: list[dict[str, Any]]) -> list[dict[str, Any]] | dict[
     return digest
 
 
-def _llm_answer(question: str, rows: list[dict[str, Any]]) -> tuple[str, dict[str, int]]:
+def _llm_answer(question: str, rows: list[dict[str, Any]], style: str = "journalistic") -> tuple[str, dict[str, int]]:
     """Ask the chat model for a short answer; return (text, token usage)."""
     payload = json.dumps(_rows_for_prompt(rows), ensure_ascii=False, default=str)
     note = ""
@@ -459,7 +467,7 @@ def _llm_answer(question: str, rows: list[dict[str, Any]]) -> tuple[str, dict[st
         temperature=0,
         response_format={"type": "json_object"},
         messages=[
-            {"role": "system", "content": ANSWER_PROMPT},
+            {"role": "system", "content": f"{ANSWER_PROMPT}\n{ANSWER_STYLES[style]}"},
             {"role": "user", "content": f"Question: {question}\nRows: {payload}{note}"},
         ],
     )
@@ -469,20 +477,20 @@ def _llm_answer(question: str, rows: list[dict[str, Any]]) -> tuple[str, dict[st
     return text, tokens
 
 
-def compose_answer(question: str, rows: list[dict[str, Any]], sql: str = "") -> dict[str, Any]:
+def compose_answer(question: str, rows: list[dict[str, Any]], sql: str = "", style: str = "journalistic") -> dict[str, Any]:
     """Answer text for the rows: LLM text when every number checks out, otherwise the fallback summary.
 
     Returns ``{"text", "source": "llm" | "fallback", "verified": bool, "caveats": [...], ...}``;
     ``rejected_numbers`` lists the numbers that made an LLM text fail the check; ``caveats`` are fixed
     Polish notes about data gaps that apply to these rows (see ``CAVEATS``); ``explanation`` describes the
-    query in Polish (``explain_sql``).
+    query in Polish (``explain_sql``); ``style`` (``ANSWER_STYLES``) shapes the LLM text only.
     """
     result: dict[str, Any] = {"text": fallback_answer(rows, is_english(question)), "source": "fallback", "verified": True,
                               "caveats": caveats(rows, sql), "explanation": explain_sql(sql)}
     if not rows or not ANSWER_SUMMARY_ENABLED or not OPENAI_API_KEY:
         return result
     try:
-        text, tokens = _llm_answer(question, rows)
+        text, tokens = _llm_answer(question, rows, style)
     except Exception as exc:  # the answer text is optional; rows are still returned
         log.warning("answer generation failed: %s", exc)
         return {**result, "error": str(exc)}

@@ -10,6 +10,11 @@ EN = {
     "Wyślij zapytanie": "Ask",
     "Dopytaj o poprzedni wynik": "Follow up on the previous result",
     "Możesz dopytać:": "You can ask next:",
+    "Styl odpowiedzi": "Answer style",
+    "Dziennikarski": "Journalistic",
+    "Techniczny": "Technical",
+    "Dziennikarski: prosto, z zaokrągleniami. Techniczny: dokładne wartości, nazwy miar i SQL rozwinięty.":
+        "Journalistic: plain, rounded. Technical: exact values, named measures and the SQL expanded.",
     "Historia pytań": "Question history",
     "Wyczyść historię": "Clear history",
     "Pytania z tej sesji pojawią się tutaj.": "Questions from this session appear here.",

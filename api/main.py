@@ -458,6 +458,9 @@ class AskRequest(BaseModel):
     previous: PreviousTurn | None = Field(
         default=None, description="Previous turn when this question follows up on it; its filters carry over"
     )
+    style: Literal["journalistic", "technical"] = Field(
+        default="journalistic", description="Answer text style: plain for a general reader, or precise for an analyst"
+    )
 
 
 class HealthResponse(BaseModel):
@@ -1473,7 +1476,8 @@ def ask(request: AskRequest, http_request: Request, api_key: str | None = Depend
     previous = request.previous.model_dump() if request.previous else None
     result = router.route_question(request.question, entity_refs=refs, previous=previous)
     if not result.get("clarification") and not result.get("answer"):
-        result["answer"] = answer.compose_answer(request.question, result.get("result") or [], result.get("sql") or "")
+        result["answer"] = answer.compose_answer(request.question, result.get("result") or [], result.get("sql") or "",
+                                                 style=request.style)
         if result.get("intent") == "dynamic_sql" and result.get("result"):
             try:  # follow-ups need the loaded years; an answer without them is still complete
                 result["answer"]["follow_ups"] = answer.follow_ups(

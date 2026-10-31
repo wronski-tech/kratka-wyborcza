@@ -546,6 +546,20 @@ class TestAnswerNumbers(unittest.TestCase):
             result = answer.compose_answer("Wynik PiS?", self.ROWS)
         self.assertEqual((result["source"], result["rejected_numbers"]), ("fallback", ["40"]))
 
+    def test_answer_style_reaches_the_model(self) -> None:
+        def system_prompt(style: str) -> str:
+            client = MagicMock()
+            client.chat.completions.create.return_value.choices = [MagicMock(message=MagicMock(content='{"answer": "PiS: 35,4%."}'))]
+            client.chat.completions.create.return_value.usage = None
+            with patch.object(answer, "OPENAI_API_KEY", "k"), patch.object(answer, "ANSWER_SUMMARY_ENABLED", True), \
+                    patch.object(answer, "OpenAI", MagicMock(return_value=client)):
+                result = answer.compose_answer("Wynik PiS?", [{"party": "PiS", "pct": 35.38}], style=style)
+            self.assertEqual(result["source"], "llm", "the number check applies to both styles")
+            return client.chat.completions.create.call_args.kwargs["messages"][0]["content"]
+
+        self.assertIn("analyst", system_prompt("technical"))
+        self.assertIn("general reader", system_prompt("journalistic"))
+
     def test_large_result_is_summarized_from_its_extremes(self) -> None:
         # Ordered by name, so the first rows are neither the highest nor the lowest value.
         rows = [{"teryt_gmina": f"{n:06d}", "gmina": f"G{n:03d}", "year": 2023, "pct": Decimal(str(40 + (n * 37) % 50))}
