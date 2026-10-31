@@ -734,7 +734,13 @@ would answer it from Sejm data.
    cap. `tests/test_mart.py` has a list of attacks and a
    seeded fuzzer that wraps safe queries in injection fragments and checks every accepted output
    independently (one SELECT, mart relations only, no system functions, capped LIMIT); a follow-up's
-   previous SQL is only shown to the model, never executed. A question asking two or three separate
+   previous SQL is only shown to the model, never executed. Prompt injection (`TestPromptInjection`,
+   eval family `injection`): text from outside the prompt stays data. Committee and person names from
+   the data go into the entity hints as one line each, with keys as escaped SQL literals (`KUKIZ''15`);
+   the client's previous question and SQL, and the question in the answer prompt, are JSON strings, so a
+   line break cannot add a rule or a fake `Rows:` line; both prompts say that such text is data, not
+   instructions. A model that obeys an injection anyway still meets the SQL guard and the answer's
+   number check. A question asking two or three separate
    things may get one SELECT per part (`{"parts": [{"title", "sql"}]}`, kept as one text of
    `-- part: <title>` blocks, `dynamic_sql.split_parts`); every part is validated and one rejected
    part rejects the whole answer.

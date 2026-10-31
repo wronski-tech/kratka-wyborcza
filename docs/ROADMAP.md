@@ -129,7 +129,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 40. Interfejs MCP / API dla agentów z tymi samymi strażnikami.
 
 **Koszty i bezpieczeństwo**
-- [ ] 41. Testy prompt injection (pytania, nazwy komitetów i osób).
+- [x] 41. Testy prompt injection (pytania, nazwy komitetów i osób).
 - [ ] 42. Panel kosztów: tokeny dziennie według klucza i modelu.
 - [ ] 43. Cache semantyczny: podobne pytanie → ten sam zwalidowany SQL.
 - [ ] 44. Limit kosztu jednego pytania.

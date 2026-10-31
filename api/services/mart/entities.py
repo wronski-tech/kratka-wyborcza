@@ -42,7 +42,7 @@ _STOPWORDS = frozenset(
     wojewodztwo wojewodztwie glosow glosy glos procent poparcie frekwencja frekwencji kandydat kandydaci
     kandydatow partia partii komitet komitetu lista listy roku rok wynik wyniki mandat mandaty mandatow
     posel poslow posla senator senatora miasto miescie wies wsi oraz czy jak dla przez jest byl byla bylo
-    tura ture turze tury turach mieli mial miala mialo miedzy roznica roznicy roznice
+    tura ture turze tury turach mieli mial miala mialo miedzy roznica roznicy roznice potem
     the who what which how many much did does was were get got and for from with won win votes vote
     election elections turnout party parties seats seat result results district districts county counties
     municipality municipalities voivodeship voivodeships province president presidential parliament
@@ -252,11 +252,16 @@ def format_entity_hints(matches: list[EntityMatch]) -> str:
         "person": "person_id",
         "committee": "committee_name (alias in aliases)",
     }
+    def line(text: object) -> str:  # names come from the data (local committees are named freely): one line each
+        return " ".join(str(text).split())
+
     lines = []
     for m in matches:
-        ref = f"{key_hint.get(m.kind, 'ref')} = '{m.ref}'" if m.ref is not None else ""
-        detail = f" — {m.detail}" if m.detail else ""
-        lines.append(f"- {m.kind}: {m.name} ({ref}; years {m.years}){detail}")
+        # A valid SQL literal of the exact value (committees with an apostrophe exist); only line breaks go.
+        literal = re.sub(r"[\r\n]+", " ", str(m.ref)).replace("'", "''")
+        ref = f"{key_hint.get(m.kind, 'ref')} = '{literal}'" if m.ref is not None else ""
+        detail = f" — {line(m.detail)}" if m.detail else ""
+        lines.append(f"- {m.kind}: {line(m.name)} ({ref}; years {m.years}){detail}")
     return "\n".join(lines)
 
 
