@@ -495,6 +495,22 @@ def _render_clarification(question: str, data: dict) -> None:
                 st.rerun()
 
 
+def _render_follow_ups(data: dict, previous: dict, fp: str) -> None:
+    """Suggested next questions (API ``answer.follow_ups``); a click asks one as a follow-up of this answer."""
+    suggestions = (data.get("answer") or {}).get("follow_ups") or []
+    if not suggestions:
+        return
+    st.caption(_t("Możesz dopytać:"))
+    for column, (i, suggestion) in zip(st.columns(len(suggestions)), enumerate(suggestions)):
+        if column.button(suggestion, key=f"follow_up_{fp}_{i}", use_container_width=True):
+            with st.spinner("Szukam odpowiedzi…"):
+                chosen = _ask(suggestion, previous=previous)
+            if chosen is not None:
+                _remember(suggestion, chosen, None, previous)
+                st.session_state["last_ask"]["asked_with"] = previous
+                st.rerun()
+
+
 def _render_feedback(q: str, data: dict, fp: str) -> None:
     """Thumbs up / report buttons for the shown answer (saved through /feedback)."""
     st.markdown("###### Oceń odpowiedź")
@@ -1900,6 +1916,7 @@ if last:
         if part_rows:
             _render_chart(part_rows, chart or ({"title": title} if title else None), source=source)
             _render_map(part_rows, key="answer" if i == 0 else f"answer_{i}")
+    _render_follow_ups(data, last["previous"], fp)
 
     with st.expander(_t("Co zrozumiał system"), expanded=False):
         c1, c2 = st.columns(2)

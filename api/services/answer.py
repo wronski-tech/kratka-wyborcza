@@ -388,6 +388,41 @@ def _explain_select(sql: str) -> list[str]:
     return lines
 
 
+_FINER_LEVEL = {"country": "wojewodztwo", "wojewodztwo": "powiat", "powiat": "gmina"}
+_LEVEL_WORDS = {"wojewodztwo": ("województwa", "voivodeship"), "powiat": ("powiaty", "powiat"), "gmina": ("gminy", "gmina")}
+
+
+def _sql_values(sql: str, column: str) -> set[str]:
+    """Literal values compared with ``column`` in the SQL (``year = 2023``, ``r.election = 'sejm'``)."""
+    return {m.group(1) for m in re.finditer(rf"\b{column}\s*=\s*'?(\w+)'?", sql, re.IGNORECASE)}
+
+
+def follow_ups(question: str, rows: list[dict[str, Any]], sql: str, loaded: dict[str, list[int]]) -> list[str]:
+    """Up to three follow-up questions on this result, asked with it as the previous turn: the previous loaded
+    election of the same kind, a finer territorial level, the change against that election. Built from the
+    rows, the SQL and the loaded years only; empty when the result is not about one election-year."""
+    if not rows:
+        return []
+    elections = {str(e) for e in _values(rows, "election")} or _sql_values(sql, "election")
+    years = {int(y) for y in _values(rows, "year") if isinstance(y, int)} or {int(y) for y in _sql_values(sql, "year") if y.isdigit()}
+    if len(elections) != 1 or len(years) != 1:
+        return []
+    election, year = elections.pop(), years.pop()
+    earlier = max((y for y in loaded.get(election, []) if y < year), default=None)
+    english = is_english(question)
+    out = []
+    if earlier:
+        out.append(f"And in {earlier}?" if english else f"A w {earlier}?")
+    levels = {str(v) for v in _values(rows, "level")} or _sql_values(sql, "level")
+    finer = _FINER_LEVEL.get(levels.pop()) if len(levels) == 1 else None
+    if finer:
+        polish, eng = _LEVEL_WORDS[finer]
+        out.append(f"And by {eng}?" if english else f"A w podziale na {polish}?")
+    if earlier and ("party" in rows[0] or "pct" in rows[0]) and "change" not in sql.lower():
+        out.append(f"How did it change compared with {earlier}?" if english else f"Jak to się zmieniło w porównaniu z {earlier}?")
+    return out[:3]
+
+
 def explain_sql(sql: str) -> list[str]:
     """Polish description of what a mart query does (sources, conditions, calculations, grouping, order),
     read from the SQL itself, so it never differs from the query that produced the rows. Empty when the

@@ -771,7 +771,11 @@ Otherwise, or without an OpenAI key, the answer is a deterministic summary of th
 (`answer.CAVEATS`: `comparable = false`, `votes_exact = false`, EP 2014 turnout,
 presidential precinct sums, person linking) and about how the result reads: the row cap reached,
 percentages resting on fewer than `answer.SMALL_BASE` votes or voters (rankings of gminas and precincts
-return their base for this), Warsaw shown as districts; the UI shows them under the answer. They contain no
+return their base for this), Warsaw shown as districts; the UI shows them under the answer.
+`answer.follow_ups` (dynamic SQL answers) suggests up to three next questions built from the rows, the
+SQL and the loaded years, never by the model: the previous election of the same kind („A w 2019?”), a
+finer level („A w podziale na powiaty?”) and the change against that election; the UI asks a clicked one
+as a follow-up of the answer. They contain no
 numbers of their own. When you document a new known gap that changes how a result reads, add a rule.
 
 ## Observability

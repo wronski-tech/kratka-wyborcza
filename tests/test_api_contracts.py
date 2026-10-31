@@ -91,6 +91,7 @@ class TestAskEndpoint(unittest.TestCase):
             patch("api.main.router.route_question", return_value=dict(self.ROUTED)),
             patch("api.main.answer.compose_answer", return_value={"text": "t", "source": "fallback"}),
             patch("api.main.opensearch_store.log_question"),
+            patch("api.main.dynamic_sql.loaded_years", return_value={"sejm": [2019, 2023]}),
         ]
         self.route = self.patches[0].start()
         for p in self.patches[1:]:
@@ -107,6 +108,11 @@ class TestAskEndpoint(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["result"], [{"party": "PiS", "pct": 34.27, "votes": 7640854, "year": 2023}])
         self.assertEqual(self.route.call_args.kwargs["previous"], {**previous, "entity_refs": None})
+
+    def test_dynamic_answers_suggest_follow_ups(self) -> None:
+        self.route.return_value = {**self.ROUTED, "sql": "SELECT party, pct FROM mart.v_party_results WHERE election = 'sejm' AND year = 2023 AND level = 'country'"}
+        answer = self.client.post("/ask", json={"question": "Wynik PiS w 2023?"}).json()["answer"]
+        self.assertEqual(answer["follow_ups"], ["A w 2019?", "A w podziale na województwa?", "Jak to się zmieniło w porównaniu z 2019?"])
 
     def test_api_keys_when_configured(self) -> None:
         with patch("api.main.config.API_KEYS", frozenset({"secret-1"})):

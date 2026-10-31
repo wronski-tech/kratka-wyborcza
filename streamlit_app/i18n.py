@@ -9,6 +9,7 @@ EN = {
     "np. Ile głosów miała KO w 2023? · posłowie PiS z Wrocławia": "e.g. Ile głosów miała KO w 2023? · posłowie PiS z Wrocławia",
     "Wyślij zapytanie": "Ask",
     "Dopytaj o poprzedni wynik": "Follow up on the previous result",
+    "Możesz dopytać:": "You can ask next:",
     "Historia pytań": "Question history",
     "Wyczyść historię": "Clear history",
     "Pytania z tej sesji pojawią się tutaj.": "Questions from this session appear here.",

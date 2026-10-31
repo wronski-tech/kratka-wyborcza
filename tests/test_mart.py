@@ -565,6 +565,22 @@ class TestAnswerNumbers(unittest.TestCase):
         # Two rows or rows without a label keep the first-row summary.
         self.assertIn("Pierwszy:", answer.fallback_answer([{"year": 2019, "pct": 1.0}, {"year": 2023, "pct": 2.0}, {"year": 2024, "pct": 3.0}]))
 
+    def test_follow_ups_come_from_the_result(self) -> None:
+        loaded = {"sejm": [2015, 2019, 2023], "pe": [2019, 2024]}
+        by_voivodeship = [{"wojewodztwo": "mazowieckie", "party": "PiS", "pct": 33.0}, {"wojewodztwo": "lubelskie", "party": "PiS", "pct": 48.0}]
+        sql = "SELECT wojewodztwo, party, pct FROM mart.v_party_results WHERE election = 'sejm' AND year = 2023 AND level = 'wojewodztwo'"
+        self.assertEqual(answer.follow_ups("Poparcie PiS w województwach w 2023?", by_voivodeship, sql, loaded),
+                         ["A w 2019?", "A w podziale na powiaty?", "Jak to się zmieniło w porównaniu z 2019?"])
+        # The earliest loaded election has no earlier one; English questions get English suggestions.
+        self.assertEqual(answer.follow_ups("What was the support of PiS by voivodeship in 2015?", by_voivodeship, sql.replace("2023", "2015"), loaded),
+                         ["And by powiat?"])
+        # Two years (a comparison) or a change view: no "earlier election" suggestion.
+        change = "SELECT * FROM mart.v_party_change WHERE election = 'pe' AND year = 2024 AND level = 'country'"
+        self.assertEqual(answer.follow_ups("Zmiana PiS w PE 2024?", [{"party": "PiS", "change_pp": -9.2}], change, loaded),
+                         ["A w 2019?", "A w podziale na województwa?"])
+        two = [{"year": 2019, "pct": 43.6}, {"year": 2023, "pct": 35.4}]
+        self.assertEqual(answer.follow_ups("PiS 2019 i 2023", two, "SELECT year, pct FROM mart.v_party_results WHERE election = 'sejm'", loaded), [])
+
     def test_explanation_is_read_from_the_sql(self) -> None:
         change = ("SELECT a.wojewodztwo, round(b.pct - a.pct, 2) AS change_pp FROM mart.v_party_results a "
                   "JOIN mart.v_party_results b ON b.unit_key = a.unit_key AND b.party = a.party "

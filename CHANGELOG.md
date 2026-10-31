@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Suggested follow-up questions: answers from generated SQL carry up to three next questions (`answer.follow_ups`) built from the result and the loaded elections, without the model: the previous election of the same kind, a finer territorial level and the change against that election; a click in the UI asks one as a follow-up.
+
 - Caveats chosen by the shape of the result, not only by data gaps: a result that reached the row cap (only part shown), percentages resting on fewer than 1,000 votes or voters (rankings of gminas and precincts now return their base), and Warsaw shown as separate districts in gmina rows.
 
 - Chart choice, titles and captions: the SQL call also returns `chart` (type from bar, line, scatter or none, and a short Polish title); the UI uses the type only when the rows fit it, otherwise the deterministic rule (scatter, line, bar) decides, and drops a title with numbers the question does not name. Charts have Polish axis titles and the data source as subtitle, so exported images carry it; bars and maps of change rows show the change in points.
