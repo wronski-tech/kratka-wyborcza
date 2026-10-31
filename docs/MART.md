@@ -713,7 +713,11 @@ would answer it from Sejm data.
 5. **Validation** (`mart/safe_sql.py`). sqlglot parses the query. Only one SELECT (CTEs and UNION
    allowed) over mart relations is accepted. DML, DDL, `SET`, `SELECT INTO`, `pg_*` functions and
    functions such as `set_config`, `dblink` or `nextval` are rejected, also when quoted
-   (`"pg_read_file"(...)`). `LIMIT` is capped at `MART_MAX_ROWS`. Before a generated query runs,
+   (`"pg_read_file"(...)`). `LIMIT` is capped at `MART_MAX_ROWS`. A query without `ORDER BY` gets one
+   (`safe_sql._ensure_order`), so its rows and the rows a `LIMIT` keeps are deterministic: by `year`
+   for a trend, otherwise descending by the first measure column (votes, pct, seats, `*_pct`, ...),
+   otherwise by the first column, the other columns breaking ties; `DISTINCT ON` queries are left
+   alone. Before a generated query runs,
    its planner cost (`EXPLAIN`, read-only) is checked against `MART_MAX_PLAN_COST`
    (`safe_sql.check_cost`): a query above it is not run and goes to the repair attempt like a failed
    one, with its plan. Queries below the limit are still bounded by the statement timeout and the row

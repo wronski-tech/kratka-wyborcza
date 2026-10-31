@@ -59,6 +59,22 @@ class TestSafeSql(unittest.TestCase):
         union = validate_mart_sql("SELECT 1 FROM mart.persons UNION SELECT 2 FROM mart.persons", max_rows=50)
         self.assertTrue(union.rstrip().endswith("LIMIT 50"))
 
+    def test_unordered_queries_get_a_deterministic_order(self) -> None:
+        def order(sql: str) -> str:
+            out = validate_mart_sql(sql)
+            return out[out.index("ORDER BY"):out.index(" LIMIT")] if "ORDER BY" in out else ""
+
+        # A measure ranks descending (here the first measure, votes), the other columns break ties.
+        self.assertEqual(order("SELECT committee_name, votes, pct FROM mart.v_sejm_national_results WHERE year = 2023"),
+                         "ORDER BY 2 DESC NULLS LAST, 1, 3")
+        # A trend reads by year even when a measure comes first.
+        self.assertEqual(order("SELECT turnout_pct, year FROM mart.v_turnout WHERE level = 'country'"), "ORDER BY 2, 1")
+        # Without an order, a LIMIT would keep arbitrary rows; with one it keeps the first by name.
+        self.assertEqual(order("SELECT gmina FROM mart.v_turnout LIMIT 5"), "ORDER BY 1")
+        # The model's own order, and DISTINCT ON (which needs its own ORDER BY), stay as written.
+        self.assertEqual(order("SELECT gmina, pct FROM mart.v_party_results ORDER BY pct LIMIT 3"), "ORDER BY pct")
+        self.assertEqual(order("SELECT DISTINCT ON (year) year, full_name FROM mart.v_prezydent_results"), "")
+
     def test_rejects_unsafe_queries(self) -> None:
         unsafe = [
             "DELETE FROM mart.persons",

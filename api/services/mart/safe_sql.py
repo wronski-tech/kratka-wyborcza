@@ -101,7 +101,35 @@ def validate_mart_sql(sql: str, max_rows: int = MART_MAX_ROWS) -> str:
             tree = tree.limit(max_rows)
         else:
             tree = exp.select("*").from_(tree.subquery("q")).limit(max_rows)
-    return tree.sql(dialect="postgres")
+    return _ensure_order(tree).sql(dialect="postgres")
+
+
+def _is_measure(name: str) -> bool:
+    """Output columns that rank rows: votes, percentages, seats, counts, differences."""
+    return name in {"votes", "pct", "seats", "turnout_pct", "count", "n", "share", "value", "diff_pp", "change_pp"} or \
+        name.endswith(("_pct", "_votes", "_seats", "_count", "_pp"))
+
+
+def _ensure_order(tree: exp.Expression) -> exp.Expression:
+    """Add an ORDER BY to a query without one, so rows (and the rows a LIMIT keeps) are deterministic.
+
+    A ``year`` column orders a trend by year; otherwise the first measure column (votes, pct, seats,
+    ...) descending; otherwise the first column. Every other column follows as a tie-breaker. Queries
+    with ORDER BY or DISTINCT ON (which needs its own ORDER BY) are left as written.
+    """
+    if not isinstance(tree, exp.Select) or tree.args.get("order"):
+        return tree
+    distinct = tree.args.get("distinct")
+    if distinct is not None and distinct.args.get("on") is not None:
+        return tree
+    names = [s.alias_or_name.lower() if not isinstance(s, exp.Star) else "*" for s in tree.selects]
+    if "*" in names:
+        return tree.order_by(exp.Ordered(this=exp.Literal.number(1)))
+    first = names.index("year") if "year" in names else next((i for i, n in enumerate(names) if _is_measure(n)), 0)
+    desc = names[first] != "year" and _is_measure(names[first])
+    keys = [exp.Ordered(this=exp.Literal.number(first + 1), desc=True) if desc else exp.Ordered(this=exp.Literal.number(first + 1))]
+    keys += [exp.Ordered(this=exp.Literal.number(i + 1)) for i in range(len(names)) if i != first]
+    return tree.order_by(*keys)
 
 
 def run_readonly(
