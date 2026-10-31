@@ -313,7 +313,8 @@ def _render_chart(rows: list[dict], chart: dict | None = None, source: str | Non
             y=alt.Y(f"{label}:N", sort="-x", title=None, axis=alt.Axis(labelOverlap=False, labelLimit=240)),
             tooltip=[label, value],
         )
-        .properties(height=max(120, 26 * len(frame)), title=title, description=_bar_description(frame, label, value))
+        # A step height gives every bar 26 px; title and axes come on top (a fixed height squeezed short charts).
+        .properties(height=alt.Step(26), title=title, description=_bar_description(frame, label, value))
     )
     _altair(bars, f"wykres {value}")
 
