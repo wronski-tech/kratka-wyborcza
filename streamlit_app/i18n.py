@@ -42,6 +42,8 @@ EN = {
     "👥 Kandydaci: kobiety i wiek": "👥 Candidates: women and age",
     "🗳️ Wybrani według okręgu": "🗳️ Elected by district",
     "📋 Gotowe zestawienia (bez LLM)": "📋 Ready-made reports (no LLM)",
+    "🎲 Pokaż coś ciekawego": "🎲 Show me something interesting",
+    "Losowe gotowe zestawienie: sprawdzone zapytanie, bez LLM.": "A random ready-made report: a verified query, no LLM.",
     "🏅 Rankingi osób i zmiany komitetów": "🏅 Person rankings and committee switches",
     "ℹ️ Co jest w bazie": "ℹ️ What is in the database",
     "📖 Słownik danych": "📖 Data dictionary",

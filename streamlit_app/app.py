@@ -6,6 +6,7 @@ import io
 import json
 import math
 import os
+import random
 import re
 import unicodedata
 from typing import Any, Callable
@@ -1770,16 +1771,36 @@ def _reports() -> None:
         family = c1.selectbox(_t("Wybory"), families, format_func=lambda f: REPORT_FAMILIES.get(f, f), key="report_family")
         options = [r for r in reports if r["family"] == family]
         report = c2.selectbox(_t("Zestawienie"), options, format_func=lambda r: r["question"], key=f"report_{family}")
-        data = _api_get(f"/reports/{report['id']}")
-        if not data:
-            return
-        st.caption("Sprawdzone zapytanie z zestawu przykładów; wynik prosto z bazy, bez modelu językowego.")
-        rows = data["rows"]
-        st.dataframe(rows, use_container_width=True, hide_index=True, column_config=_code_columns(rows))
-        _csv_download(rows, report["question"], key=f"csv_report_{report['id']}")
-        _render_chart(rows)
-        _render_map(rows, key=f"report_{report['id']}")
-        st.code(data["sql"], language="sql", wrap_lines=True)
+        _show_report(report, "report")
+
+
+def _show_report(report: dict, key: str) -> None:
+    """Rows, chart, map and SQL of one ready-made report (fixed SQL, no LLM)."""
+    data = _api_get(f"/reports/{report['id']}")
+    if not data:
+        return
+    st.caption("Sprawdzone zapytanie z zestawu przykładów; wynik prosto z bazy, bez modelu językowego.")
+    rows = data["rows"]
+    st.dataframe(rows, use_container_width=True, hide_index=True, column_config=_code_columns(rows))
+    _csv_download(rows, report["question"], key=f"csv_{key}_{report['id']}")
+    _render_chart(rows)
+    _render_map(rows, key=f"{key}_{report['id']}")
+    st.code(data["sql"], language="sql", wrap_lines=True)
+
+
+@st.fragment
+def _surprise() -> None:
+    """"Pokaż coś ciekawego": a random ready-made report, never the one shown just before."""
+    if st.button(_t("🎲 Pokaż coś ciekawego"), help=_t("Losowe gotowe zestawienie: sprawdzone zapytanie, bez LLM.")):
+        reports = _api_get("/reports") or []
+        last = st.session_state.get("surprise")
+        pool = [r for r in reports if not last or r["id"] != last["id"]] or reports
+        st.session_state["surprise"] = random.choice(pool) if pool else None
+    report = st.session_state.get("surprise")
+    if report:
+        with st.container(border=True):
+            st.markdown(f"**{report['question']}** · {REPORT_FAMILIES.get(report['family'], report['family'])}")
+            _show_report(report, "surprise")
 
 
 RANKING_LABELS = {"candidacies": "liczba kandydowań", "elected": "liczba wygranych", "career": "długość kariery",
@@ -1990,6 +2011,9 @@ with st.container(border=True):
              help=_t("Dziennikarski: prosto, z zaokrągleniami. Techniczny: dokładne wartości, nazwy miar i SQL rozwinięty."))
     if not chat_mode:
         submitted = st.button(_t("Wyślij zapytanie"), type="primary", use_container_width=True)
+
+if not chat_mode:
+    _surprise()
 
 _person_search()
 _browse()
