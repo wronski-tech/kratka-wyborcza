@@ -33,7 +33,8 @@ _ENDINGS = (
 # A declined adjective inside a one-word town name ("Białegostoku", "Białymstoku", "Krasnymstawie").
 _INNER_ADJECTIVE = re.compile(r"(?<=[a-z]{3})(?:ego|ym)(?=[a-z]{3})")
 
-# Frequent question words that would otherwise prefix-match place or person names.
+# Frequent question words that would otherwise prefix-match place or person names; neighbouring countries
+# ("przy granicy z Litwą") are not surnames such as LITWIN.
 _STOPWORDS = frozenset(
     """
     ile ilu kto gdzie jaki jaka jakie ktory ktora ktore ktorych ktorej najwiecej najmniej najwyzsza najnizsza
@@ -47,6 +48,9 @@ _STOPWORDS = frozenset(
     municipality municipalities voivodeship voivodeships province president presidential parliament
     parliamentary european local mayor round first second percent share most highest lowest city town
     candidate candidates committee year compare between support
+    niemcy niemiec niemcom niemcami niemczech czechy czechami czechach czechom slowacja slowacji slowacje
+    ukraina ukrainy ukrainie ukraine bialorus bialorusi bialorusia litwa litwy litwie litwe rosja rosji rosje
+    germany czechia slovakia ukraine belarus lithuania russia
     """.split()
 )
 

@@ -1,0 +1,195 @@
+teryt_gmina,name,borders
+020601,Karpacz,CZ
+020602,Kowary,CZ
+020603,Piechowice,CZ
+020604,Szklarska Poręba,CZ
+020608,Podgórzyn,CZ
+020703,Lubawka,CZ
+020801,Duszniki-Zdrój,CZ
+020803,Kudowa-Zdrój,CZ
+020806,Bystrzyca Kłodzka,CZ
+020808,Lądek-Zdrój,CZ
+020809,Lewin Kłodzki,CZ
+020810,Międzylesie,CZ
+020811,Nowa Ruda,CZ
+020812,Radków,CZ
+020813,Stronie Śląskie,CZ
+020814,Szczytna,CZ
+021002,Świeradów-Zdrój,CZ
+021003,Leśna,CZ
+021006,Platerówka,CZ
+021204,Mirsk,CZ
+022105,Głuszyca,CZ
+022106,Mieroszów,CZ
+022407,Złoty Stok,CZ
+022501,Zawidów,CZ
+022502,Zgorzelec,DE
+022503,Bogatynia,CZ;DE
+022504,Pieńsk,DE
+022505,Sulików,CZ
+022507,Zgorzelec,CZ;DE
+026101,Jelenia Góra,CZ
+060102,Terespol,BY
+060105,Janów Podlaski,BY
+060106,Kodeń,BY
+060107,Konstantynów,BY
+060112,Rokitno,BY
+060114,Sławatycze,BY
+060116,Terespol,BY
+060304,Dorohusk,UA
+060305,Dubienka,UA
+060309,Ruda-Huta,UA
+060402,Dołhobyczów,UA
+060403,Horodło,UA
+060404,Hrubieszów,UA
+060405,Mircze,UA
+061805,Lubycza Królewska,UA
+061813,Ulhówek,UA
+061901,Włodawa,BY
+061902,Hanna,BY
+061906,Włodawa,BY;UA
+061907,Wola Uhruska,UA
+080101,Kostrzyn nad Odrą,DE
+080201,Gubin,DE
+080205,Gubin,DE
+080501,Cybinka,DE
+080502,Górzyca,DE
+080505,Słubice,DE
+081101,Łęknica,DE
+081103,Brody,DE
+081107,Przewóz,DE
+081108,Trzebiel,DE
+120509,Sękowa,SK
+120510,Uście Gorlickie,SK
+121007,Krynica-Zdrój,SK
+121011,Muszyna,SK
+121013,Piwniczna-Zdrój,SK
+121102,Szczawnica,SK
+121103,Czarny Dunajec,SK
+121104,Czorsztyn,SK
+121105,Jabłonka,SK
+121106,Krościenko nad Dunajcem,SK
+121107,Lipnica Wielka,SK
+121108,Łapsze Niżne,SK
+121508,Zawoja,SK
+121701,Zakopane,SK
+121703,Bukowina Tatrzańska,SK
+121704,Kościelisko,SK
+160202,Branice,CZ
+160203,Głubczyce,CZ
+160204,Kietrz,CZ
+160701,Głuchołazy,CZ
+160706,Otmuchów,CZ
+160707,Paczków,CZ
+161002,Głogówek,CZ
+161003,Lubrza,CZ
+161004,Prudnik,CZ
+180103,Czarna,UA
+180105,Lutowiska,SK;UA
+180108,Ustrzyki Dolne,UA
+180408,Radymno,UA
+180506,Krempna,SK
+180702,Dukla,SK
+180710,Jaśliska,SK
+180903,Horyniec-Zdrój,UA
+180904,Lubaczów,UA
+180908,Wielkie Oczy,UA
+181303,Fredropol,UA
+181306,Medyka,UA
+181308,Przemyśl,UA
+181309,Stubno,UA
+181704,Komańcza,SK
+182102,Cisna,SK
+200104,Lipsk,BY
+200106,Płaska,BY
+200204,Gródek,BY
+200207,Michałowo,BY
+200502,Białowieża,BY
+200503,Czeremcha,BY
+200505,Dubicze Cerkiewne,BY
+200506,Hajnówka,BY
+200507,Kleszczele,BY
+200509,Narewka,BY
+200902,Giby,LT
+200904,Puńsk,LT
+200905,Sejny,LT
+201005,Mielnik,BY
+201007,Nurzec-Stacja,BY
+201104,Krynki,BY
+201105,Kuźnica,BY
+201106,Nowy Dwór,BY
+201108,Sokółka,BY
+201110,Szudziałowo,BY
+201206,Rutka-Tartak,LT
+201208,Szypliszki,LT
+201209,Wiżajny,LT
+220802,Łeba,sea
+221001,Krynica Morska,RU;sea
+221004,Stegna,sea
+221005,Sztutowo,sea
+221101,Hel,sea
+221102,Jastarnia,sea
+221103,Puck,sea
+221104,Władysławowo,sea
+221105,Kosakowo,sea
+221106,Krokowa,sea
+221107,Puck,sea
+221201,Ustka,sea
+221209,Smołdzino,sea
+221210,Ustka,sea
+221504,Choczewo,sea
+226101,Gdańsk,sea
+226201,Gdynia,sea
+226401,Sopot,sea
+240301,Cieszyn,CZ
+240302,Ustroń,CZ
+240303,Wisła,CZ
+240307,Goleszów,CZ
+240308,Hażlach,CZ
+240309,Istebna,CZ;SK
+240312,Zebrzydowice,CZ
+241103,Krzanowice,CZ
+241104,Krzyżanowice,CZ
+241107,Pietrowice Wielkie,CZ
+241505,Godów,CZ
+241506,Gorzyce,CZ
+241704,Jeleśnia,SK
+241711,Rajcza,SK
+241714,Ujsoły,SK
+246701,Jastrzębie-Zdrój,CZ
+280103,Bartoszyce,RU
+280105,Górowo Iławeckie,RU
+280106,Sępopol,RU
+280202,Braniewo,RU
+280204,Lelkowo,RU
+280802,Barciany,RU
+280806,Srokowo,RU
+281801,Banie Mazurskie,RU
+281802,Dubeninki,RU
+281803,Gołdap,RU
+281901,Budry,RU
+281903,Węgorzewo,RU
+320507,Rewal,sea
+320508,Trzebiatów,sea
+320602,Cedynia,DE
+320603,Chojna,DE
+320604,Gryfino,DE
+320605,Mieszkowice,DE
+320609,Widuchowa,DE
+320701,Dziwnów,sea
+320704,Międzyzdroje,sea
+320706,Wolin,sea
+320801,Kołobrzeg,sea
+320804,Kołobrzeg,sea
+320807,Ustronie Morskie,sea
+320901,Będzino,sea
+320905,Mielno,sea
+321002,Boleszkowice,DE
+321101,Dobra (Szczecińska),DE
+321102,Kołbaskowo,DE
+321103,Nowe Warpno,DE
+321104,Police,DE
+321301,Darłowo,sea
+321303,Darłowo,sea
+321305,Postomino,sea
+326301,Świnoujście,DE;sea

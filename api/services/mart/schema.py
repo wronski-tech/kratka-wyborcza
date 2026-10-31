@@ -64,6 +64,7 @@ DERIVED_RELATIONS = (
     "local_referenda",
     "v_seat_methods",
     "v_gus_units",
+    "unit_attributes",
     "gmina_codes_pre1999",
     "entity_lexicon",
     "v_sejm_national_results",

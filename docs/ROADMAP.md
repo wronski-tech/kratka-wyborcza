@@ -95,7 +95,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 12. Definicje z dokumentacji repo, nie z wiedzy modelu.
 - [x] 13. Odmowa dla pytań spoza zakresu (sondaże, prognozy).
 - [x] 14. Okresy („lata 90.”, „od 2005”) → lata obecne w bazie.
-- [ ] 15. Pytania geograficzne przez widoki atrybutów jednostek.
+- [x] 15. Pytania geograficzne przez widoki atrybutów jednostek.
 
 **Generowanie SQL**
 - [ ] 16. Wybór schematu przez embeddingi (`FAMILY_KEYWORDS` jako zabezpieczenie).

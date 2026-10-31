@@ -1132,6 +1132,28 @@ class TestPromptRelations(unittest.TestCase):
         self.assertNotIn("pe_lists", relations)
         self.assertNotIn("v_precinct_results", dynamic_sql.relevant_relations("Kto wygrał wybory prezydenckie w 2020?", self.AVAILABLE))
 
+    def test_geographic_questions_get_the_unit_attributes(self) -> None:
+        available = [*self.AVAILABLE, "unit_attributes"]
+        for question in ("Frekwencja w gminach nadmorskich w 2023", "Wynik PiS przy granicy z Niemcami w wyborach do Sejmu 2023",
+                         "Stolice województw: kto wygrał wybory prezydenckie 2020?", "Turnout in coastal gminas"):
+            with self.subTest(question=question):
+                self.assertIn("unit_attributes", dynamic_sql.relevant_relations(question, available))
+        self.assertNotIn("unit_attributes", dynamic_sql.relevant_relations("Kto wygrał wybory prezydenckie w 2020?", available))
+        # Add-only, like GUS: with no election named the whole schema stays.
+        self.assertEqual(dynamic_sql.relevant_relations("Gminy nadmorskie", available), available)
+
+    def test_gmina_borders_match_the_map_boundaries(self) -> None:
+        spec = importlib.util.spec_from_file_location("derive_gmina_borders", Path(__file__).resolve().parents[1] / "scripts" / "derive_gmina_borders.py")
+        borders = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(borders)
+        rows = borders.derive()
+        self.assertEqual(borders.render(rows), borders.OUT.read_text(encoding="utf-8"), "run scripts/derive_gmina_borders.py")
+        by_name = {name: sides for _, name, sides in rows}
+        # Known neighbours: the six gminas on the Lithuanian border, a tripoint gmina and the coast.
+        self.assertEqual(sorted(n for n, s in by_name.items() if "LT" in s), ["Giby", "Puńsk", "Rutka-Tartak", "Sejny", "Szypliszki", "Wiżajny"])
+        self.assertEqual((by_name["Bogatynia"], by_name["Hel"], by_name["Słubice"], by_name["Istebna"]), ("CZ;DE", "sea", "DE", "CZ;SK"))
+        self.assertNotIn("Białystok", by_name, "inland gminas next to a 2025 split are not on the border")
+
     def test_periods_become_loaded_years(self) -> None:
         ranges = lambda q: [p[1:] for p in dynamic_sql.period_ranges(q, now=2026)]  # noqa: E731
         self.assertEqual(ranges("Frekwencja w latach 90."), [(1990, 1999)])

@@ -212,12 +212,16 @@ FAMILY_KEYWORDS: dict[str, tuple[str, ...]] = {
     # The 1990s results use the old gmina codes; the key maps them to today's units.
     # Single polling stations: a plain view next to the election's own relations.
     r"obwod|lokal\w* wyborcz|komisj\w* obwodow|precinct|polling (station|place)": ("v_precinct_",),
+    # Geographic attributes of gminas: coast, national border, capitals, cities with powiat rights.
+    r"nadmorsk|wybrzez|\bmorz|baltyk|przygraniczn|granic\w* (z|panstw|kraj)|scian\w* wschodn|stolic\w* wojewodztw|"
+    r"miast\w* wojewodzk|na prawach powiatu|coast|seaside|border|voivodeship capital|eastern wall|powiat rights":
+        ("unit_attributes",),
     r"\b199[0-7]\b|sprzed 1999|dawn\w* (wojewodz|gmin)|star\w* wojewodz|49 wojewodz|(old|former) voivodeship|49 voivodeship":
         ("gmina_codes_pre1999",),
 }
 # Groups that only add relations: GUS statistics and the pre-1999 gmina key are used with some election, so a question
 # naming no election kind besides them ("Nawrocki w gminach wiejskich") still gets the whole schema.
-ADD_ONLY_PREFIXES = ("gus_", "v_gus_", "gmina_codes_pre1999", "v_precinct_")
+ADD_ONLY_PREFIXES = ("gus_", "v_gus_", "gmina_codes_pre1999", "v_precinct_", "unit_attributes")
 SHARED_RELATIONS = (
     "elections", "persons", "v_person_history", "v_turnout", "v_party_results", "v_party_change", "v_gmina_continuity",
     "party_families",

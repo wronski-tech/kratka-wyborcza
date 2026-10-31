@@ -10,6 +10,7 @@
   same kind) and ``v_gmina_continuity`` (which gmina TERYT codes exist in which election).
 - ``mart.v_person_history``: every candidacy of a person.
 - ``mart.v_gus_units``: GUS statistics per unit and year in wide form (not elections).
+- ``mart.unit_attributes``: geographic attributes of today's gminas (coast, national border, capitals).
 - ``mart.entity_lexicon``: names used by entity resolution (``entities.py``).
 """
 
@@ -852,6 +853,7 @@ BEGIN
 END $$;
 DROP MATERIALIZED VIEW IF EXISTS mart.v_person_history;
 DROP MATERIALIZED VIEW IF EXISTS mart.v_gmina_continuity;
+DROP TABLE IF EXISTS mart.unit_attributes;
 DROP MATERIALIZED VIEW IF EXISTS mart.v_gus_units;
 DROP MATERIALIZED VIEW IF EXISTS mart.v_seat_methods;
 DROP MATERIALIZED VIEW IF EXISTS mart.v_party_change;
@@ -1865,6 +1867,62 @@ def load_local_referenda(pg: psycopg.Connection, path: Path = LOCAL_REFERENDA) -
     return pg.execute("SELECT count(DISTINCT (term, referendum_id)) FROM mart.local_referenda").fetchone()[0]
 
 
+GMINA_BORDERS = Path(__file__).with_name("gmina_borders.csv")
+
+# Capitals of the 16 voivodeships (Bydgoszcz and Toruń, Gorzów Wielkopolski and Zielona Góra share the role).
+VOIVODESHIP_CAPITALS = (
+    "026401", "046101", "046301", "066301", "086101", "086201", "106101", "126101", "146501",
+    "166101", "186301", "206101", "226101", "246901", "266101", "286201", "306401", "326201",
+)
+
+UNIT_ATTRIBUTES_SQL = r"""
+CREATE TABLE mart.unit_attributes AS
+SELECT g.teryt AS teryt_gmina, g.name, g.wojewodztwo, g.teryt_powiat, g.gmina_type, g.population, g.area_km2,
+       g.year AS gus_year,
+       substr(g.teryt, 3, 2) >= '61' AND g.gmina_type <> 'dzielnica Warszawy' AS city_with_powiat_rights,
+       g.teryt = ANY (%(capitals)s) AS voivodeship_capital,
+       g.wojewodztwo IN ('lubelskie', 'podkarpackie', 'podlaskie', 'świętokrzyskie', 'warmińsko-mazurskie') AS eastern_wall,
+       coalesce(b.borders, '{}') AS borders,
+       coalesce('sea' = ANY (b.borders), false) AS coastal,
+       coalesce(cardinality(array_remove(b.borders, 'sea')) > 0, false) AS on_land_border
+FROM mart.v_gus_units g
+LEFT JOIN gmina_border b ON b.teryt_gmina = g.teryt
+WHERE g.level = 'gmina' AND g.year = (SELECT max(year) FROM mart.v_gus_units WHERE level = 'gmina');
+COMMENT ON TABLE mart.unit_attributes IS 'Geographic attributes of today''s gminas (one row per gmina and Warsaw district, names and population from the latest GUS year): cities with powiat rights, voivodeship capitals, the "eastern wall", the sea coast and the national border with each neighbouring country. Use for "gminy nadmorskie", "przy granicy z Niemcami", "miasta na prawach powiatu", "stolice województw", "ściana wschodnia": join result views on teryt_gmina (or teryt_powiat for powiats), e.g. v_party_results.unit_key = teryt_gmina at level gmina. Results before 1999 use old gmina codes: map them with gmina_codes_pre1999.';
+COMMENT ON COLUMN mart.unit_attributes.teryt_gmina IS 'Current 6-digit gmina TERYT (Warsaw: the city 146501 and its districts 1465xx; do not sum both).';
+COMMENT ON COLUMN mart.unit_attributes.gmina_type IS 'miejska, wiejska, miejsko-wiejska or dzielnica Warszawy (GUS).';
+COMMENT ON COLUMN mart.unit_attributes.population IS 'Residents on 31 December of gus_year.';
+COMMENT ON COLUMN mart.unit_attributes.gus_year IS 'GUS year of name, population and area (the latest loaded).';
+COMMENT ON COLUMN mart.unit_attributes.city_with_powiat_rights IS 'City with powiat rights (miasto na prawach powiatu): powiat code 61 or higher.';
+COMMENT ON COLUMN mart.unit_attributes.voivodeship_capital IS 'Seat of a voivode or a sejmik (18 cities: both Bydgoszcz and Toruń, Gorzów Wielkopolski and Zielona Góra).';
+COMMENT ON COLUMN mart.unit_attributes.eastern_wall IS 'In the "ściana wschodnia" voivodeships: lubelskie, podkarpackie, podlaskie, świętokrzyskie, warmińsko-mazurskie.';
+COMMENT ON COLUMN mart.unit_attributes.borders IS 'What the gmina borders outside Poland: ISO country codes DE, CZ, SK, UA, BY, LT, RU and ''sea'' (the Baltic coast); empty for inland gminas. Derived from the map boundaries (scripts/derive_gmina_borders.py); approximate within a few km of a tripoint.';
+COMMENT ON COLUMN mart.unit_attributes.coastal IS 'On the Baltic coast (gmina nadmorska; lagoon shores do not count).';
+COMMENT ON COLUMN mart.unit_attributes.on_land_border IS 'On the land border with another country (gmina przygraniczna).';
+"""
+
+
+def build_unit_attributes(pg: psycopg.Connection, path: Path = GMINA_BORDERS) -> int:
+    """Create ``mart.unit_attributes`` with the borders of ``path``; return its row count.
+
+    Raises ValueError when a gmina of ``path`` is not a gmina of the latest GUS year.
+    """
+    with path.open(encoding="utf-8", newline="") as fh:
+        rows = [(r["teryt_gmina"], r["borders"].split(";")) for r in csv.DictReader(fh)]
+    pg.execute("CREATE TEMP TABLE gmina_border (teryt_gmina TEXT PRIMARY KEY, borders TEXT[]) ON COMMIT DROP")
+    with pg.cursor() as cur:
+        cur.executemany("INSERT INTO gmina_border VALUES (%s, %s)", rows)
+    missing = pg.execute(
+        "SELECT teryt_gmina FROM gmina_border EXCEPT SELECT teryt FROM mart.v_gus_units"
+        " WHERE level = 'gmina' AND year = (SELECT max(year) FROM mart.v_gus_units WHERE level = 'gmina') ORDER BY 1"
+    ).fetchall()
+    if missing:
+        raise ValueError(f"{path.name}: gminas {[m[0] for m in missing]} are not in the latest GUS year")
+    pg.execute(UNIT_ATTRIBUTES_SQL.replace("%(capitals)s", "ARRAY[" + ", ".join(f"'{t}'" for t in VOIVODESHIP_CAPITALS) + "]"))
+    pg.execute("DROP TABLE gmina_border")
+    return pg.execute("SELECT count(*) FROM mart.unit_attributes").fetchone()[0]
+
+
 def rebuild(pg: psycopg.Connection) -> None:
     """Rebuild persons, views and the entity lexicon from everything loaded (caller's transaction)."""
     log.info("Senate by-elections: %s", load_senat_byelections(pg))
@@ -1884,6 +1942,7 @@ def rebuild(pg: psycopg.Connection) -> None:
     pg.execute(_precinct_results_sql())
     pg.execute(CANDIDATE_GMINA_VOTES_SQL)
     pg.execute(GUS_VIEW_SQL)
+    log.info("unit attributes: %s gminas", build_unit_attributes(pg))
     linked = pg.execute(
         "SELECT (SELECT count(*) FROM mart.sejmik_candidates WHERE person_id IS NOT NULL),"
         " (SELECT count(*) FROM mart.wbp_candidates WHERE person_id IS NOT NULL)"
