@@ -102,7 +102,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 17. Plan zapytania, potem SQL.
 - [x] 18. Routing modeli: tańszy najpierw, droższy przy naprawie.
 - [x] 19. Prompt caching stałej części promptu.
-- [ ] 20. Naprawa SQL z `EXPLAIN` w drugiej próbie.
+- [x] 20. Naprawa SQL z `EXPLAIN` w drugiej próbie.
 - [ ] 21. Odrzucanie zbyt kosztownych zapytań przed uruchomieniem.
 - [ ] 22. Automatyczne `LIMIT` i sortowanie.
 - [ ] 23. Korelacje z GUS (`corr()`, `regr_slope()`).

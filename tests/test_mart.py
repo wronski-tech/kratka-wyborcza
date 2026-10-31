@@ -934,12 +934,34 @@ class TestDynamicQueryFlow(unittest.TestCase):
             rows, sql, error, meta = dynamic_sql.try_dynamic_query("Frekwencja w 2023?")
             self.assertEqual((meta["status"], rows, error), ("repaired", [{"turnout_pct": Decimal("74.38")}], None))
             self.assertIn("frekwencja", fake_llm.call_args.kwargs["previous_error"])
+            self.assertFalse(meta["explain"], "an unknown column has no plan to show")
             self.assertEqual(meta["tokens"]["prompt_tokens"], 22)
             self.assertEqual(meta["plan"], "v_turnout, year 2023, country level", "the plan of the query that ran")
             # Same question (different case/spacing) and same mart load: no LLM call.
             rows, cached_sql, _, meta = dynamic_sql.try_dynamic_query("frekwencja  w 2023?")
             self.assertEqual((meta["status"], cached_sql), ("cached", sql))
             self.assertEqual(fake_llm.call_count, 2)
+
+    def test_timeout_repair_gets_the_plan(self) -> None:
+        slow = "SELECT count(*) AS n FROM mart.precincts a CROSS JOIN mart.precincts b"
+
+        def run(sql: str):
+            if sql.startswith("EXPLAIN "):
+                return [{"QUERY PLAN": "Nested Loop  (rows=27333980160)"}, {"QUERY PLAN": "  ->  Seq Scan on precincts b"}]
+            if "CROSS JOIN" in sql:
+                raise psycopg.errors.QueryCanceled("canceling statement due to statement timeout")
+            return [{"turnout_pct": 1}]
+
+        with patch.object(dynamic_sql, "_llm_sql", side_effect=[(slow, {}, ""), (self.GOOD, {}, "")]) as fake_llm, \
+                patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=run) as run_mock:
+            _, _, _, meta = dynamic_sql.try_dynamic_query("Ile par obwodów?")
+        self.assertEqual((meta["status"], meta["explain"]), ("repaired", True))
+        note = fake_llm.call_args.kwargs["previous_error"]
+        self.assertTrue(note.startswith("canceling statement due to statement timeout\nEXPLAIN of the failed query:\n"))
+        self.assertIn("Seq Scan on precincts b", note)
+        # The plan comes from the validated query (LIMIT added by the guard), never from raw model text.
+        explained = [c.args[0] for c in run_mock.call_args_list if c.args[0].startswith("EXPLAIN ")]
+        self.assertEqual(explained, ["EXPLAIN " + validate_mart_sql(slow)])
 
     def test_repair_uses_the_stronger_model(self) -> None:
         def client(sql: str) -> MagicMock:

@@ -344,7 +344,9 @@ def _llm_sql(
         raise ValueError("OPENAI_API_KEY is missing.")
     repair = ""
     if previous_sql:
-        repair = f"\nThe previous query failed. Fix it.\nPrevious SQL: {previous_sql}\nError: {previous_error}\n"
+        repair = (f"\nThe previous query failed. Fix it (a timeout: filter earlier, prefer the v_* views and the "
+                  f"keys of the matched entities, avoid scanning precinct tables).\n"
+                  f"Previous SQL: {previous_sql}\nError: {previous_error}\n")
     response = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
         model=OPENAI_REPAIR_MODEL if previous_sql else OPENAI_CHAT_MODEL,
         temperature=0,
@@ -566,6 +568,28 @@ def period_hint(periods: list[tuple[str, Any, int]], loaded: dict[str, list[int]
             "about a trend):\n" + "\n".join(lines))
 
 
+EXPLAIN_MAX_LINES = 30
+
+
+def explain(sql: str, exc: psycopg.Error) -> str | None:
+    """The plan of a failed single query (EXPLAIN, read-only, nothing runs) for the repair prompt.
+
+    Useful when the query could be planned but failed while running: a timeout shows which scans
+    were expensive, a run-time error (division by zero, a bad cast) where it happened. Errors raised
+    while planning (unknown column or relation) have no plan; their message is enough.
+    """
+    parts = split_parts(sql)
+    if len(parts) > 1 or isinstance(exc, (psycopg.errors.UndefinedColumn, psycopg.errors.UndefinedTable,
+                                          psycopg.errors.UndefinedFunction, psycopg.errors.SyntaxError)):
+        return None
+    try:
+        rows = safe_sql.run_readonly("EXPLAIN " + parts[0][1])
+    except psycopg.Error:
+        return None
+    lines = [str(next(iter(r.values()))) for r in rows]
+    return "\n".join(lines[:EXPLAIN_MAX_LINES]) + ("\n..." if len(lines) > EXPLAIN_MAX_LINES else "")
+
+
 def build_context(
     question: str, matches: list[entities.EntityMatch], previous: dict | None = None
 ) -> tuple[str, str, dict[str, Any]]:
@@ -657,10 +681,11 @@ def try_dynamic_query(
 
     sql: str | None = None
     error: str | None = None
+    repair_note: str | None = None
     for attempt in ("first_pass", "repaired"):
         try:
             phase = time.monotonic()
-            raw, used, plan = _llm_sql(question, context, previous_sql=sql, previous_error=error)
+            raw, used, plan = _llm_sql(question, context, previous_sql=sql, previous_error=repair_note)
             timings[f"llm_{attempt}"] = _ms(phase)
             meta.setdefault("models", {})[attempt] = OPENAI_REPAIR_MODEL if attempt == "repaired" else OPENAI_CHAT_MODEL
             if plan:
@@ -682,4 +707,8 @@ def try_dynamic_query(
         except psycopg.Error as exc:
             error = str(exc).splitlines()[0]
             log.info("dynamic SQL failed on attempt %s: %s", attempt, error)
+            if attempt == "first_pass":
+                explained = explain(sql, exc)
+                meta["explain"] = bool(explained)
+                repair_note = error + (f"\nEXPLAIN of the failed query:\n{explained}" if explained else "")
     return [], sql, error, {**meta, "status": "failed", "error": error}

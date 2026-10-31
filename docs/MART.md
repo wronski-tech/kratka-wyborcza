@@ -723,7 +723,10 @@ would answer it from Sejm data.
    part rejects the whole answer.
 6. **Execution** as `plujka_mart_reader` (`MART_DATABASE_URL`): read-only transactions, `mart` only,
    statement timeout `MART_STATEMENT_TIMEOUT_MS`. On a database error the model gets one repair
-   attempt with the error message. Rows of a multi-part answer carry their part title in `part`.
+   attempt (`OPENAI_REPAIR_MODEL`) with the error message and, when the failed query could be planned
+   (a timeout, a run-time error such as division by zero; not an unknown column), its `EXPLAIN` plan
+   (`dynamic_sql.explain`, at most 30 lines, run read-only on the validated query; nothing executes).
+   `meta.explain` says whether a plan was sent. Rows of a multi-part answer carry their part title in `part`.
 7. **Cache.** A validated query that ran is cached per (folded question, entity choices, previous turn, mart load)
    for `SQL_CACHE_TTL_SECONDS`; a repeated question skips the LLM. A new build invalidates it.
 
