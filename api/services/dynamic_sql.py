@@ -66,6 +66,9 @@ SQL_RULES = f"""Rules:
 - Seats under another method or threshold ("co gdyby"): mart.v_seat_methods (Sejm, sejmik), or
   mart.allocate_seats(array_agg(votes ORDER BY committee_id), <district seats>, 'dhondt' | 'sainte_lague' |
   'sainte_lague_modified') per district over the lists that pass the chosen threshold, then sum.
+  A joint list ("gdyby KO, TD i Lewica startowały razem"): sum the merged committees' votes per district
+  into one list, keep the other lists with in_seat_allocation. One national constituency: allocate
+  the national votes of the lists with in_seat_allocation once, with all seats (460 for the Sejm).
 - Correlations with GUS statistics ("czy bezrobocie wiąże się z poparciem"): join the gmina (or
   powiat) rows of a result view with mart.v_gus_units on level and teryt (GUS year closest to the
   election) and return one row with round(corr(x, y)::numeric, 3) AS r, round(regr_slope(y, x)::numeric, 3),

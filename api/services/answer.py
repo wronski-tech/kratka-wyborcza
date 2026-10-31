@@ -154,6 +154,11 @@ def _about_rada_1994(rows: list[dict[str, Any]], sql: str) -> bool:
 # gap are in docs/MART.md ("Known gaps").
 CAVEATS: tuple[tuple[str, Any], ...] = (
     (
+        "To symulacja: przyjęto te same głosy, a zmieniono tylko sposób przeliczania ich na mandaty "
+        "(próg, metodę, listy lub okręgi); wyborcy mogliby wtedy głosować inaczej.",
+        lambda rows, sql: re.search(r"allocate_seats\s*\(|seats_(dhondt|sainte_lague)", sql, re.IGNORECASE) is not None,
+    ),
+    (
         "Korelacja opisuje, jak wartości współwystępują w jednostkach terytorialnych; nie dowodzi związku "
         "przyczynowego i nie mówi, jak głosowali poszczególni wyborcy.",
         lambda rows, sql: re.search(r"\b(corr|regr_\w+)\s*\(", sql, re.IGNORECASE) is not None,
