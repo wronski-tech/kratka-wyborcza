@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Query explanation in Polish: every answer carries `answer.explanation`, lines read from the SQL itself with sqlglot (sources, conditions such as „rok (b) = 2023”, calculations such as korelacja or podział mandatów, grouping, order, row limit), shown above the SQL in the UI; it is derived from the query, not written by the model, so it cannot differ from what produced the rows.
+
 - Hypothetical seats: besides another method (`v_seat_methods`) and another threshold, the model handles a joint list („gdyby KO, TD i Lewica startowały razem”: 265 seats in 2023 instead of 248) and one national constituency with `mart.allocate_seats` (rule, two curated examples, two evaluation items); every such answer notes it is a simulation with the same votes.
 
 - Changes between any two elections by party family: besides `v_party_change` (previous election of the same kind), the model joins `v_party_results` to itself for other pairs (Sejm 2011 vs 2023, Sejm 2023 vs EP 2024) and returns `comparable`, so the PO → KO caveat applies; two curated examples and a `change` evaluation family.

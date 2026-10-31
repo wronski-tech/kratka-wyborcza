@@ -1921,6 +1921,10 @@ if last:
             st.markdown(" · ".join(meta_lines))
 
     with st.expander(_t("Zapytanie SQL i źródło danych"), expanded=False):
+        explanation = (data.get("answer") or {}).get("explanation")
+        if explanation:
+            st.caption("Co robi to zapytanie (opis odczytany z SQL):")
+            st.markdown("\n".join(f"- {line}" for line in explanation))
         plan = ((data.get("params") or {}).get("_dynamic_sql_meta") or {}).get("plan")
         if plan:
             st.caption("Plan zapytania, który model napisał przed SQL:")

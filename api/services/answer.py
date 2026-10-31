@@ -14,9 +14,12 @@ import re
 from decimal import Decimal
 from typing import Any
 
+import sqlglot
 from openai import OpenAI
+from sqlglot import exp
 
-from api.services.config import ANSWER_SUMMARY_ENABLED, OPENAI_API_KEY, OPENAI_CHAT_MODEL
+from api.services.config import ANSWER_SUMMARY_ENABLED, MART_MAX_ROWS, OPENAI_API_KEY, OPENAI_CHAT_MODEL
+from api.services.dynamic_sql import split_parts
 
 log = logging.getLogger(__name__)
 
@@ -221,6 +224,113 @@ def caveats(rows: list[dict[str, Any]], sql: str) -> list[str]:
     return [text for text, applies in CAVEATS if applies(rows, sql or "")]
 
 
+# Polish labels for the query explanation; anything not listed is shown by its SQL name.
+_RELATION_LABELS = {
+    "v_party_results": "wyniki rodzin partii w jednostkach", "v_party_change": "zmiana poparcia od poprzednich wyborów",
+    "v_turnout": "frekwencja", "v_gus_units": "statystyki GUS", "v_seat_methods": "mandaty różnymi metodami",
+    "persons": "osoby", "v_person_history": "starty osób", "unit_attributes": "cechy gmin",
+    "elections": "lista wyborów", "party_families": "rodziny partii", "v_gmina_continuity": "ciągłość gmin",
+    "sejm_committees": "komitety w wyborach do Sejmu", "sejm_district_lists": "listy w okręgach do Sejmu",
+    "sejm_districts": "okręgi do Sejmu",
+}
+_COLUMN_LABELS = {
+    "election": "wybory", "year": "rok", "round": "tura", "level": "poziom", "party": "partia",
+    "wojewodztwo": "województwo", "powiat": "powiat", "gmina": "gmina", "teryt_gmina": "kod gminy",
+    "teryt_powiat": "kod powiatu", "teryt": "kod TERYT", "person_id": "osoba", "committee_name": "komitet",
+    "committee_id": "komitet", "aliases": "skrót komitetu", "district_no": "okręg", "votes": "głosy",
+    "pct": "poparcie (%)", "seats": "mandaty", "turnout_pct": "frekwencja (%)", "change_pp": "zmiana (pkt proc.)",
+    "family": "rodzina partii", "alias": "skrót komitetu",
+}
+_FUNCTION_LABELS = {
+    "sum": "suma", "count": "liczba", "avg": "średnia", "min": "minimum", "max": "maksimum", "corr": "korelacja",
+    "regr_slope": "nachylenie regresji", "regr_r2": "R²", "allocate_seats": "podział mandatów",
+    "rank": "miejsce w rankingu", "dense_rank": "miejsce w rankingu", "row_number": "numer wiersza",
+    "lag": "wartość z poprzedniego wiersza", "stddev": "odchylenie standardowe", "percentile_cont": "mediana/percentyl",
+}
+_OPERATORS = {exp.EQ: "=", exp.NEQ: "≠", exp.GT: ">", exp.GTE: "≥", exp.LT: "<", exp.LTE: "≤"}
+
+
+def _column_label(column: exp.Expression, select: exp.Expression | None = None) -> str:
+    """'rok', or 'rok (b)' for a qualified column of a self-join; ORDER/GROUP BY 2 names output column 2."""
+    if isinstance(column, exp.Literal) and column.is_int and isinstance(select, exp.Select) \
+            and 0 < int(column.this) <= len(select.expressions):
+        name = select.expressions[int(column.this) - 1].alias_or_name
+        return _COLUMN_LABELS.get(name, name)
+    label = _COLUMN_LABELS.get(column.name, column.name) if isinstance(column, exp.Column) else column.sql("postgres")
+    return f"{label} ({column.table})" if isinstance(column, exp.Column) and column.table else label
+
+
+def _value(node: exp.Expression) -> str:
+    return node.this if isinstance(node, exp.Literal) else node.sql("postgres")
+
+
+def _condition(node: exp.Expression) -> str:
+    """One WHERE conjunct in Polish where it is a plain comparison, else its SQL."""
+    if isinstance(node, exp.Binary) and type(node) in _OPERATORS and isinstance(node.left, exp.Column) and isinstance(node.right, (exp.Literal, exp.Column)):
+        right = _column_label(node.right) if isinstance(node.right, exp.Column) else _value(node.right)
+        return f"{_column_label(node.left)} {_OPERATORS[type(node)]} {right}"
+    if isinstance(node, exp.EQ) and isinstance(node.left, exp.Literal) and isinstance(node.right, exp.Any):
+        return f"{_column_label(node.right.this.unnest())} zawiera {_value(node.left)}"
+    if isinstance(node, exp.In) and isinstance(node.this, exp.Column) and node.expressions:
+        return f"{_column_label(node.this)}: {', '.join(_value(v) for v in node.expressions)}"
+    if isinstance(node, exp.Column):
+        return f"{_column_label(node)} = tak"
+    return node.sql("postgres")
+
+
+def _explain_select(sql: str) -> list[str]:
+    try:
+        tree = sqlglot.parse_one(sql, read="postgres")
+    except sqlglot.errors.ParseError:
+        return []
+    ctes = {cte.alias_or_name.lower() for cte in tree.find_all(exp.CTE)}
+    relations = list(dict.fromkeys(t.name.lower() for t in tree.find_all(exp.Table)
+                                   if t.name and t.name.lower() not in ctes))
+    if not relations or not any((t.db or "").lower() == "mart" for t in tree.find_all(exp.Table)):
+        return []
+    # The guard wraps some queries as SELECT * FROM (...) q LIMIT n: describe the inner query.
+    outer = tree
+    while isinstance(outer, exp.Select) and outer.is_star and isinstance(outer.args.get("from"), exp.From) \
+            and isinstance(outer.args["from"].this, exp.Subquery):
+        outer = outer.args["from"].this.this
+    lines = ["Dane: " + ", ".join(f"{r} ({_RELATION_LABELS[r]})" if r in _RELATION_LABELS else r for r in relations) + "."]
+    conditions = list(dict.fromkeys(
+        _condition(c) for where in tree.find_all(exp.Where)
+        for c in (where.this.flatten() if isinstance(where.this, exp.And) else [where.this])
+    ))
+    if conditions:
+        lines.append("Warunki: " + "; ".join(conditions) + ".")
+    functions = list(dict.fromkeys(
+        _FUNCTION_LABELS[name] for f in tree.find_all(exp.Func)
+        if (name := (f.name if isinstance(f, exp.Anonymous) else f.sql_name()).lower()) in _FUNCTION_LABELS
+    ))
+    if functions:
+        lines.append("Obliczenia: " + ", ".join(functions) + ".")
+    if isinstance(outer, exp.Select) and outer.args.get("group"):
+        lines.append("Grupowanie: " + ", ".join(_column_label(g, outer) for g in outer.args["group"].expressions) + ".")
+    order = outer.args.get("order") if isinstance(outer, exp.Select) else None
+    one_row = isinstance(outer, exp.Select) and not outer.args.get("group") \
+        and any(e.find(exp.AggFunc) and not e.find(exp.Window) for e in outer.expressions)
+    if order and order.expressions and not one_row:  # the first key only; the rest break ties
+        first = order.expressions[0]
+        lines.append(f"Kolejność: {_column_label(first.this, outer)} {'malejąco' if first.args.get('desc') else 'rosnąco'}.")
+    limit = tree.args.get("limit") or (outer.args.get("limit") if isinstance(outer, exp.Select) else None)
+    if limit is not None and isinstance(limit.expression, exp.Literal) and int(limit.expression.this) < MART_MAX_ROWS:
+        lines.append(f"Najwyżej {limit.expression.this} wierszy.")
+    return lines
+
+
+def explain_sql(sql: str) -> list[str]:
+    """Polish description of what a mart query does (sources, conditions, calculations, grouping, order),
+    read from the SQL itself, so it never differs from the query that produced the rows. Empty when the
+    query does not read the mart. Parts of a multi-part query are prefixed with their titles."""
+    lines = []
+    for title, select in split_parts(sql or ""):
+        part = _explain_select(select)
+        lines += [f"{title}: {line}" for line in part] if title else part
+    return lines
+
+
 def _llm_answer(question: str, rows: list[dict[str, Any]]) -> tuple[str, dict[str, int]]:
     """Ask the chat model for a short answer; return (text, token usage)."""
     payload = json.dumps(rows[:MAX_ROWS_IN_PROMPT], ensure_ascii=False, default=str)
@@ -245,9 +355,11 @@ def compose_answer(question: str, rows: list[dict[str, Any]], sql: str = "") -> 
 
     Returns ``{"text", "source": "llm" | "fallback", "verified": bool, "caveats": [...], ...}``;
     ``rejected_numbers`` lists the numbers that made an LLM text fail the check; ``caveats`` are fixed
-    Polish notes about data gaps that apply to these rows (see ``CAVEATS``).
+    Polish notes about data gaps that apply to these rows (see ``CAVEATS``); ``explanation`` describes the
+    query in Polish (``explain_sql``).
     """
-    result: dict[str, Any] = {"text": fallback_answer(rows, is_english(question)), "source": "fallback", "verified": True, "caveats": caveats(rows, sql)}
+    result: dict[str, Any] = {"text": fallback_answer(rows, is_english(question)), "source": "fallback", "verified": True,
+                              "caveats": caveats(rows, sql), "explanation": explain_sql(sql)}
     if not rows or not ANSWER_SUMMARY_ENABLED or not OPENAI_API_KEY:
         return result
     try:

@@ -546,6 +546,24 @@ class TestAnswerNumbers(unittest.TestCase):
             result = answer.compose_answer("Wynik PiS?", self.ROWS)
         self.assertEqual((result["source"], result["rejected_numbers"]), ("fallback", ["40"]))
 
+    def test_explanation_is_read_from_the_sql(self) -> None:
+        change = ("SELECT a.wojewodztwo, round(b.pct - a.pct, 2) AS change_pp FROM mart.v_party_results a "
+                  "JOIN mart.v_party_results b ON b.unit_key = a.unit_key AND b.party = a.party "
+                  "WHERE a.year = 2011 AND b.year = 2023 AND a.party = 'KO' AND b.pct < a.pct ORDER BY 2 DESC LIMIT 5")
+        self.assertEqual(answer.explain_sql(change), [
+            "Dane: v_party_results (wyniki rodzin partii w jednostkach).",
+            "Warunki: rok (a) = 2011; rok (b) = 2023; partia (a) = KO; poparcie (%) (b) < poparcie (%) (a).",
+            "Kolejność: zmiana (pkt proc.) malejąco.",
+            "Najwyżej 5 wierszy.",
+        ])
+        # One aggregate row: no ordering line; the guard's row cap is not mentioned.
+        corr = validate_mart_sql("SELECT corr(g.urban_pct, p.pct) AS r FROM mart.v_party_results p "
+                                          "JOIN mart.v_gus_units g ON g.teryt = p.teryt_gmina WHERE 'PiS' = ANY(p.committees)")
+        self.assertEqual(answer.explain_sql(corr)[1:], ["Warunki: committees (p) zawiera PiS.", "Obliczenia: korelacja."])
+        parts = "-- part: Frekwencja\nSELECT turnout_pct FROM mart.v_turnout WHERE year = 2023\n;\n-- part: Mandaty\nSELECT 1 FROM mart.v_seat_methods"
+        self.assertEqual(answer.explain_sql(parts)[0], "Frekwencja: Dane: v_turnout (frekwencja).")
+        self.assertEqual(answer.explain_sql("SELECT payload FROM kbw_facts"), [])
+
     def test_caveats_follow_the_rows_and_sql(self) -> None:
         turnout = "SELECT election, year, round, turnout_pct FROM mart.v_turnout WHERE level = 'country'"
         pe2014 = [{"election": "pe", "year": 2014, "round": 1, "turnout_pct": 23.82}]

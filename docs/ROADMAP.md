@@ -110,7 +110,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 25. Mandaty hipotetyczne przez `allocate_seats`.
 
 **Odpowiedzi**
-- [ ] 26. Wyjaśnienie zapytania po polsku, generowane z SQL.
+- [x] 26. Wyjaśnienie zapytania po polsku, generowane z SQL.
 - [ ] 27. Wybór typu wykresu spośród dozwolonych, reguła deterministyczna jako zabezpieczenie.
 - [ ] 28. Tytuły i podpisy wykresów.
 - [ ] 29. Podsumowanie dużego wyniku (liczby z wierszy).

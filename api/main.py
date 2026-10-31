@@ -497,7 +497,7 @@ class AskResponse(BaseModel):
     )
     answer: dict[str, Any] | None = Field(
         default=None,
-        description="Answer text: {text, source: llm|fallback|docs|refusal, verified, caveats}; LLM text only when its numbers match the rows; docs: a definition from docs/DEFINITIONS.md with `sources`; refusal: a fixed text for polls, forecasts and future results; caveats are fixed notes about data gaps",
+        description="Answer text: {text, source: llm|fallback|docs|refusal, verified, caveats}; LLM text only when its numbers match the rows; docs: a definition from docs/DEFINITIONS.md with `sources`; refusal: a fixed text for polls, forecasts and future results; caveats are fixed notes about data gaps; explanation: Polish lines describing the SQL (sources, conditions, calculations, grouping, order), derived from the query itself",
     )
     clarification: dict[str, Any] | None = Field(
         default=None,
