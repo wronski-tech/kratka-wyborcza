@@ -8,6 +8,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
 # Stronger model for the second SQL attempt, after the first query failed (the cheap model writes first).
 OPENAI_REPAIR_MODEL = os.getenv("OPENAI_REPAIR_MODEL", "gpt-4o")
+# Speech to text for spoken questions (POST /transcribe).
+OPENAI_TRANSCRIBE_MODEL = os.getenv("OPENAI_TRANSCRIBE_MODEL", "gpt-4o-mini-transcribe")
+# Largest accepted recording (bytes). The browser records WAV at about 0.18 MB/s, so this is about two
+# minutes; OpenAI accepts files up to 25 MB.
+TRANSCRIBE_MAX_BYTES = int(os.getenv("TRANSCRIBE_MAX_BYTES", str(24 * 1024 * 1024)))
 OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "128"))
 # Read-only login role for LLM-generated SQL over the `mart` schema (created by scripts/build_mart.py).

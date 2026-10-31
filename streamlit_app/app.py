@@ -156,6 +156,32 @@ def _looks_like_follow_up(question: str) -> bool:
 HISTORY_SIZE = 20
 
 
+def _voice_input() -> None:
+    """A recorded question, transcribed by the API (POST /transcribe) into the question field, where the user
+    checks it before asking. Runs before the field is drawn, so it may set the field's value."""
+    audio = st.experimental_audio_input(_t("🎤 Albo nagraj pytanie"), key="voice_question")
+    if audio is None:
+        return
+    recording = audio.getvalue()
+    digest = hashlib.sha1(recording).hexdigest()
+    if st.session_state.get("_voice_digest") == digest:
+        return
+    st.session_state["_voice_digest"] = digest
+    try:
+        response = requests.post(f"{API_URL}/transcribe", data=recording, timeout=60,
+                                 headers={**API_HEADERS, "Content-Type": audio.type or "audio/wav"})
+    except requests.RequestException as error:
+        st.error(f"Coś poszło nie tak z API: {error}")
+        return
+    if response.status_code == 503:
+        st.warning(_t("Wejście głosowe wymaga klucza OpenAI w API; wpisz pytanie."))
+    elif not response.ok:
+        st.warning(f"Nie udało się rozpoznać nagrania (HTTP {response.status_code}); wpisz pytanie.")
+    else:
+        st.session_state["plujka_question_input"] = response.json()["text"]
+        st.caption(_t("Rozpoznany tekst jest w polu pytania: sprawdź go i wyślij."))
+
+
 def _history_sidebar() -> None:
     """Questions asked in this session; a click shows that answer again without asking the API."""
     history = st.session_state.get("ask_history") or []
@@ -1864,6 +1890,7 @@ _catalog_inventory_expander()
 _kbw_table_stats_expander()
 
 with st.container(border=True):
+    _voice_input()
     question = st.text_input(
         _t("Twoje pytanie"),
         placeholder=_t("np. Ile głosów miała KO w 2023? · posłowie PiS z Wrocławia"),

@@ -58,6 +58,7 @@ services:
       OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
       OPENAI_REPAIR_MODEL: ${OPENAI_REPAIR_MODEL:-gpt-4o}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_TRANSCRIBE_MODEL: ${OPENAI_TRANSCRIBE_MODEL:-gpt-4o-mini-transcribe}
       EMBEDDING_DIM: "128"
     ports:
       - "8000:8000"

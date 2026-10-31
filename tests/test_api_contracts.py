@@ -8,11 +8,13 @@ import zipfile
 from pathlib import Path
 from datetime import date
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+import openai
 
 from fastapi.testclient import TestClient
 
-from api.services import config, report_pdf
+from api.services import config, report_pdf, speech
 
 from api.main import (
     AskResponse,
@@ -116,6 +118,32 @@ class TestAskEndpoint(unittest.TestCase):
         self.route.return_value = {**self.ROUTED, "sql": "SELECT party, pct FROM mart.v_party_results WHERE election = 'sejm' AND year = 2023 AND level = 'country'"}
         answer = self.client.post("/ask", json={"question": "Wynik PiS w 2023?"}).json()["answer"]
         self.assertEqual(answer["follow_ups"], ["A w 2019?", "A w podziale na województwa?", "Jak to się zmieniło w porównaniu z 2019?"])
+
+    def test_transcribe_returns_text_only(self) -> None:
+        wav = b"RIFF....WAVEfmt "
+        post = lambda body: self.client.post("/transcribe", content=body, headers={"Content-Type": "audio/wav"})  # noqa: E731
+        with patch("api.main.config.OPENAI_API_KEY", ""):
+            self.assertEqual(post(wav).status_code, 503)
+        with patch("api.main.config.OPENAI_API_KEY", "k"), patch("api.main.config.TRANSCRIBE_MAX_BYTES", 32), \
+                patch("api.main.speech.transcribe", return_value="Frekwencja w Krakowie w 2023?") as speech:
+            response = post(wav)
+            self.assertEqual(response.json(), {"text": "Frekwencja w Krakowie w 2023?"})
+            self.assertEqual(speech.call_args.args, (wav, "audio/wav"))
+            self.assertEqual(post(b"").status_code, 400)
+            self.assertEqual(post(b"x" * 33).status_code, 413)
+            self.route.assert_not_called()  # the transcript is not asked: the client shows it first
+        with patch("api.main.config.OPENAI_API_KEY", "k"), \
+                patch("api.main.speech.transcribe", side_effect=openai.APIConnectionError(request=MagicMock())):
+            self.assertEqual(post(wav).status_code, 502)
+
+    def test_speech_asks_the_transcription_model(self) -> None:
+        client = MagicMock()
+        client.audio.transcriptions.create.return_value = MagicMock(text="  Ile mandatów\nmiał PiS?  ")
+        with patch("api.services.speech.OpenAI", return_value=client):
+            self.assertEqual(speech.transcribe(b"wav", "audio/wav"), "Ile mandatów miał PiS?")
+        kwargs = client.audio.transcriptions.create.call_args.kwargs
+        self.assertEqual((kwargs["model"], kwargs["file"]), (config.OPENAI_TRANSCRIBE_MODEL, ("question.wav", b"wav", "audio/wav")))
+        self.assertIn("Konfederacja", kwargs["prompt"])
 
     def test_empty_result_reasons(self) -> None:
         sql = "SELECT pct FROM mart.v_party_results WHERE election = 'sejm' AND year = 2021"

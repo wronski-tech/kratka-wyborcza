@@ -17,12 +17,14 @@ from decimal import Decimal
 from email.utils import parsedate_to_datetime
 from typing import Any, Literal
 
+import openai
 import psycopg
 from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from psycopg.conninfo import conninfo_to_dict
 from pydantic import BaseModel, ConfigDict, Field
 
-from api.services import answer, config, db, dynamic_sql, feedback_store, opensearch_store, report_pdf, router
+from api.services import answer, config, db, dynamic_sql, feedback_store, opensearch_store, report_pdf, router, speech
 from api.services.mart import derived as mart_derived
 from api.services.mart import examples as sql_examples
 from api.services.mart import safe_sql
@@ -1488,6 +1490,35 @@ def simulate_seats(
     if not rows:
         raise HTTPException(status_code=404, detail="No Sejm election in this year.")
     return [SeatSimulationRow.model_validate(r) for r in rows]
+
+
+class TranscriptResponse(BaseModel):
+    text: str = Field(description="The spoken question as text; ask it with POST /ask")
+
+
+@app.post("/transcribe", response_model=TranscriptResponse, tags=["ask"],
+          openapi_extra={"requestBody": {"required": True, "content": {"audio/wav": {"schema": {"type": "string", "format": "binary"}}}}},
+          responses={413: {"description": "Recording too long"}, 503: {"description": "No OpenAI key"}})
+async def transcribe(http_request: Request, api_key: str | None = Depends(require_api_key)) -> TranscriptResponse:
+    """Speech to text for a spoken question (raw audio body, e.g. audio/wav). Returns only the text, which the
+    client shows for checking and then asks with /ask; counts against the same per-client question limit."""
+    client = http_request.client.host if http_request.client else "unknown"
+    if not ask_limiter.allow(f"key:{api_key}" if api_key else client):
+        raise HTTPException(status_code=429, detail="Too many questions; try again in a minute.")
+    if not config.OPENAI_API_KEY:
+        raise HTTPException(status_code=503, detail="Voice input needs an OpenAI key.")
+    audio = await http_request.body()
+    if not audio:
+        raise HTTPException(status_code=400, detail="Recording is empty.")
+    if len(audio) > config.TRANSCRIBE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Recording is too long.")
+    content_type = http_request.headers.get("content-type") or "audio/wav"
+    try:
+        text = await run_in_threadpool(speech.transcribe, audio, content_type)
+    except openai.OpenAIError as exc:
+        log.warning("transcription failed: %s", exc)
+        raise HTTPException(status_code=502, detail="Transcription failed; type the question instead.") from exc
+    return TranscriptResponse(text=text)
 
 
 @app.post("/ask", response_model=AskResponse, tags=["ask"])
