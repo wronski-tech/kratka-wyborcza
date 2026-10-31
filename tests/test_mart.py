@@ -563,6 +563,9 @@ class TestAnswerNumbers(unittest.TestCase):
         self.assertIn("PO → KO", answer.caveats(change, "SELECT * FROM mart.v_party_change")[0])
         self.assertEqual(answer.caveats([{"family": "PiS", "comparable": True}], "SELECT * FROM mart.v_party_change"), [])
         self.assertEqual(answer.caveats([], turnout), [])
+        corr = "SELECT round(CORR(g.urban_pct, p.pct)::numeric, 3) AS r FROM mart.v_party_results p JOIN mart.v_gus_units g ON g.teryt = p.teryt_gmina"
+        self.assertIn("przyczynowego", answer.caveats([{"r": 0.27}], corr)[0])
+        self.assertEqual(answer.caveats([{"corrected": 3}], "SELECT corrected FROM mart.x"), [])
         # 1990-1997 results by today's gmina or powiat go through the unofficial pre-1999 key.
         by_gmina = "SELECT * FROM mart.v_turnout WHERE level = 'gmina'"
         self.assertIn("1990–1997", answer.caveats([{"year": 1995, "level": "gmina", "turnout_pct": 64.7}], by_gmina)[0])

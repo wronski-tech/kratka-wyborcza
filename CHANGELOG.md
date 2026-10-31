@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Correlations with GUS statistics: questions such as „czy bezrobocie w gminach wiązało się z poparciem PiS” get one row with `corr` (r), `regr_slope`, `regr_r2` and the number of gminas or powiats (a new SQL rule, a curated example, two evaluation items in a new `gus` family), and the answer notes that a correlation across units is not causation.
+
 - Automatic ordering: the SQL guard adds an `ORDER BY` to a generated query without one (by `year` for trends, otherwise descending by the first measure such as votes, pct or seats, the other columns breaking ties), so the rows and the rows a `LIMIT` keeps no longer depend on the plan; the row cap (`MART_MAX_ROWS`) was already automatic.
 - Too expensive queries are not run: a generated query whose planner cost (`EXPLAIN`, read-only) is above `MART_MAX_PLAN_COST` (default 5,000,000; the heaviest evaluation reference query costs about 360k) goes straight to the repair attempt with its plan instead of holding a connection until the statement timeout; `run_eval.py --check` applies the same limit to the reference queries.
 - SQL repair with `EXPLAIN`: when the first query fails after planning (a timeout, a run-time error), the repair prompt gets its `EXPLAIN` plan (read-only, on the validated query, at most 30 lines) next to the error, plus a hint for timeouts (filter earlier, use the views and the matched keys); `meta.explain` records whether a plan was sent.

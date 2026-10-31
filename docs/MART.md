@@ -69,7 +69,11 @@ Checks: unique keys; every TERYT appears in the election tables or `build_gus.NO
 add up to their powiat, powiats to their voivodeship, voivodeships to Poland and Warsaw's districts to
 the city; urban + rural = population; age shares sum to 100; census higher education ≤ residents 13+. GUS words in a question add the GUS relations to the prompt but
 do not narrow it (`dynamic_sql.ADD_ONLY_PREFIXES`), and such questions never fall back to the Sejm
-templates.
+templates. Correlation questions ("czy bezrobocie wiąże się z poparciem PiS") join gmina or powiat
+results with `v_gus_units` and return one row of PostgreSQL aggregates: `corr(x, y)` as `r`,
+`regr_slope(y, x)` (percentage points per unit of x), `regr_r2` and the number of units (an SQL rule
+and a curated example); the answer then carries a caveat that a correlation across units is neither
+causation nor individual voting behaviour.
 
 ## Data model
 

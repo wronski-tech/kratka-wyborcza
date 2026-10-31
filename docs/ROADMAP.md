@@ -105,7 +105,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 20. Naprawa SQL z `EXPLAIN` w drugiej próbie.
 - [x] 21. Odrzucanie zbyt kosztownych zapytań przed uruchomieniem.
 - [x] 22. Automatyczne `LIMIT` i sortowanie.
-- [ ] 23. Korelacje z GUS (`corr()`, `regr_slope()`).
+- [x] 23. Korelacje z GUS (`corr()`, `regr_slope()`).
 - [ ] 24. Zmiany między wyborami z rodzinami partii.
 - [ ] 25. Mandaty hipotetyczne przez `allocate_seats`.
 
