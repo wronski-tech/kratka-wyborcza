@@ -642,6 +642,24 @@ class TestAnswerNumbers(unittest.TestCase):
         self.assertEqual(answer.explain_sql(parts)[0], "Frekwencja: Dane: v_turnout (frekwencja).")
         self.assertEqual(answer.explain_sql("SELECT payload FROM kbw_facts"), [])
 
+    def test_sql_confidence_takes_the_weakest_signal(self) -> None:
+        rows = [{"turnout_pct": 74.38}]
+        conf = answer.sql_confidence
+        verified = {"status": "first_pass", "examples": [{"question": "Frekwencja w wyborach do Sejmu 2023?"}]}
+        self.assertEqual(conf("frekwencja w wyborach do sejmu 2023", "dynamic_sql", verified, rows, {}),
+                         {"level": "high", "reasons": ["verified_example", "first_pass"]})
+        # A similar example is not the same question; a paraphrase's SQL is only medium even when cached.
+        similar = {"status": "cached", "similar_question": {"question": "x", "similarity": 0.95},
+                   "examples": [{"question": "Frekwencja w wyborach do Sejmu 2019"}]}
+        self.assertEqual(conf("Frekwencja w wyborach do Sejmu 2023", "dynamic_sql", similar, rows, {}),
+                         {"level": "medium", "reasons": ["similar_question"]})
+        self.assertEqual(conf("q", "dynamic_sql", {"status": "repaired"}, rows, {})["level"], "medium")
+        self.assertEqual(conf("q", "dynamic_sql", {"status": "first_pass"}, rows, {"rejected_numbers": ["12"]}),
+                         {"level": "medium", "reasons": ["first_pass", "text_rejected"]})
+        self.assertEqual(conf("q", "kbw_party_votes", {"status": "first_pass"}, rows, {})["reasons"], ["template"])
+        # No rows beats a verified example and a first-pass query.
+        self.assertEqual(conf("Frekwencja w wyborach do Sejmu 2023", "dynamic_sql", verified, [], {})["level"], "low")
+
     def test_caveats_follow_the_rows_and_sql(self) -> None:
         turnout = "SELECT election, year, round, turnout_pct FROM mart.v_turnout WHERE level = 'country'"
         pe2014 = [{"election": "pe", "year": 2014, "round": 1, "turnout_pct": 23.82}]

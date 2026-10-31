@@ -71,6 +71,23 @@ EN = {
     "Zapytanie z podobnego, wcześniej zadanego pytania": "Query of a similar question asked before",
     "podobieństwo": "similarity",
     "📊 Otwórz „Przeglądaj wyniki”": "📊 Open “Browse results”",
+    "Pewność zapytania": "Query confidence",
+    "wysoka": "high",
+    "średnia": "medium",
+    "niska": "low",
+    "Ocena z tego, jak powstało zapytanie (bez modelu): wysoka, gdy zadziałało za pierwszym razem; średnia, gdy było "
+    "poprawiane, wzięte z podobnego pytania albo z szablonu; niska, gdy nie zwróciło wierszy.":
+        "Rated from how the query was obtained (no model): high when it worked the first time; medium when it was "
+        "repaired, taken from a similar question or from a template; low when it returned no rows.",
+    "to samo pytanie jest wśród zweryfikowanych przykładów": "the same question is among the verified examples",
+    "zapytanie zadziałało za pierwszym razem": "the query worked the first time",
+    "to samo zapytanie zadziałało już dla tego pytania": "the same query already worked for this question",
+    "zapytanie z podobnego pytania, nie napisane do tego": "the query of a similar question, not written for this one",
+    "pierwsza wersja zapytania nie zadziałała i została poprawiona": "the first query failed and was repaired",
+    "odpowiedź z prostego szablonu, nie z zapytania napisanego do tego pytania":
+        "answer from a simple template, not a query written for this question",
+    "opis modelu nie zgadzał się z wynikiem, pokazano podsumowanie": "the model's text did not match the result; a summary is shown",
+    "zapytanie nie zwróciło wierszy": "the query returned no rows",
     "Wykorzystano limit pytań w tej sesji. Spróbuj ponownie jutro albo skorzystaj z „Przeglądaj wyniki”.":
         "The question limit of this session is used up. Try again tomorrow or use “Browse results”.",
     "Wykorzystano dzienny limit pytań do modelu. Spróbuj ponownie jutro albo skorzystaj z „Przeglądaj wyniki”.":

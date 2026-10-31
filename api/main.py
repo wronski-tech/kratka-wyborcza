@@ -505,7 +505,7 @@ class AskResponse(BaseModel):
     )
     answer: dict[str, Any] | None = Field(
         default=None,
-        description="Answer text: {text, source: llm|fallback|docs|refusal|browse, verified, caveats}; LLM text only when its numbers match the rows; docs: a definition from docs/DEFINITIONS.md with `sources`; refusal: a fixed text for polls, forecasts and future results; browse: OpenAI is unavailable, `browse` holds the matching Przeglądaj view {wybory, rok, tura, pokaz, poziom}; caveats are fixed notes about data gaps; follow_ups: up to three questions to ask next with this turn as `previous` (dynamic SQL answers only); empty_reasons: why the query found no rows (an election-year not loaded, or the conditions no row met); explanation: Polish lines describing the SQL (sources, conditions, calculations, grouping, order), derived from the query itself",
+        description="Answer text: {text, source: llm|fallback|docs|refusal|browse, verified, caveats}; LLM text only when its numbers match the rows; docs: a definition from docs/DEFINITIONS.md with `sources`; refusal: a fixed text for polls, forecasts and future results; browse: OpenAI is unavailable, `browse` holds the matching Przeglądaj view {wybory, rok, tura, pokaz, poziom}; caveats are fixed notes about data gaps; follow_ups: up to three questions to ask next with this turn as `previous` (dynamic SQL answers only); empty_reasons: why the query found no rows (an election-year not loaded, or the conditions no row met); explanation: Polish lines describing the SQL (sources, conditions, calculations, grouping, order), derived from the query itself; confidence: {level: high|medium|low, reasons: [codes]} for answers with SQL, from how the query was obtained (answer.sql_confidence)",
     )
     clarification: dict[str, Any] | None = Field(
         default=None,
@@ -1627,6 +1627,10 @@ def ask(request: AskRequest, http_request: Request, api_key: str | None = Depend
     if not result.get("clarification") and not result.get("answer"):
         result["answer"] = answer.compose_answer(request.question, result.get("result") or [], result.get("sql") or "",
                                                  style=request.style, spent=_tokens_by_model(result))
+        if result.get("sql"):
+            result["answer"]["confidence"] = answer.sql_confidence(
+                request.question, result["intent"], (result.get("params") or {}).get("_dynamic_sql_meta") or {},
+                result.get("result") or [], result["answer"])
         if result.get("sql") and (result.get("intent") == "dynamic_sql" or not result.get("result")):
             try:  # follow-ups and empty-result reasons need the loaded years; the answer is complete without them
                 loaded = dynamic_sql.loaded_years()

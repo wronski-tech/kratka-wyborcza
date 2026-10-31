@@ -137,7 +137,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 46. Inny dostawca LLM (np. Azure OpenAI w UE) przez konfigurację.
 - [x] 47. Anonimizacja logów przed analizą przez LLM.
 - [x] 48. Limit długości i liczby pytań na sesję.
-- [ ] 49. Ocena pewności SQL widoczna w UI.
+- [x] 49. Ocena pewności SQL widoczna w UI.
 - [ ] 50. Wersjonowanie promptów z wynikami ewaluacji.
 
 ## Etap 3 — przygotowanie do produkcji

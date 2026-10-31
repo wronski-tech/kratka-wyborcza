@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Query confidence under every answer with SQL: high (the query worked the first time, or a verified example asks the same question), medium (repaired, taken from a similar question or a template, or the model's text failed the number check), low (no rows), with the reasons in plain words; `answer.confidence` in the API, rated without a model.
+
 - Question length and session limits: `/ask` rejects questions over `QUESTION_MAX_CHARS` (500) with 400, and the UI fields stop at that length; each UI session (`X-Session-Id`) may ask `SESSION_QUESTION_LIMIT` (100) questions per UTC day, after which the UI suggests „Przeglądaj wyniki”.
 
 - Anonymized logs before LLM analysis: the feedback triage (`scripts/triage_feedback.py`) and accepted thumbs-up examples (`add_sql_example.py --review`) replace e-mail addresses, links, IP addresses, account and card numbers, PESEL and phone numbers in user questions with placeholders (`api/services/anonymize.py`); election numbers (years, dates, TERYT, vote counts) stay.

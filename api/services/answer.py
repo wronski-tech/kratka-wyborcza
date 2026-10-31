@@ -23,6 +23,7 @@ from api.services.config import ANSWER_SUMMARY_ENABLED, MART_MAX_ROWS, OPENAI_AP
 from api.services.dynamic_sql import split_parts
 from api.services.embeddings import llm_available, llm_failed
 from api.services.llm_client import llm_client
+from api.services.mart.entities import fold
 
 log = logging.getLogger(__name__)
 
@@ -541,3 +542,34 @@ def compose_answer(question: str, rows: list[dict[str, Any]], sql: str = "", sty
         log.info("answer rejected: numbers %s are not in the SQL result", rejected)
         return {**result, "rejected_numbers": rejected}
     return {**result, "text": text, "source": "llm"}
+
+
+CONFIDENCE_LEVELS = ("low", "medium", "high")
+
+
+def sql_confidence(question: str, intent: str, meta: dict[str, Any], rows: list[dict[str, Any]],
+                   composed: dict[str, Any]) -> dict[str, Any]:
+    """How far to trust the query behind an answer, from how it was obtained (no model call).
+
+    Returns ``{"level": "high" | "medium" | "low", "reasons": [codes]}``; each reason allows a level and
+    the answer gets the lowest. Codes: ``verified_example`` (a curated example asks the same question),
+    ``first_pass`` / ``cached`` (the query ran as written), ``similar_question`` (SQL of a paraphrase),
+    ``repaired`` (the first query failed), ``template`` (legacy keyword template), ``text_rejected`` (the
+    model's text failed the number check, the summary is shown), ``no_rows``.
+    """
+    signals: list[tuple[str, str]] = []
+    asked = fold(question).strip(" ?.!")
+    if any(fold(e.get("question") or "").strip(" ?.!") == asked for e in meta.get("examples") or []):
+        signals.append(("verified_example", "high"))
+    if intent != "dynamic_sql":
+        signals.append(("template", "medium"))
+    elif meta.get("similar_question"):
+        signals.append(("similar_question", "medium"))
+    elif meta.get("status") in ("first_pass", "cached", "repaired"):
+        signals.append((meta["status"], "medium" if meta["status"] == "repaired" else "high"))
+    if composed.get("rejected_numbers"):
+        signals.append(("text_rejected", "medium"))
+    if not rows:
+        signals.append(("no_rows", "low"))
+    level = min((lv for _, lv in signals), key=CONFIDENCE_LEVELS.index, default="medium")
+    return {"level": level, "reasons": [code for code, _ in signals]}

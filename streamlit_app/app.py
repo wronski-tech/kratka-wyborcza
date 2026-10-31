@@ -118,6 +118,18 @@ def _fetch_health_with_kb_stats() -> dict | None:
 
 # Answer styles of the API (``/ask`` ``style``) by their label in the UI.
 ANSWER_STYLES = {"Dziennikarski": "journalistic", "Techniczny": "technical"}
+# answer.confidence from the API (answer.sql_confidence): level -> (icon, label), reason code -> text.
+CONFIDENCE_LEVELS = {"high": ("🟢", "wysoka"), "medium": ("🟡", "średnia"), "low": ("🔴", "niska")}
+CONFIDENCE_REASONS = {
+    "verified_example": "to samo pytanie jest wśród zweryfikowanych przykładów",
+    "first_pass": "zapytanie zadziałało za pierwszym razem",
+    "cached": "to samo zapytanie zadziałało już dla tego pytania",
+    "similar_question": "zapytanie z podobnego pytania, nie napisane do tego",
+    "repaired": "pierwsza wersja zapytania nie zadziałała i została poprawiona",
+    "template": "odpowiedź z prostego szablonu, nie z zapytania napisanego do tego pytania",
+    "text_rejected": "opis modelu nie zgadzał się z wynikiem, pokazano podsumowanie",
+    "no_rows": "zapytanie nie zwróciło wierszy",
+}
 
 
 def _ask(question: str, entity_refs: list[dict] | None = None, previous: dict | None = None) -> dict | None:
@@ -607,6 +619,14 @@ def _render_answer(data: dict) -> None:
         st.caption("✓ Każda liczba w tej odpowiedzi występuje w wyniku zapytania SQL.")
     else:
         st.caption("Podsumowanie złożone bezpośrednio z wyników zapytania.")
+    confidence = answer.get("confidence")
+    if confidence:
+        icon, label = CONFIDENCE_LEVELS.get(confidence["level"], ("⚪", confidence["level"]))
+        reasons = "; ".join(_t(CONFIDENCE_REASONS.get(r, r)) for r in confidence.get("reasons") or [])
+        st.caption(f"{icon} {_t('Pewność zapytania')}: **{_t(label)}**" + (f" — {reasons}" if reasons else ""),
+                   help=_t("Ocena z tego, jak powstało zapytanie (bez modelu): wysoka, gdy zadziałało za pierwszym "
+                           "razem; średnia, gdy było poprawiane, wzięte z podobnego pytania albo z szablonu; "
+                           "niska, gdy nie zwróciło wierszy."))
     for caveat in answer.get("caveats") or []:
         st.warning(caveat, icon="⚠️")
 

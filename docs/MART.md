@@ -806,6 +806,12 @@ and the UI opens the SQL section in the technical style. A query that ran and fo
 `answer.empty_reasons` (`answer.explain_empty`): an election-year that is not loaded, with the loaded
 years, otherwise the conditions no row met, read from the SQL; a failed query gets none. They contain no
 numbers of their own. When you document a new known gap that changes how a result reads, add a rule.
+`answer.confidence` (`answer.sql_confidence`, answers with SQL) rates the query from how it was
+obtained, without a model: each reason allows a level and the lowest wins. `high`: it ran as written
+(`first_pass`, `cached`) or a curated example asks the same question (`verified_example`); `medium`:
+`repaired`, `similar_question` (a paraphrase's cached SQL), `template` (legacy keyword template) or
+`text_rejected` (the model's text failed the number check); `low`: `no_rows`. The UI shows it under the
+answer with the reasons in Polish.
 
 ## Observability
 
