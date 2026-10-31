@@ -126,7 +126,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 37. Tryb czatu z edycją poprzedniego pytania.
 - [x] 38. „Pokaż coś ciekawego” z biblioteki gotowych zestawień.
 - [x] 39. Asystent tworzenia zestawień → zapisany widok.
-- [ ] 40. Interfejs MCP / API dla agentów z tymi samymi strażnikami.
+- [x] 40. Interfejs MCP / API dla agentów z tymi samymi strażnikami.
 
 **Koszty i bezpieczeństwo**
 - [ ] 41. Testy prompt injection (pytania, nazwy komitetów i osób).

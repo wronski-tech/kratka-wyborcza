@@ -12,6 +12,7 @@ SQL safety), `docs/DATA.md` (sources), `docs/DEPLOYMENT.md` (API keys, Redis lim
 | Path | What it is |
 | ---- | ---------- |
 | `api/main.py` | FastAPI app: `/ask`, `/health`, `/question-hints`, `/feedback`, `/kbw/*` |
+| `api/services/mcp.py` | MCP server for agents (`POST /mcp`): tools `ask`, `schema`, `query` over the API's own guards |
 | `api/services/router.py` | `route_question`: `dynamic_sql` first for every question; legacy templates only when it has no rows and the question is a plain Sejm one (no clarification answer, no follow-up, no mart-only election) |
 | `api/services/sql_templates.py` | Legacy SQL templates over `kbw_facts` (JSONB rows) |
 | `api/services/dynamic_sql.py` | LLM-written SQL over `mart`: entities/clarification, follow-ups (`previous`), relevant schema only (`FAMILY_KEYWORDS`, refined by embeddings), examples, sqlglot guard, read-only run, one repair, SQL cache |

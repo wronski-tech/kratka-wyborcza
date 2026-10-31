@@ -19,12 +19,13 @@ from typing import Any, Literal
 
 import openai
 import psycopg
-from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Request, Response
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse
 from psycopg.conninfo import conninfo_to_dict
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from api.services import answer, config, db, dynamic_sql, feedback_store, opensearch_store, report_pdf, router, speech
+from api.services import answer, config, db, dynamic_sql, feedback_store, mcp, opensearch_store, report_pdf, router, speech
 from api.services.mart import derived as mart_derived
 from api.services.mart import examples as sql_examples
 from api.services.mart import safe_sql
@@ -44,6 +45,7 @@ OPENAPI_TAGS: list[dict[str, str]] = [
     {"name": "hints", "description": "OpenSearch suggestions over logged questions"},
     {"name": "persons", "description": "Person timeline: every linked candidacy of one person (fixed read-only SQL over mart)"},
     {"name": "browse", "description": "Results, turnout and territorial units without the LLM (fixed read-only SQL over mart)"},
+    {"name": "agents", "description": "MCP server and read-only SQL for agents, behind the same guards as /ask"},
 ]
 
 # Fixed, parameterized queries for the person endpoints, run as the read-only mart role.
@@ -1549,9 +1551,7 @@ def ask(request: AskRequest, http_request: Request, api_key: str | None = Depend
     """Answer a question: route it to SQL, run it, and describe the rows in Polish."""
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question is required.")
-    client = http_request.client.host if http_request.client else "unknown"
-    # With API keys each key has its own limit and budget; otherwise each client IP.
-    client_key = f"key:{api_key}" if api_key else client
+    client_key = _client_key(http_request, api_key)
     if not ask_limiter.allow(client_key):
         raise HTTPException(status_code=429, detail="Too many questions; try again in a minute.")
     if token_budget.exceeded(client_key):
@@ -1598,6 +1598,90 @@ def ask(request: AskRequest, http_request: Request, api_key: str | None = Depend
         telemetry=telemetry,
     )
     return AskResponse.model_validate(result)
+
+
+def _client_key(http_request: Request, api_key: str | None) -> str:
+    """Rate-limit and budget key: with API keys each key has its own, otherwise each client IP."""
+    client = http_request.client.host if http_request.client else "unknown"
+    return f"key:{api_key}" if api_key else client
+
+
+class QueryRequest(BaseModel):
+    sql: str = Field(max_length=20000, description="A single SELECT over mart relations")
+
+
+class QueryResult(BaseModel):
+    sql: str = Field(description="The query as run: checked by the guard, with its row limit")
+    rows: list[dict[str, Any]]
+
+
+def _run_agent_sql(sql: str, client_key: str) -> QueryResult:
+    """Agent-written SQL through the same guards as the model's: validation, cost limit, read-only role."""
+    if not ask_limiter.allow(client_key):
+        raise HTTPException(status_code=429, detail="Too many requests; try again in a minute.")
+    try:
+        checked = dynamic_sql.validate_parts(sql)
+        dynamic_sql.check_parts_cost(checked)
+        rows = dynamic_sql.run_parts(checked)
+    except (safe_sql.UnsafeSqlError, safe_sql.QueryTooExpensiveError) as exc:
+        raise HTTPException(status_code=400, detail=f"Query rejected: {exc}") from exc
+    except psycopg.OperationalError as exc:
+        if isinstance(exc, psycopg.errors.QueryCanceled):
+            raise HTTPException(status_code=400, detail="Query cancelled: statement timeout.") from exc
+        log.warning("agent query failed: %s", exc)
+        raise HTTPException(status_code=503, detail="Election database is unavailable; try again later.") from exc
+    except psycopg.Error as exc:  # unknown column, bad cast…: the agent can fix its query
+        raise HTTPException(status_code=400, detail=f"Query failed: {str(exc).strip()}") from exc
+    return QueryResult(sql=checked, rows=[{k: _json_value(v) for k, v in row.items()} for row in rows])
+
+
+@app.post("/query", response_model=QueryResult, tags=["agents"])
+def query(request: QueryRequest, http_request: Request, api_key: str | None = Depends(require_api_key)) -> QueryResult:
+    """Run an agent's own read-only SQL over the mart (validate_mart_sql, cost limit, read-only role, /ask limit)."""
+    return _run_agent_sql(request.sql, _client_key(http_request, api_key))
+
+
+def _agent_schema(question: str) -> dict[str, str]:
+    """Loaded elections and relation descriptions: those relevant to ``question``, else all in short form."""
+    try:
+        context, version = dynamic_sql.data_context()
+        described = dynamic_sql.schema_description(version, compact=not question)
+    except psycopg.Error as exc:
+        raise HTTPException(status_code=503, detail="Election database is unavailable; try again later.") from exc
+    names = dynamic_sql.relevant_relations(question, list(described)) if question else list(described)
+    return {"loaded": context, "relations": "\n\n".join(described[n] for n in names)}
+
+
+def _tool(call: Any) -> Any:
+    """An MCP tool from an API call: HTTP and validation errors become tool errors the agent reads."""
+    def run(arguments: dict) -> dict:
+        try:
+            return call(arguments)
+        except HTTPException as exc:
+            raise mcp.ToolError(str(exc.detail)) from exc
+        except ValidationError as exc:
+            raise mcp.ToolError(f"Bad arguments: {exc.errors(include_url=False)}") from exc
+    return run
+
+
+@app.post("/mcp", tags=["agents"], responses={202: {"description": "Notification accepted"}})
+def mcp_endpoint(http_request: Request, message: Any = Body(...), api_key: str | None = Depends(require_api_key)) -> Response:
+    """MCP server (Streamable HTTP, JSON responses): tools ask, schema and query over the same guards as /ask."""
+    client_key = _client_key(http_request, api_key)
+    tools = {
+        "ask": _tool(lambda a: ask(AskRequest.model_validate(
+            {k: a[k] for k in ("question", "previous") if k in a}), http_request, api_key).model_dump()),
+        "schema": _tool(lambda a: _agent_schema(str(a.get("question") or "").strip())),
+        "query": _tool(lambda a: _run_agent_sql(str(a.get("sql") or ""), client_key).model_dump()),
+    }
+    reply = mcp.handle(message, tools, app.version)
+    return Response(status_code=202) if reply is None else JSONResponse(reply)
+
+
+@app.get("/mcp", include_in_schema=False)
+def mcp_stream() -> Response:
+    """No server-initiated event stream (the MCP spec's answer is 405)."""
+    return Response(status_code=405)
 
 
 @app.post("/feedback/person", response_model=FeedbackOkResponse, tags=["feedback"], dependencies=[Depends(require_api_key)])

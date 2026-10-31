@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Agents: `POST /mcp` is an MCP server with the tools `ask`, `schema` and `query`, and `POST /query` runs an agent's own SQL; both go through the same guards as the model's SQL (validation, cost limit, read-only role) and the `/ask` limits.
+
 - Saved views: „🔗 Zapisz jako zestawienie” under an answer (also in chat mode) gives a link `?zestawienie=<id>` that shows the same query's table, chart, map and SQL on current data without asking the model again. The API stores only queries it generated itself (`saved_views`, `view_id` in `/ask`, `GET /views/{id}` through the SQL guard).
 
 - „🎲 Pokaż coś ciekawego” under the question box shows a random ready-made report (a verified query run without the LLM: rows, chart, map, SQL), never the same one twice in a row.

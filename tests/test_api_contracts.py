@@ -213,6 +213,48 @@ class TestAskEndpoint(unittest.TestCase):
         self.assertIn("token", second.json()["detail"])
 
 
+class TestAgentEndpoints(unittest.TestCase):
+    """``POST /mcp`` and ``POST /query``: agent SQL meets the same guard before the read-only role."""
+
+    def setUp(self) -> None:
+        self.client = TestClient(app)
+
+    def rpc(self, method: str, params: dict | None = None, **headers: str) -> dict:
+        return self.client.post("/mcp", json={"jsonrpc": "2.0", "id": 7, "method": method, "params": params or {}},
+                                headers=headers).json()
+
+    def test_protocol_handshake(self) -> None:
+        init = self.rpc("initialize", {"protocolVersion": "2025-03-26"})["result"]
+        self.assertEqual((init["protocolVersion"], init["serverInfo"]["name"]), ("2025-03-26", "plujka"))
+        self.assertEqual(self.rpc("initialize", {"protocolVersion": "1999-01-01"})["result"]["protocolVersion"], "2025-06-18")
+        self.assertEqual({t["name"] for t in self.rpc("tools/list")["result"]["tools"]}, {"ask", "schema", "query"})
+        self.assertEqual(self.rpc("resources/list")["error"]["code"], -32601)
+        notification = self.client.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"})
+        self.assertEqual((notification.status_code, notification.content), (202, b""))
+
+    def test_queries_pass_the_guard_before_the_database(self) -> None:
+        with patch("api.main.dynamic_sql.check_parts_cost"), \
+                patch("api.main.safe_sql.run_readonly", return_value=[{"year": 2023, "turnout_pct": Decimal("74.38")}]) as run:
+            ok = self.rpc("tools/call", {"name": "query", "arguments": {
+                "sql": "SELECT year, turnout_pct FROM mart.v_turnout WHERE election = 'sejm' AND level = 'country'"}})["result"]
+            self.assertFalse(ok["isError"])
+            self.assertEqual(ok["structuredContent"]["rows"], [{"year": 2023, "turnout_pct": 74.38}])
+            self.assertIn("LIMIT", run.call_args.args[0])
+            for sql in ("DELETE FROM mart.elections", "SELECT * FROM public.saved_views", "SELECT pg_sleep(30)"):
+                bad = self.rpc("tools/call", {"name": "query", "arguments": {"sql": sql}})["result"]
+                self.assertTrue(bad["isError"], sql)
+                self.assertTrue(bad["content"][0]["text"].startswith("Query rejected"), sql)
+            rest = self.client.post("/query", json={"sql": "UPDATE mart.elections SET year = 1"})
+            self.assertEqual(rest.status_code, 400)
+            self.assertEqual(run.call_count, 1)
+
+    def test_api_keys_when_configured(self) -> None:
+        with patch("api.main.config.API_KEYS", frozenset({"secret-1"})):
+            self.assertEqual(self.client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"}).status_code, 401)
+            self.assertEqual(self.client.post("/query", json={"sql": "SELECT 1"}).status_code, 401)
+            self.assertEqual(self.rpc("ping", **{"X-API-Key": "secret-1"})["result"], {})
+
+
 class TestPersonEndpoints(unittest.TestCase):
     """``GET /persons`` and ``GET /persons/{id}`` with the read-only mart query stubbed."""
 
