@@ -182,6 +182,80 @@ def _voice_input() -> None:
         st.caption(_t("Rozpoznany tekst jest w polu pytania: sprawdź go i wyślij."))
 
 
+def _chat() -> None:
+    """Chat mode: the conversation in this session, each question a follow-up of the answer before it.
+    Editing an earlier question asks it again with the same preceding turn and drops the turns after it,
+    which followed from the old answer."""
+    chat = st.session_state.setdefault("chat", [])
+    editing = st.session_state.get("chat_edit")
+    for i, turn in enumerate(chat):
+        with st.chat_message("user"):
+            if editing == i:
+                corrected = st.text_input(_t("Popraw pytanie"), value=turn["question"], key=f"chat_edit_text_{i}")
+                left, right, _ = st.columns([1, 1, 3])
+                if left.button(_t("Zapytaj ponownie"), key=f"chat_resend_{i}", type="primary") and corrected.strip():
+                    _chat_ask(corrected.strip(), at=i)
+                if right.button(_t("Anuluj"), key=f"chat_cancel_{i}"):
+                    st.session_state.pop("chat_edit", None)
+                    st.rerun()
+            else:
+                text, edit = st.columns([6, 1])
+                text.markdown(turn["question"])
+                if edit.button("✏️", key=f"chat_edit_{i}", help=_t("Popraw to pytanie")):
+                    st.session_state["chat_edit"] = i
+                    st.rerun()
+        with st.chat_message("assistant"):
+            _chat_answer(i, turn)
+    if chat and st.button(_t("Nowa rozmowa"), key="chat_clear"):
+        st.session_state["chat"] = []
+        st.session_state.pop("chat_edit", None)
+        st.rerun()
+    prompt = st.chat_input(_t("Zadaj pytanie albo dopytaj o ostatnią odpowiedź…"))
+    if prompt and prompt.strip():
+        _chat_ask(prompt.strip(), at=len(chat))
+
+
+def _chat_ask(question: str, at: int, entity_refs: list[dict] | None = None) -> None:
+    """Ask ``question`` as turn ``at`` of the chat (a follow-up of turn ``at - 1``) and drop the turns after it."""
+    chat = st.session_state["chat"]
+    previous = chat[at - 1]["previous"] if at > 0 else None
+    with st.spinner("Szukam odpowiedzi…"):
+        data = _ask(question, entity_refs, previous)
+    if data is None:
+        return
+    context = f"{previous['question']} {question}" if previous else question
+    del chat[at:]
+    chat.append({"question": question, "data": data,
+                 "previous": {"question": context[-600:], "sql": data.get("sql") or None, "entity_refs": entity_refs}})
+    st.session_state.pop("chat_edit", None)
+    st.rerun()
+
+
+def _chat_answer(i: int, turn: dict) -> None:
+    """One answer of the chat: clarification options, or the answer text with its table, chart and SQL."""
+    data = turn["data"]
+    clarification = data.get("clarification")
+    if clarification:
+        st.info(clarification.get("prompt") or "Doprecyzuj pytanie.")
+        for j, option in enumerate(clarification.get("options") or []):
+            if st.button(option["label"], key=f"chat_clarify_{i}_{j}", use_container_width=True):
+                _chat_ask(turn["question"], at=i, entity_refs=[{"kind": option["kind"], "ref": str(option["ref"])}])
+        return
+    _render_answer(data)
+    rows = data.get("result") or []
+    if not rows:
+        reasons = (data.get("answer") or {}).get("empty_reasons") or []
+        if reasons:
+            st.caption(" ".join(reasons))
+        return
+    st.dataframe(rows, use_container_width=True, hide_index=True, column_config=_code_columns(rows))
+    if not any("part" in row for row in rows):
+        _render_chart(rows, ((data.get("params") or {}).get("_dynamic_sql_meta") or {}).get("chart"), source="PKW, KBW")
+    if data.get("sql"):
+        with st.expander(_t("Zapytanie SQL"), expanded=False):
+            st.code(data["sql"], language="sql", wrap_lines=True)
+
+
 def _history_sidebar() -> None:
     """Questions asked in this session; a click shows that answer again without asking the API."""
     history = st.session_state.get("ask_history") or []
@@ -1891,25 +1965,31 @@ _catalog_inventory_expander()
 _kbw_table_stats_expander()
 
 with st.container(border=True):
-    _voice_input()
-    question = st.text_input(
-        _t("Twoje pytanie"),
-        placeholder=_t("np. Ile głosów miała KO w 2023? · posłowie PiS z Wrocławia"),
-        label_visibility="visible",
-        key="plujka_question_input",
-    )
-    q_val = (question or "").strip()
-    earlier = st.session_state.get("last_ask")
-    # A follow-up ("a w 2019?") reuses the previous answered question and its SQL.
-    can_follow = bool(earlier and earlier["data"].get("intent") == "dynamic_sql" and earlier["data"].get("sql"))
-    follow_up = can_follow and st.toggle(
-        _t("Dopytaj o poprzedni wynik"),
-        value=_looks_like_follow_up(q_val),
-        help=f"Poprzednie pytanie: {earlier['question']}" if can_follow else None,
-    )
+    chat_mode = st.toggle(_t("Tryb czatu"), key="chat_mode",
+                          help=_t("Rozmowa: każde pytanie dopytuje o poprzednią odpowiedź; wcześniejsze pytanie można poprawić."))
+    submitted, q_val, follow_up, earlier = False, "", False, st.session_state.get("last_ask")
+    if chat_mode:
+        _chat()
+    else:
+        _voice_input()
+        question = st.text_input(
+            _t("Twoje pytanie"),
+            placeholder=_t("np. Ile głosów miała KO w 2023? · posłowie PiS z Wrocławia"),
+            label_visibility="visible",
+            key="plujka_question_input",
+        )
+        q_val = (question or "").strip()
+        # A follow-up ("a w 2019?") reuses the previous answered question and its SQL.
+        can_follow = bool(earlier and earlier["data"].get("intent") == "dynamic_sql" and earlier["data"].get("sql"))
+        follow_up = can_follow and st.toggle(
+            _t("Dopytaj o poprzedni wynik"),
+            value=_looks_like_follow_up(q_val),
+            help=f"Poprzednie pytanie: {earlier['question']}" if can_follow else None,
+        )
     st.radio(_t("Styl odpowiedzi"), list(ANSWER_STYLES), key="answer_style", horizontal=True, format_func=_t,
              help=_t("Dziennikarski: prosto, z zaokrągleniami. Techniczny: dokładne wartości, nazwy miar i SQL rozwinięty."))
-    submitted = st.button(_t("Wyślij zapytanie"), type="primary", use_container_width=True)
+    if not chat_mode:
+        submitted = st.button(_t("Wyślij zapytanie"), type="primary", use_container_width=True)
 
 _person_search()
 _browse()
@@ -1938,7 +2018,8 @@ if submitted:
         st.session_state["last_ask"]["asked_with"] = previous
 
 _history_sidebar()
-last = st.session_state.get("last_ask")
+# The chat shows its own answers in the question box.
+last = None if chat_mode else st.session_state.get("last_ask")
 if last:
     q = last["question"]
     data = last["data"]

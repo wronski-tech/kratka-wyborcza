@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Chat mode: „Tryb czatu” shows the questions and answers as a conversation; every question follows up on the previous answer. ✏️ corrects an earlier question: it is asked again and the later turns are dropped. „Nowa rozmowa” starts over.
+
 - Voice input: „🎤 Albo nagraj pytanie” records the question in the browser; `POST /transcribe` turns it into text (`OPENAI_TRANSCRIBE_MODEL`, default `gpt-4o-mini-transcribe`, a vocabulary hint with election terms and party names), which goes into the question field to be checked and sent like a typed question. Same per-client question limit; recordings up to `TRANSCRIBE_MAX_BYTES`.
 
 - Empty results explained: when a query that ran finds no rows, the answer says why (`answer.empty_reasons`): an election-year not in the database, with the loaded years („W bazie nie ma wyborów: Sejm 2021. Wczytane lata: …”), otherwise the conditions no row met, read from the SQL; the UI shows them in the „Brak wyników” box.
