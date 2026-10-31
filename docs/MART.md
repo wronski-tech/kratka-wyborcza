@@ -752,6 +752,13 @@ would answer it from Sejm data.
    `meta.explain` says whether a plan was sent. Rows of a multi-part answer carry their part title in `part`.
 7. **Cache.** A validated query that ran is cached per (folded question, entity choices, previous turn, mart load)
    for `SQL_CACHE_TTL_SECONDS`; a repeated question skips the LLM. A new build invalidates it.
+   **Semantic cache** (`dynamic_sql.SEMANTIC_CACHE`, not for follow-ups): a paraphrase reuses the SQL of an
+   earlier question when their embeddings reach `SEMANTIC_CACHE_MIN_SIMILARITY` (cosine) and they share the
+   `semantic_signature` — mart load, matched entities, numbers, election families and the `MEANING_WORDS`
+   categories (superlative up or down, negation, more/less, unit level, measure, round, winner, period…),
+   which change the answer while barely moving the embedding — and at least `SEMANTIC_MIN_WORD_OVERLAP` of
+   their content words (two referendum questions of one year differ only in those). The answer says which
+   question the SQL came from (`similar_question` in the meta, status `cached`).
 
 Layers 5 and 6 are independent: a query that passes the parser still cannot write or read other
 schemas.
@@ -808,6 +815,7 @@ the matched entities, examples used, `schema_relations`, `prompt_chars` and per-
 | `MART_MAX_PLAN_COST` | `5000000` | Planner cost above which a generated query is not run but repaired (0 disables); the heaviest evaluation reference query costs about 360k, and `run_eval.py --check` fails a reference query above the limit |
 | `OPENAI_CHAT_MODEL` / `OPENAI_REPAIR_MODEL` | `gpt-4o-mini` / `gpt-4o` | First SQL attempt (also clarification queries and answer text) / the repair after a failed query; set both to one model to turn routing off |
 | `SQL_CACHE_TTL_SECONDS` / `SQL_CACHE_MAX_ENTRIES` | `3600` / `512` | Validated SQL cache (0 disables) |
+| `SEMANTIC_CACHE_MIN_SIMILARITY` | `0.92` | Cosine similarity at which a paraphrase reuses a cached SQL (0 disables the semantic cache) |
 | `SQL_EXAMPLES_INDEX` / `SQL_EXAMPLES_K` | `sql_examples` / `4` | Few-shot examples |
 | `ANSWER_SUMMARY_ENABLED` | `1` | LLM answer text (numbers are always checked) |
 | `ASK_RATE_LIMIT_PER_MINUTE` | `30` | `POST /ask` per API key or client IP (429 above); 0 disables |

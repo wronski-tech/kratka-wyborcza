@@ -68,6 +68,8 @@ EN = {
     "Koszt to szacunek z cen w LLM_PRICES_USD_PER_1M (USD za milion tokenów); klucze API są pokazane jako skrót SHA-256.":
         "The cost is an estimate from the prices in LLM_PRICES_USD_PER_1M (USD per million tokens); API keys are shown as a SHA-256 prefix.",
     "Bez ceny": "No price",
+    "Zapytanie z podobnego, wcześniej zadanego pytania": "Query of a similar question asked before",
+    "podobieństwo": "similarity",
     "Zapytanie napisane wcześniej przez model i sprawdzone przez strażnika SQL; wynik prosto z bazy, bez ponownego pytania modelu.":
         "A query written earlier by the model and checked by the SQL guard; the result comes straight from the database, without asking the model again.",
     "Losowe gotowe zestawienie: sprawdzone zapytanie, bez LLM.": "A random ready-made report: a verified query, no LLM.",

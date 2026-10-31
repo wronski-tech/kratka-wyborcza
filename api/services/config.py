@@ -38,6 +38,9 @@ REPORT_FONT_DIR = os.getenv("REPORT_FONT_DIR", "/usr/share/fonts/truetype/dejavu
 # Validated question -> SQL pairs are reused for this long (seconds); 0 disables the cache.
 SQL_CACHE_TTL_SECONDS = int(os.getenv("SQL_CACHE_TTL_SECONDS", "3600"))
 SQL_CACHE_MAX_ENTRIES = int(os.getenv("SQL_CACHE_MAX_ENTRIES", "512"))
+# Semantic SQL cache: a new question reuses the validated SQL of an earlier one at this cosine similarity of their
+# embeddings (and the same entities, numbers, elections and meaning words); 0 disables it.
+SEMANTIC_CACHE_MIN_SIMILARITY = float(os.getenv("SEMANTIC_CACHE_MIN_SIMILARITY", "0.92"))
 # OpenSearch index of verified question -> SQL examples used as few-shot prompts.
 SQL_EXAMPLES_INDEX = os.getenv("SQL_EXAMPLES_INDEX", "sql_examples")
 SQL_EXAMPLES_K = int(os.getenv("SQL_EXAMPLES_K", "4"))

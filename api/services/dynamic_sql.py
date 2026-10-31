@@ -40,6 +40,7 @@ from api.services.config import (
     OPENAI_API_KEY,
     OPENAI_CHAT_MODEL,
     OPENAI_REPAIR_MODEL,
+    SEMANTIC_CACHE_MIN_SIMILARITY,
     SQL_CACHE_MAX_ENTRIES,
     SQL_CACHE_TTL_SECONDS,
 )
@@ -179,6 +180,89 @@ class _SqlCache:
 SQL_CACHE = _SqlCache(SQL_CACHE_MAX_ENTRIES, SQL_CACHE_TTL_SECONDS)
 
 
+# Words that change what a question asks while barely moving its embedding ("najwyższa" / "najniższa
+# frekwencja w gminach" / "w powiatach"): two questions share a cached SQL only with the same categories.
+MEANING_WORDS = {
+    "top": r"\bnaj(wyz|wiek|wiec|lepsz|silniej)|\b(highest|most|top|max|best|largest)\b",
+    "bottom": r"\bnaj(niz|mniej|gorsz|slab)|\b(lowest|least|fewest|bottom|min|worst|smallest)\b",
+    "not": r"\b(nie|bez|poza|oprocz|not|without|except|no)\b",
+    "more": r"\b(wiecej|powyzej|ponad|przekro|more|above|over|exceed)",
+    "less": r"\b(mniej|ponizej|less|below|under)\b",
+    "gmina": r"\bgmin|municipal", "powiat": r"\bpowiat|count(y|ies)", "wojewodztwo": r"\bwojewodzt|voivodesh|provinc",
+    "district": r"\bokreg|district|constituen", "precinct": r"\bobwod|precinct|polling", "city": r"\bmiast|\bcit(y|ies)|urban",
+    "rural": r"\bwies|\bwsi\b|wiejsk|rural",
+    "turnout": r"frekwenc|turnout", "seats": r"\bmandat|\bseat", "votes": r"\bglos|\bvote", "share": r"procent|poparc|percent|share",
+    "candidates": r"\bkandyd|candidat|\bosob|\bperson", "women": r"\bkobiet|wom[ae]n|female", "men": r"\bmezczyzn|\bmen\b|\bmale",
+    "age": r"\bwiek|\bmlod|\bstar(sz|y|zy)|\bage\b|young|old", "change": r"\bzmian|\bwzros|\bspad|\brozni|chang|increas|decreas|differ",
+    "compare": r"\bporown|\bvs\b|versus|compar", "count": r"^ile\b|\bliczb|how many|number of", "list": r"\bwymien|\blist|\bktorzy|\bwho\b",
+    "winner": r"\bwygra|\bwygrywa|\bzwyci|\bwon\b|\bwin", "round1": r"\bpierwsz|\bi tur|\bfirst",
+    "round2": r"\bdrug|\bii tur|\bsecond|run.?off|dogrywk", "period": r"\b(od|do|przed|po|since|until|before|after)\b|\blat\b|\byears\b",
+}
+# Share of content words (4-letter stems, no stopwords) two questions must have in common: topics such as two
+# referendum questions of one year differ only in these words.
+SEMANTIC_MIN_WORD_OVERLAP = 0.6
+
+
+_STOP_STEMS = frozenset(w[:4] for w in entities.STOPWORDS if len(w) >= 4)
+
+
+def content_stems(question: str) -> frozenset[str]:
+    """4-letter stems of the question's content words, without the stems of ``entities`` stopwords (any inflection)."""
+    return frozenset(w[:4] for w in re.findall(r"[a-z]+", entities.fold(question)) if len(w) >= 4) - _STOP_STEMS
+
+
+def semantic_signature(question: str, matches: list[entities.EntityMatch], version: str) -> tuple:
+    """What two questions must share to use one SQL, besides similar embeddings: mart load, matched entities,
+    numbers, election families and ``MEANING_WORDS`` categories."""
+    folded = entities.fold(question)
+    return (version, tuple(sorted({(m.kind, str(m.ref)) for m in matches})), tuple(sorted(set(re.findall(r"\d+", folded)))),
+            tuple(sorted(set(_keyword_prefixes(question)))),
+            tuple(sorted(name for name, pattern in MEANING_WORDS.items() if re.search(pattern, folded))))
+
+
+@lru_cache(maxsize=512)
+def question_vector(question: str) -> tuple[float, ...]:
+    """Unit-length embedding of a question, shared by schema selection and the semantic cache."""
+    return tuple(embed_texts([question])[0])
+
+
+class _SemanticCache:
+    """Validated SQL by question embedding, looked up only among questions with the same ``semantic_signature``
+    and enough content words in common (``SEMANTIC_MIN_WORD_OVERLAP``)."""
+
+    def __init__(self, max_signatures: int, ttl_seconds: int, per_signature: int = 16) -> None:
+        self.max_signatures, self.ttl, self.per_signature = max_signatures, ttl_seconds, per_signature
+        self._data: OrderedDict[tuple, list[tuple[float, tuple[float, ...], frozenset[str], str, str]]] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def get(self, signature: tuple, vector: tuple[float, ...], stems: frozenset[str],
+            minimum: float) -> tuple[str, str, float] | None:
+        """``(sql, question, similarity)`` of the closest live entry at ``minimum`` similarity or more."""
+        now, best = time.monotonic(), None
+        with self._lock:
+            for expires, other, other_stems, question, sql in self._data.get(signature, []):
+                similarity = sum(a * b for a, b in zip(vector, other))
+                # No content words beyond the signature on either side: the signature alone decides.
+                overlap = len(stems & other_stems) / len(stems | other_stems) if stems | other_stems else 1.0
+                if expires > now and similarity >= minimum and overlap >= SEMANTIC_MIN_WORD_OVERLAP \
+                        and (best is None or similarity > best[2]):
+                    best = (sql, question, similarity)
+        return best
+
+    def put(self, signature: tuple, vector: tuple[float, ...], stems: frozenset[str], question: str, sql: str) -> None:
+        """Store ``sql`` for ``question`` (no-op when the cache is disabled)."""
+        if self.ttl <= 0 or self.max_signatures <= 0:
+            return
+        with self._lock:
+            entries = [e for e in self._data.pop(signature, []) if e[3] != question][-(self.per_signature - 1):]
+            self._data[signature] = [*entries, (time.monotonic() + self.ttl, vector, stems, question, sql)]
+            while len(self._data) > self.max_signatures:
+                self._data.popitem(last=False)
+
+
+SEMANTIC_CACHE = _SemanticCache(SQL_CACHE_MAX_ENTRIES, SQL_CACHE_TTL_SECONDS)
+
+
 @lru_cache(maxsize=2)
 def schema_description(version: str = "", compact: bool = False) -> dict[str, str]:
     """Prompt text per mart relation: table/column comments read from PostgreSQL.
@@ -292,7 +376,7 @@ def semantic_relations(question: str, described: dict[str, str], version: str) -
             _RELATION_VECTORS.clear()
             _RELATION_VECTORS[version] = dict(zip(names, embed_texts([described[n][:4000] for n in names])))
         vectors = _RELATION_VECTORS[version]
-        query = embed_texts([question])[0]
+        query = question_vector(question)
     except Exception as exc:  # the keywords still choose the schema
         log.warning("schema embeddings unavailable: %s", exc)
         return []
@@ -694,7 +778,8 @@ def try_dynamic_query(
     """Generate, validate and run SQL for ``question``.
 
     Returns ``(rows, sql, error, meta)``. ``meta["status"]`` is one of skipped / clarify / rejected /
-    failed / cached / first_pass / repaired. ``meta`` also holds ``entities``, ``examples``,
+    failed / cached / first_pass / repaired (``cached`` with ``similar_question`` when the SQL came from a paraphrase,
+    see ``SEMANTIC_CACHE``). ``meta`` also holds ``entities``, ``examples``,
     ``timings_ms``, ``tokens`` (and ``tokens_by_model``), ``schema_relations``, ``schema_selection``, ``prompt_chars``, the model's query ``plan`` and the ``models`` used per attempt; for ``clarify`` it holds
     ``clarification`` (see ``entities.find_ambiguity``). ``previous`` is the preceding turn of the
     conversation (``{"question", "sql", "entity_refs"}``) for follow-up questions.
@@ -730,6 +815,25 @@ def try_dynamic_query(
         except psycopg.Error:
             SQL_CACHE.drop(cache_key)
 
+    # A paraphrase of an earlier question reuses its validated SQL (not follow-ups: they depend on their turn).
+    semantic: tuple | None = None
+    if OPENAI_API_KEY and SEMANTIC_CACHE_MIN_SIMILARITY > 0 and not previous:
+        try:
+            semantic = (semantic_signature(question, matches, version), question_vector(question), content_stems(question))
+        except Exception as exc:  # the model writes the query as usual
+            log.warning("semantic cache skipped: %s", exc)
+        hit = SEMANTIC_CACHE.get(*semantic, SEMANTIC_CACHE_MIN_SIMILARITY) if semantic else None
+        if hit:
+            try:
+                phase = time.monotonic()
+                rows = run_parts(hit[0])
+                timings["execute"] = _ms(phase)
+                SQL_CACHE.put(cache_key, hit[0])
+                similar = {"question": hit[1], "similarity": round(hit[2], 3)}
+                return rows, hit[0], None, {**meta, "status": "cached", "similar_question": similar}
+            except psycopg.Error as exc:
+                log.info("semantic cache hit failed: %s", exc)
+
     sql: str | None = None
     error: str | None = None
     repair_note: str | None = None
@@ -756,6 +860,8 @@ def try_dynamic_query(
             rows = run_parts(sql)
             timings[f"execute_{attempt}"] = _ms(phase)
             SQL_CACHE.put(cache_key, sql)
+            if semantic:
+                SEMANTIC_CACHE.put(*semantic, question, sql)
             return rows, sql, None, {**meta, "status": attempt}
         except (psycopg.Error, safe_sql.QueryTooExpensiveError) as exc:
             error = str(exc).splitlines()[0]

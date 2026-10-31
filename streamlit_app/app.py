@@ -2192,6 +2192,10 @@ if last:
 
     technical = ANSWER_STYLES[st.session_state.get("answer_style", "Dziennikarski")] == "technical"
     with st.expander(_t("Zapytanie SQL i źródło danych"), expanded=technical):
+        similar = ((data.get("params") or {}).get("_dynamic_sql_meta") or {}).get("similar_question")
+        if similar:
+            st.caption(_t("Zapytanie z podobnego, wcześniej zadanego pytania") + f": „{similar['question']}” "
+                       f"({_t('podobieństwo')} {similar['similarity']:.2f}".replace(".", ",") + ").")
         explanation = (data.get("answer") or {}).get("explanation")
         if explanation:
             st.caption("Co robi to zapytanie (opis odczytany z SQL):")
