@@ -186,10 +186,44 @@ def _about_rada_1994(rows: list[dict[str, Any]], sql: str) -> bool:
     return 1994 in years and "rada_" in sql.lower()
 
 
+# Columns with the vote or voter base of a percentage; below SMALL_BASE a few votes move it by whole points.
+_BASE_COLUMNS = ("unit_valid_votes", "valid_votes", "valid_ballots", "eligible_voters", "ballots_issued")
+SMALL_BASE = 1000
+
+
+def _small_units(rows: list[dict[str, Any]], sql: str) -> bool:
+    """Percentages of which at least one rests on fewer than SMALL_BASE votes or voters."""
+    if not any(c == "pct" or c.endswith("_pct") for c in rows[0]):
+        return False
+    return any(isinstance(row.get(c), (int, float, Decimal)) and not isinstance(row.get(c), bool) and row[c] < SMALL_BASE
+               for row in rows for c in _BASE_COLUMNS)
+
+
+def _warsaw_districts(rows: list[dict[str, Any]], sql: str) -> bool:
+    """Rows of gminas that include Warsaw's districts (TERYT 1465xx other than the city, 146501)."""
+    return len(rows) > 1 and any(str(row.get("teryt_gmina") or "").startswith("1465")
+                                 and row.get("teryt_gmina") != "146501" for row in rows)
+
+
 # Caveats of the data that a reader must know to interpret the rows. Each rule looks only at the rows
 # and the SQL, never at outside facts, so the text contains no numbers of its own. Details of each
 # gap are in docs/MART.md ("Known gaps").
 CAVEATS: tuple[tuple[str, Any], ...] = (
+    # How the result reads (its shape, not a data gap).
+    (
+        "Wynik osiągnął limit wierszy, więc pokazano tylko jego część; zawęź pytanie (np. do województwa) "
+        "albo zapytaj o ranking.",
+        lambda rows, sql: len(rows) >= MART_MAX_ROWS,
+    ),
+    (
+        "W wyniku są jednostki z niewielką liczbą głosów lub uprawnionych: w nich kilka głosów zmienia odsetek "
+        "o wiele punktów, więc skrajne wartości bywają przypadkowe.",
+        _small_units,
+    ),
+    (
+        "Warszawa występuje w wynikach według gmin jako osobne dzielnice, nie jako jedna gmina.",
+        _warsaw_districts,
+    ),
     (
         "To symulacja: przyjęto te same głosy, a zmieniono tylko sposób przeliczania ich na mandaty "
         "(próg, metodę, listy lub okręgi); wyborcy mogliby wtedy głosować inaczej.",

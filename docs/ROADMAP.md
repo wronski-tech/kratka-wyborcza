@@ -114,7 +114,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 27. Wybór typu wykresu spośród dozwolonych, reguła deterministyczna jako zabezpieczenie.
 - [x] 28. Tytuły i podpisy wykresów.
 - [x] 29. Podsumowanie dużego wyniku (liczby z wierszy).
-- [ ] 30. Zastrzeżenia dobrane do wyniku.
+- [x] 30. Zastrzeżenia dobrane do wyniku.
 - [ ] 31. Proponowane pytania uzupełniające.
 - [ ] 32. Styl odpowiedzi: dziennikarski / techniczny.
 - [ ] 33. Raport PDF dla gminy lub wyborów.

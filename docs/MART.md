@@ -769,7 +769,9 @@ Otherwise, or without an OpenAI key, the answer is a deterministic summary of th
 `answer.source` is `llm` or `fallback`; `rejected_numbers` lists numbers that failed the check.
 `answer.caveats` holds fixed Polish notes about data gaps that apply to the rows and SQL
 (`answer.CAVEATS`: `comparable = false`, `votes_exact = false`, EP 2014 turnout,
-presidential precinct sums, person linking); the UI shows them under the answer. They contain no
+presidential precinct sums, person linking) and about how the result reads: the row cap reached,
+percentages resting on fewer than `answer.SMALL_BASE` votes or voters (rankings of gminas and precincts
+return their base for this), Warsaw shown as districts; the UI shows them under the answer. They contain no
 numbers of their own. When you document a new known gap that changes how a result reads, add a rule.
 
 ## Observability

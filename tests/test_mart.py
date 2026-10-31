@@ -600,6 +600,18 @@ class TestAnswerNumbers(unittest.TestCase):
         self.assertIn("PO → KO", answer.caveats(change, "SELECT * FROM mart.v_party_change")[0])
         self.assertEqual(answer.caveats([{"family": "PiS", "comparable": True}], "SELECT * FROM mart.v_party_change"), [])
         self.assertEqual(answer.caveats([], turnout), [])
+        # Shape of the result: the row cap, top lists over small units, Warsaw's districts.
+        with patch.object(answer, "MART_MAX_ROWS", 3):
+            self.assertIn("limit wierszy", answer.caveats([{"pct": 1.0}] * 3, "SELECT pct FROM mart.v_turnout")[0])
+            self.assertEqual(answer.caveats([{"pct": 1.0}] * 2, "SELECT pct FROM mart.v_turnout"), [])
+        top = "SELECT gmina, pct, unit_valid_votes FROM mart.v_party_results ORDER BY pct DESC LIMIT 10"
+        small = [{"gmina": "gm. A", "pct": 80.1, "unit_valid_votes": 612}, {"gmina": "m. B", "pct": 79.5, "unit_valid_votes": 41000}]
+        self.assertIn("niewielką liczbą głosów", " ".join(answer.caveats(small, top)))
+        self.assertEqual(answer.caveats(small[1:], top), [], "only large units")
+        self.assertEqual(answer.caveats([{"gmina": "gm. A", "votes": 80, "unit_valid_votes": 612}], top), [], "no percentage")
+        warsaw = [{"teryt_gmina": "146502", "pct": 30.0}, {"teryt_gmina": "146503", "pct": 31.0}]
+        self.assertIn("dzielnice", " ".join(answer.caveats(warsaw, "SELECT teryt_gmina, pct FROM mart.v_party_results")))
+        self.assertEqual(answer.caveats([{"teryt_gmina": "146501", "pct": 30.0}, {"teryt_gmina": "126101", "pct": 31.0}], "SELECT 1"), [])
         corr = "SELECT round(CORR(g.urban_pct, p.pct)::numeric, 3) AS r FROM mart.v_party_results p JOIN mart.v_gus_units g ON g.teryt = p.teryt_gmina"
         self.assertIn("przyczynowego", answer.caveats([{"r": 0.27}], corr)[0])
         self.assertEqual(answer.caveats([{"corrected": 3}], "SELECT corrected FROM mart.x"), [])

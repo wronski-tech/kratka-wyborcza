@@ -73,7 +73,9 @@ SQL_RULES = f"""Rules:
   powiat) rows of a result view with mart.v_gus_units on level and teryt (GUS year closest to the
   election) and return one row with round(corr(x, y)::numeric, 3) AS r, round(regr_slope(y, x)::numeric, 3),
   round(regr_r2(y, x)::numeric, 3) AS r2 and count(*) of units; do not return every unit.
-- Percentages in the mart are already 0-100. Order results deterministically.
+- Percentages in the mart are already 0-100. Order results deterministically. Rankings of percentages
+  over gminas or precincts also return the base (unit_valid_votes or eligible_voters), so the answer
+  can warn about tiny units.
 - Include LIMIT {MART_MAX_ROWS} or less.
 - When the question asks two or three separate things that one SELECT cannot answer together
   (e.g. turnout in one election and seats in another), return
