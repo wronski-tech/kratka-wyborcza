@@ -140,6 +140,6 @@ def make_limiter(limit: int, redis_url: str = "") -> SlidingWindowLimiter | Redi
     return RedisWindowLimiter(_redis_client(redis_url), limit)
 
 
-def make_token_budget(limit: int, redis_url: str = "") -> TokenBudget:
-    """Daily token budget, shared through Redis when ``redis_url`` is set."""
-    return TokenBudget(limit, _redis_client(redis_url) if redis_url and limit > 0 else None)
+def make_token_budget(limit: int, redis_url: str = "", prefix: str = "plujka:tokens") -> TokenBudget:
+    """Daily budget (tokens, or questions of a session), shared through Redis when ``redis_url`` is set."""
+    return TokenBudget(limit, _redis_client(redis_url) if redis_url and limit > 0 else None, prefix)

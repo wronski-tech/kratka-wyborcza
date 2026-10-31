@@ -9,6 +9,7 @@ import os
 import random
 import re
 import unicodedata
+import uuid
 from typing import Any, Callable
 from datetime import date, timedelta
 from urllib.parse import urlencode
@@ -39,6 +40,8 @@ API_URL = os.getenv("API_URL", "http://localhost:8000")
 # Sent as X-API-Key when the API requires keys (API_KEYS on the API side).
 API_KEY = os.getenv("PLUJKA_API_KEY", "")
 API_HEADERS = {"X-API-Key": API_KEY} if API_KEY else {}
+# Same limit as the API (QUESTION_MAX_CHARS); the field stops typing there.
+QUESTION_MAX_CHARS = int(os.getenv("QUESTION_MAX_CHARS", "500"))
 # Result column that identifies a unit -> boundary file (gminy/powiaty by TERYT, voivodeships by name;
 # 1990s gmina codes map to current gminas, 1990s voivodeship names to wojewodztwa_1975).
 MAP_LEVELS = (
@@ -127,10 +130,21 @@ def _ask(question: str, entity_refs: list[dict] | None = None, previous: dict | 
         payload["entity_refs"] = entity_refs
     if previous:
         payload["previous"] = previous
+    # One id per browser session: the API limits questions per session (SESSION_QUESTION_LIMIT).
+    headers = {**API_HEADERS, "X-Session-Id": st.session_state.setdefault("session_id", uuid.uuid4().hex)}
     try:
-        response = requests.post(f"{API_URL}/ask", json=payload, headers=API_HEADERS, timeout=60)
+        response = requests.post(f"{API_URL}/ask", json=payload, headers=headers, timeout=60)
         if response.status_code == 429:
-            st.warning("Za dużo pytań w krótkim czasie. Spróbuj ponownie za minutę.")
+            detail = str(response.json().get("detail", "")) if response.headers.get("content-type", "").startswith("application/json") else ""
+            if detail.startswith("Session question limit"):
+                st.warning(_t("Wykorzystano limit pytań w tej sesji. Spróbuj ponownie jutro albo skorzystaj z „Przeglądaj wyniki”."))
+            elif detail.startswith("Daily token budget"):
+                st.warning(_t("Wykorzystano dzienny limit pytań do modelu. Spróbuj ponownie jutro albo skorzystaj z „Przeglądaj wyniki”."))
+            else:
+                st.warning("Za dużo pytań w krótkim czasie. Spróbuj ponownie za minutę.")
+            return None
+        if response.status_code == 400:
+            st.warning(_t("Pytanie jest za długie albo puste.") + f" (max {QUESTION_MAX_CHARS})")
             return None
         if response.status_code == 401:
             st.error("API wymaga klucza (ustaw PLUJKA_API_KEY dla interfejsu).")
@@ -179,7 +193,7 @@ def _voice_input() -> None:
     elif not response.ok:
         st.warning(f"Nie udało się rozpoznać nagrania (HTTP {response.status_code}); wpisz pytanie.")
     else:
-        st.session_state["plujka_question_input"] = response.json()["text"]
+        st.session_state["plujka_question_input"] = response.json()["text"][:QUESTION_MAX_CHARS]
         st.caption(_t("Rozpoznany tekst jest w polu pytania: sprawdź go i wyślij."))
 
 
@@ -192,7 +206,8 @@ def _chat() -> None:
     for i, turn in enumerate(chat):
         with st.chat_message("user"):
             if editing == i:
-                corrected = st.text_input(_t("Popraw pytanie"), value=turn["question"], key=f"chat_edit_text_{i}")
+                corrected = st.text_input(_t("Popraw pytanie"), value=turn["question"], key=f"chat_edit_text_{i}",
+                                          max_chars=QUESTION_MAX_CHARS)
                 left, right, _ = st.columns([1, 1, 3])
                 if left.button(_t("Zapytaj ponownie"), key=f"chat_resend_{i}", type="primary") and corrected.strip():
                     _chat_ask(corrected.strip(), at=i)
@@ -211,7 +226,7 @@ def _chat() -> None:
         st.session_state["chat"] = []
         st.session_state.pop("chat_edit", None)
         st.rerun()
-    prompt = st.chat_input(_t("Zadaj pytanie albo dopytaj o ostatnią odpowiedź…"))
+    prompt = st.chat_input(_t("Zadaj pytanie albo dopytaj o ostatnią odpowiedź…"), max_chars=QUESTION_MAX_CHARS)
     if prompt and prompt.strip():
         _chat_ask(prompt.strip(), at=len(chat))
 
@@ -2101,6 +2116,7 @@ with st.container(border=True):
             placeholder=_t("np. Ile głosów miała KO w 2023? · posłowie PiS z Wrocławia"),
             label_visibility="visible",
             key="plujka_question_input",
+            max_chars=QUESTION_MAX_CHARS,
         )
         q_val = (question or "").strip()
         # A follow-up ("a w 2019?") reuses the previous answered question and its SQL.

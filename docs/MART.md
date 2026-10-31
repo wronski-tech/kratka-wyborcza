@@ -833,6 +833,8 @@ the matched entities, examples used, `schema_relations`, `prompt_chars` and per-
 | `SQL_EXAMPLES_INDEX` / `SQL_EXAMPLES_K` | `sql_examples` / `4` | Few-shot examples |
 | `ANSWER_SUMMARY_ENABLED` | `1` | LLM answer text (numbers are always checked) |
 | `ASK_RATE_LIMIT_PER_MINUTE` | `30` | `POST /ask` per API key or client IP (429 above); 0 disables |
+| `QUESTION_MAX_CHARS` | `500` | Longest accepted question (400 above; the UI fields stop there) |
+| `SESSION_QUESTION_LIMIT` | `100` | Questions per UI session (`X-Session-Id`, scoped to the API key or client IP) and UTC day (429 above); 0 disables |
 | `REDIS_URL` | empty | Shares the rate limit and token budget across workers and replicas; empty: per process |
 | `DAILY_TOKEN_LIMIT_PER_CLIENT` | `0` | LLM tokens per API key or client IP and UTC day for `/ask` (429 above); 0 disables |
 | `API_KEYS` | empty | Comma-separated keys; when set, `/ask` and `/feedback` require `X-API-Key` |

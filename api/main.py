@@ -36,6 +36,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 log = logging.getLogger("plujka.api")
 ask_limiter = make_limiter(config.ASK_RATE_LIMIT_PER_MINUTE, config.REDIS_URL)
 token_budget = make_token_budget(config.DAILY_TOKEN_LIMIT_PER_CLIENT, config.REDIS_URL)
+session_questions = make_token_budget(config.SESSION_QUESTION_LIMIT, config.REDIS_URL, prefix="plujka:session")
 
 OPENAPI_TAGS: list[dict[str, str]] = [
     {"name": "health", "description": "Liveness probe and approximate KBW table stats"},
@@ -1599,15 +1600,25 @@ async def transcribe(http_request: Request, api_key: str | None = Depends(requir
 
 
 @app.post("/ask", response_model=AskResponse, tags=["ask"])
-def ask(request: AskRequest, http_request: Request, api_key: str | None = Depends(require_api_key)) -> AskResponse:
+def ask(request: AskRequest, http_request: Request, api_key: str | None = Depends(require_api_key),
+        x_session_id: str | None = Header(default=None, description="One id per user session (the UI sends one)")) -> AskResponse:
     """Answer a question: route it to SQL, run it, and describe the rows in Polish."""
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question is required.")
+    if len(request.question) > config.QUESTION_MAX_CHARS:
+        raise HTTPException(status_code=400, detail=f"Question is too long: at most {config.QUESTION_MAX_CHARS} characters.")
     client_key = _client_key(http_request, api_key)
     if not ask_limiter.allow(client_key):
         raise HTTPException(status_code=429, detail="Too many questions; try again in a minute.")
     if token_budget.exceeded(client_key):
         raise HTTPException(status_code=429, detail="Daily token budget used up; try again tomorrow.")
+    if x_session_id and x_session_id.strip():
+        # Within the client's key or IP, so one client cannot use up another's sessions.
+        session = f"{client_key}|{x_session_id.strip()[:64]}"
+        if session_questions.exceeded(session):
+            raise HTTPException(status_code=429, detail=f"Session question limit ({config.SESSION_QUESTION_LIMIT}) reached; "
+                                                        "try again tomorrow.")
+        session_questions.add(session, 1)
 
     started = time.monotonic()
     refs = [r.model_dump() for r in request.entity_refs] if request.entity_refs else None
@@ -1728,7 +1739,7 @@ def mcp_endpoint(http_request: Request, message: Any = Body(...), api_key: str |
     client_key = _client_key(http_request, api_key)
     tools = {
         "ask": _tool(lambda a: ask(AskRequest.model_validate(
-            {k: a[k] for k in ("question", "previous") if k in a}), http_request, api_key).model_dump()),
+            {k: a[k] for k in ("question", "previous") if k in a}), http_request, api_key, None).model_dump()),
         "schema": _tool(lambda a: _agent_schema(str(a.get("question") or "").strip())),
         "query": _tool(lambda a: _run_agent_sql(str(a.get("sql") or ""), client_key).model_dump()),
     }

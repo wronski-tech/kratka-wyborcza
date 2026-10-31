@@ -61,6 +61,10 @@ SQL_EXAMPLES_K = int(os.getenv("SQL_EXAMPLES_K", "4"))
 ANSWER_SUMMARY_ENABLED = os.getenv("ANSWER_SUMMARY_ENABLED", "1").strip().lower() in ("1", "true", "yes")
 # Requests per minute and client IP for POST /ask; 0 disables the limit.
 ASK_RATE_LIMIT_PER_MINUTE = int(os.getenv("ASK_RATE_LIMIT_PER_MINUTE", "30"))
+# Longest question /ask accepts (the request model's hard cap is 1000), and questions per session (X-Session-Id,
+# one per browser session of the UI) and UTC day; 0 disables the session limit.
+QUESTION_MAX_CHARS = int(os.getenv("QUESTION_MAX_CHARS", "500"))
+SESSION_QUESTION_LIMIT = int(os.getenv("SESSION_QUESTION_LIMIT", "100"))
 # Optional Redis (redis://host:6379/0) that shares the rate limit across API workers and replicas.
 REDIS_URL = os.getenv("REDIS_URL", "").strip()
 # LLM tokens (prompt + completion) per API key or client IP and UTC day for POST /ask; 0 disables.

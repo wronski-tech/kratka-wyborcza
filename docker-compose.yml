@@ -48,6 +48,8 @@ services:
       # production refuses to start with default passwords or without a rate limit.
       PLUJKA_ENV: ${PLUJKA_ENV:-development}
       ASK_RATE_LIMIT_PER_MINUTE: ${ASK_RATE_LIMIT_PER_MINUTE:-30}
+      QUESTION_MAX_CHARS: ${QUESTION_MAX_CHARS:-500}
+      SESSION_QUESTION_LIMIT: ${SESSION_QUESTION_LIMIT:-100}
       # Shared rate limit across workers/replicas, e.g. redis://redis:6379/0 with the "redis" profile.
       REDIS_URL: ${REDIS_URL:-}
       DAILY_TOKEN_LIMIT_PER_CLIENT: ${DAILY_TOKEN_LIMIT_PER_CLIENT:-0}

@@ -66,6 +66,9 @@ and takes far longer than the derived rebuild.
 Rate limits behind the UI: Streamlit calls the API server-side with `PLUJKA_API_KEY`, so all UI users
 share one rate-limit and token bucket (that key's). Size `ASK_RATE_LIMIT_PER_MINUTE` and
 `DAILY_TOKEN_LIMIT_PER_CLIENT` for the whole UI, or give API clients their own keys.
+`SESSION_QUESTION_LIMIT` is what separates UI users: the UI sends a random `X-Session-Id` per
+browser session, counted per key or IP and UTC day. A client chooses that id itself (a reload starts
+a new session), so it limits ordinary use, not abuse; the per-key limits above stay the protection.
 
 ## Access: API keys
 

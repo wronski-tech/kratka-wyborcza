@@ -240,6 +240,21 @@ class TestAskEndpoint(unittest.TestCase):
             self.assertEqual(self.client.post("/feedback", json={"rating": "thumbs_up", "question": "q"}).status_code, 401)
         self.assertEqual(self.client.post("/ask", json={"question": "q"}).status_code, 200)
 
+    def test_question_length_and_session_limits(self) -> None:
+        from api.services.rate_limit import TokenBudget
+
+        with patch("api.main.config.QUESTION_MAX_CHARS", 20):
+            self.assertEqual(self.client.post("/ask", json={"question": "x" * 20}).status_code, 200)
+            self.assertEqual(self.client.post("/ask", json={"question": "x" * 21}).status_code, 400)
+        with patch("api.main.session_questions", TokenBudget(2)), patch("api.main.config.SESSION_QUESTION_LIMIT", 2):
+            one, other = {"X-Session-Id": "s-1"}, {"X-Session-Id": "s-2"}
+            codes = [self.client.post("/ask", json={"question": "q"}, headers=one).status_code for _ in range(3)]
+            self.assertEqual(codes, [200, 200, 429])
+            self.assertIn("Session question limit (2)", self.client.post("/ask", json={"question": "q"}, headers=one).json()["detail"])
+            self.assertEqual(self.client.post("/ask", json={"question": "q"}, headers=other).status_code, 200)
+            # Without a session id only the per-client limits apply (agents, scripts).
+            self.assertEqual(self.client.post("/ask", json={"question": "q"}).status_code, 200)
+
     def test_daily_token_budget_per_key(self) -> None:
         from api.services.rate_limit import TokenBudget
 
