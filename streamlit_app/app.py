@@ -575,6 +575,14 @@ def _render_answer(data: dict) -> None:
     if answer.get("source") == "refusal":
         st.info(answer["text"], icon="🚫")
         return
+    if answer.get("source") == "browse":  # OpenAI is down: the matching "Przeglądaj" view, fixed SQL
+        st.warning(answer["text"], icon="⚠️")
+        browse = answer.get("browse") or {}
+        label = " · ".join(str(v) for v in (ELECTION_LABELS.get(browse.get("wybory"), ""), browse.get("rok"),
+                                            _t(browse.get("pokaz") or ""), LEVEL_LABELS.get(browse.get("poziom"), "")) if v)
+        if st.button(_t("📊 Otwórz „Przeglądaj wyniki”") + f": {label}", key=f"open_browse_{hash(answer['text'] + label)}"):
+            _open_browse(browse)
+        return
     if answer.get("source") == "docs":
         st.markdown(answer["text"])
         st.caption("📖 Definicja z dokumentacji projektu (" + ", ".join(answer.get("sources") or []) + "), nie z wiedzy modelu.")
@@ -586,6 +594,15 @@ def _render_answer(data: dict) -> None:
         st.caption("Podsumowanie złożone bezpośrednio z wyników zapytania.")
     for caveat in answer.get("caveats") or []:
         st.warning(caveat, icon="⚠️")
+
+
+def _open_browse(params: dict) -> None:
+    """Open "Przeglądaj wyniki" with ``params`` through the page address, like a shared link of that view."""
+    for key in BROWSE_LINK.values():
+        st.session_state.pop(f"_linked_{key}", None)
+    kept = {k: st.query_params.get(k) for k in ("lang",)}
+    st.query_params.from_dict({k: str(v) for k, v in {**params, **kept}.items() if v is not None})
+    st.rerun()
 
 
 def _render_clarification(question: str, data: dict) -> None:
@@ -2142,7 +2159,7 @@ if last:
         _render_person_links(data, entity_refs, fp)
         st.stop()
     _render_answer(data)
-    if data.get("intent") in ("definition", "out_of_scope"):
+    if data.get("intent") in ("definition", "out_of_scope", "llm_unavailable"):
         _render_feedback(q, data, fp)
         st.stop()
     _render_result_emotes(data)

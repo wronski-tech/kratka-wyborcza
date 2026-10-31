@@ -14,6 +14,7 @@ import re
 from decimal import Decimal
 from typing import Any
 
+import openai
 import sqlglot
 from openai import OpenAI
 from sqlglot import exp
@@ -21,6 +22,7 @@ from sqlglot import exp
 from api.services import costs
 from api.services.config import ANSWER_SUMMARY_ENABLED, MART_MAX_ROWS, OPENAI_API_KEY, OPENAI_CHAT_MODEL
 from api.services.dynamic_sql import split_parts
+from api.services.embeddings import llm_available, llm_failed
 
 log = logging.getLogger(__name__)
 
@@ -519,7 +521,7 @@ def compose_answer(question: str, rows: list[dict[str, Any]], sql: str = "", sty
     """
     result: dict[str, Any] = {"text": fallback_answer(rows, is_english(question)), "source": "fallback", "verified": True,
                               "caveats": caveats(rows, sql), "explanation": explain_sql(sql)}
-    if not rows or not ANSWER_SUMMARY_ENABLED or not OPENAI_API_KEY:
+    if not rows or not ANSWER_SUMMARY_ENABLED or not OPENAI_API_KEY or not llm_available():
         return result
     prompt = ANSWER_PROMPT + question + json.dumps(_rows_for_prompt(rows), ensure_ascii=False, default=str)
     if not costs.within_limit(spent or {}, OPENAI_CHAT_MODEL, prompt, ANSWER_MAX_TOKENS):
@@ -527,6 +529,8 @@ def compose_answer(question: str, rows: list[dict[str, Any]], sql: str = "", sty
     try:
         text, tokens = _llm_answer(question, rows, style)
     except Exception as exc:  # the answer text is optional; rows are still returned
+        if isinstance(exc, openai.OpenAIError):
+            llm_failed(exc)
         log.warning("answer generation failed: %s", exc)
         return {**result, "error": str(exc)}
     result["tokens"] = tokens

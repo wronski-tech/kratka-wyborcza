@@ -32,6 +32,7 @@ from functools import lru_cache
 from typing import Any
 
 import psycopg
+import openai
 from openai import OpenAI
 
 from api.services.config import (
@@ -45,7 +46,7 @@ from api.services.config import (
     SQL_CACHE_TTL_SECONDS,
 )
 from api.services import costs
-from api.services.embeddings import embed_texts
+from api.services.embeddings import embed_texts, llm_available, llm_failed
 from api.services.mart import entities, examples, safe_sql
 
 log = logging.getLogger(__name__)
@@ -374,7 +375,7 @@ def semantic_relations(question: str, described: dict[str, str], version: str) -
     Relation descriptions (their schema comments) are embedded once per mart ``version``. Empty without
     an OpenAI key or when the embedding request fails: the keywords alone choose then.
     """
-    if not OPENAI_API_KEY:
+    if not OPENAI_API_KEY or not llm_available():
         return []
     try:
         if version not in _RELATION_VECTORS:
@@ -564,7 +565,7 @@ def add_interpretations(
             options.append(option)
     options = options[:MAX_INTERPRETATIONS]
     plain = {**clarification, "options": options}
-    if not OPENAI_API_KEY:
+    if not OPENAI_API_KEY or not llm_available():
         return plain
     try:
         context, version, _ = build_context(question, matches, previous)
@@ -573,6 +574,8 @@ def add_interpretations(
             return plain
         found, used = _llm_interpretations(question, context, options)
     except Exception as exc:  # interpretations are an optimisation; the plain choice still works
+        if isinstance(exc, openai.OpenAIError):
+            llm_failed(exc)
         log.warning("clarification interpretations skipped: %s", exc)
         return plain
     add_usage(tokens, by_model, OPENAI_CHAT_MODEL, used)
@@ -789,7 +792,7 @@ def try_dynamic_query(
     """Generate, validate and run SQL for ``question``.
 
     Returns ``(rows, sql, error, meta)``. ``meta["status"]`` is one of skipped / clarify / rejected /
-    failed / cached / first_pass / repaired (``cached`` with ``similar_question`` when the SQL came from a paraphrase,
+    failed / cached / first_pass / repaired / llm_error (OpenAI failed, see ``llm_available``) (``cached`` with ``similar_question`` when the SQL came from a paraphrase,
     see ``SEMANTIC_CACHE``). ``meta`` also holds ``entities``, ``examples``,
     ``timings_ms``, ``tokens`` (and ``tokens_by_model``), ``schema_relations``, ``schema_selection``, ``prompt_chars``, the model's query ``plan`` and the ``models`` used per attempt; for ``clarify`` it holds
     ``clarification`` (see ``entities.find_ambiguity``). ``previous`` is the preceding turn of the
@@ -828,7 +831,7 @@ def try_dynamic_query(
 
     # A paraphrase of an earlier question reuses its validated SQL (not follow-ups: they depend on their turn).
     semantic: tuple | None = None
-    if OPENAI_API_KEY and SEMANTIC_CACHE_MIN_SIMILARITY > 0 and not previous:
+    if OPENAI_API_KEY and SEMANTIC_CACHE_MIN_SIMILARITY > 0 and not previous and llm_available():
         try:
             semantic = (semantic_signature(question, matches, version), question_vector(question), content_stems(question))
         except Exception as exc:  # the model writes the query as usual
@@ -851,6 +854,8 @@ def try_dynamic_query(
     for attempt in ("first_pass", "repaired"):
         model = OPENAI_REPAIR_MODEL if attempt == "repaired" else OPENAI_CHAT_MODEL
         prompt = SQL_RULES + context + question + (sql or "") + (repair_note or "")
+        if OPENAI_API_KEY and not llm_available():
+            return [], sql, "OpenAI is unavailable (emergency mode).", {**meta, "status": "llm_error", "phase": attempt}
         if OPENAI_API_KEY and not costs.within_limit(by_model, model, prompt, SQL_MAX_TOKENS):
             limited = "Question cost limit (QUESTION_COST_LIMIT_USD) reached before the " + attempt.replace("_", " ")
             log.info("dynamic SQL: %s", limited)
@@ -872,6 +877,9 @@ def try_dynamic_query(
             return [], None, str(exc), {**meta, "status": "rejected", "phase": attempt, "error": str(exc)}
         except ValueError as exc:
             return [], sql, str(exc), {**meta, "status": "skipped", "phase": attempt, "error": str(exc)}
+        except openai.OpenAIError as exc:
+            llm_failed(exc)
+            return [], sql, str(exc), {**meta, "status": "llm_error", "phase": attempt, "error": str(exc)}
         try:
             phase = time.monotonic()
             check_parts_cost(sql)  # too expensive: not run, repaired like a failed query

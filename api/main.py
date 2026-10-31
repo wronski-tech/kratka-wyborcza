@@ -504,7 +504,7 @@ class AskResponse(BaseModel):
     )
     answer: dict[str, Any] | None = Field(
         default=None,
-        description="Answer text: {text, source: llm|fallback|docs|refusal, verified, caveats}; LLM text only when its numbers match the rows; docs: a definition from docs/DEFINITIONS.md with `sources`; refusal: a fixed text for polls, forecasts and future results; caveats are fixed notes about data gaps; follow_ups: up to three questions to ask next with this turn as `previous` (dynamic SQL answers only); empty_reasons: why the query found no rows (an election-year not loaded, or the conditions no row met); explanation: Polish lines describing the SQL (sources, conditions, calculations, grouping, order), derived from the query itself",
+        description="Answer text: {text, source: llm|fallback|docs|refusal|browse, verified, caveats}; LLM text only when its numbers match the rows; docs: a definition from docs/DEFINITIONS.md with `sources`; refusal: a fixed text for polls, forecasts and future results; browse: OpenAI is unavailable, `browse` holds the matching Przeglądaj view {wybory, rok, tura, pokaz, poziom}; caveats are fixed notes about data gaps; follow_ups: up to three questions to ask next with this turn as `previous` (dynamic SQL answers only); empty_reasons: why the query found no rows (an election-year not loaded, or the conditions no row met); explanation: Polish lines describing the SQL (sources, conditions, calculations, grouping, order), derived from the query itself",
     )
     clarification: dict[str, Any] | None = Field(
         default=None,

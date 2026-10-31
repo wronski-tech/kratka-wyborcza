@@ -750,7 +750,14 @@ would answer it from Sejm data.
    (a timeout, a run-time error such as division by zero; not an unknown column), its `EXPLAIN` plan
    (`dynamic_sql.explain`, at most 30 lines, run read-only on the validated query; nothing executes).
    `meta.explain` says whether a plan was sent. Rows of a multi-part answer carry their part title in `part`.
-7. **Cache.** A validated query that ran is cached per (folded question, entity choices, previous turn, mart load)
+7. **Emergency mode.** An OpenAI error gives status `llm_error`; an outage (`embeddings.OUTAGE_ERRORS`: connection, timeout, rate limit, 5xx, bad key) also, for
+   `embeddings.LLM_OUTAGE_SECONDS` (60 s), no OpenAI call at all: embeddings fall back to the local ones,
+   schema selection to the keywords, the answer to the deterministic summary; cached SQL still runs. A
+   question that needs the model is not sent to the Sejm templates (they need OpenAI too) but answered with
+   intent `llm_unavailable`: a fixed text and `answer.browse`, the matching "Przeglądaj" view read from the
+   question by keywords (`router.browse_suggestion`: election, latest named loaded year, round, turnout or
+   results, level), which the UI opens with one click.
+8. **Cache.** A validated query that ran is cached per (folded question, entity choices, previous turn, mart load)
    for `SQL_CACHE_TTL_SECONDS`; a repeated question skips the LLM. A new build invalidates it.
    **Semantic cache** (`dynamic_sql.SEMANTIC_CACHE`, not for follow-ups): a paraphrase reuses the SQL of an
    earlier question when their embeddings reach `SEMANTIC_CACHE_MIN_SIMILARITY` (cosine) and they share the

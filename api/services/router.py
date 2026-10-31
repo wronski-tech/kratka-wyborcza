@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import re
 
+import psycopg
+
+from api.services import answer as answer_text
 from api.services import db
 from api.services import definitions
 from api.services import scope
 from api.services import kbw_analytics
-from api.services.dynamic_sql import try_dynamic_query
+from api.services.dynamic_sql import loaded_years, try_dynamic_query
+from api.services.mart.entities import fold
 from api.services.embeddings import embed_text
 from api.services.llm import (
     _elected_sejm_candidate_pattern,
@@ -81,7 +85,8 @@ def route_question(question: str, entity_refs: list[dict] | None = None, previou
     The templates run only when dynamic SQL produced no rows (no OpenAI key, mart unreachable,
     failed or empty query) and the question is one they can answer: not an explicit entity choice
     (``entity_refs``, the answer to a clarification), not a follow-up (``previous`` turn), and not
-    about an election only the mart covers. Definition questions get the curated text of
+    about an election only the mart covers. When OpenAI fails (status ``llm_error``) the answer points to
+    the "Przeglądaj" view instead (intent ``llm_unavailable``, ``answer.browse``). Definition questions get the curated text of
     ``docs/DEFINITIONS.md`` (intent ``definition``, no SQL); polls, forecasts and future results a fixed
     refusal (intent ``out_of_scope``).
     """
@@ -118,6 +123,9 @@ def route_question(question: str, entity_refs: list[dict] | None = None, previou
     if response:
         return response
     telemetry = {"_dynamic_sql_meta": dyn_meta, **({"_dynamic_sql_error": dyn_err} if dyn_err else {})}
+    if dyn_meta.get("status") == "llm_error":
+        # The templates need OpenAI too and know only the Sejm: point to "Przeglądaj" (fixed SQL) instead.
+        return _browse_fallback(question, years, telemetry)
     if entity_refs or previous or _MART_ONLY_ELECTION_RE.search(question):
         return {
             "question": question,
@@ -132,6 +140,56 @@ def route_question(question: str, entity_refs: list[dict] | None = None, previou
     result = _route_templates(question)
     result["params"] = {**(result.get("params") or {}), **telemetry}
     return result
+
+
+# Election kind of a question for the "Przeglądaj" view, first match wins (mayors before the president).
+_BROWSE_KINDS = (
+    ("wbp", r"wojt|burmistrz|prezydent\w* miast|mayor"), ("sejmik", r"sejmik|wojewodzk\w* (sejm|rad)"),
+    ("prezydent", r"prezyden|presiden"), ("senat", r"senat"), ("pe", r"europ|\bpe\b"), ("referendum", r"referend"),
+    ("sejm", r""),
+)
+_BROWSE_LEVELS = (("gmina", r"\bgmin|municipal"), ("powiat", r"\bpowiat|count(y|ies)"),
+                  ("wojewodztwo", r"\bwojewodzt|voivodesh|provinc|region"))
+
+
+def browse_suggestion(question: str, years: list[int]) -> dict:
+    """"Przeglądaj" parameters for a question, by keywords (no model): election, year, round, view, level.
+
+    The year is the latest loaded one the question names, else the latest loaded election of that kind.
+    """
+    folded = fold(question)
+    kind = next(k for k, pattern in _BROWSE_KINDS if re.search(pattern, folded))
+    try:
+        loaded = loaded_years().get(kind) or []
+    except psycopg.Error:
+        loaded = []
+    named = [y for y in years if not loaded or y in loaded]
+    year = max(named) if named else (max(loaded) if loaded else None)
+    level = next((lv for lv, pattern in _BROWSE_LEVELS if re.search(pattern, folded)), "country")
+    return {"wybory": kind, "rok": year, "tura": 2 if re.search(r"\bdrug\w* tur|\bii tur|second round|run.?off", folded) else 1,
+            "pokaz": "Frekwencja" if re.search(r"frekwenc|turnout|udzial|glosowal", folded) else "Wyniki", "poziom": level}
+
+
+def _browse_fallback(question: str, years: list[int], telemetry: dict) -> dict:
+    """Emergency mode: OpenAI failed, so no query is written; the answer points to the matching "Przeglądaj" view."""
+    if answer_text.is_english(question):
+        text = ("The language model is unavailable right now, so this question cannot be turned into a query. "
+                "Results and turnout can be browsed without it in \u201ePrzeglądaj wyniki\u201d.")
+    else:
+        text = ("Model językowy jest chwilowo niedostępny, więc nie mogę napisać zapytania do tego pytania. Wyniki "
+                "i frekwencję możesz obejrzeć bez niego w \u201ePrzeglądaj wyniki\u201d.")
+    suggestion = browse_suggestion(question, years)
+    return {
+        "question": question,
+        "intent": "llm_unavailable",
+        "entity": None,
+        "year": suggestion["rok"],
+        "years": years,
+        "sql": "",
+        "params": telemetry,
+        "result": [],
+        "answer": {"text": text, "source": "browse", "verified": True, "caveats": [], "browse": suggestion},
+    }
 
 
 def _route_templates(question: str) -> dict:

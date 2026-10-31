@@ -52,6 +52,23 @@ class TestMartOnlyElections(unittest.TestCase):
                 self.assertEqual(response["intent"], "dynamic_sql")
 
 
+class TestLlmOutage(unittest.TestCase):
+    def test_openai_error_points_to_browse_instead_of_templates(self) -> None:
+        down = ([], None, "Connection error.", {"status": "llm_error"})
+        with patch.object(router, "try_dynamic_query", return_value=down), \
+                patch.object(router, "loaded_years", return_value={"prezydent": [2015, 2020, 2025], "sejm": [2019, 2023]}), \
+                patch.object(router, "_route_templates", side_effect=AssertionError("template routing used")):
+            turnout = router.route_question("Jaka była frekwencja w gminach w drugiej turze wyborów prezydenckich 2020?")
+            mayors_latest = router.route_question("Ilu burmistrzów wybrano?")
+            sejm = router.route_question("Ile głosów dostało PiS w województwach w 2021?")  # no Sejm 2021: latest loaded
+        self.assertEqual((turnout["intent"], turnout["answer"]["source"]), ("llm_unavailable", "browse"))
+        self.assertEqual(turnout["answer"]["browse"],
+                         {"wybory": "prezydent", "rok": 2020, "tura": 2, "pokaz": "Frekwencja", "poziom": "gmina"})
+        self.assertEqual(mayors_latest["answer"]["browse"]["wybory"], "wbp")
+        self.assertEqual({k: sejm["answer"]["browse"][k] for k in ("wybory", "rok", "pokaz", "poziom")},
+                         {"wybory": "sejm", "rok": 2023, "pokaz": "Wyniki", "poziom": "wojewodztwo"})
+
+
 class TestDefinitions(unittest.TestCase):
     def test_definition_questions_are_answered_from_the_docs(self) -> None:
         with patch.object(router, "try_dynamic_query", side_effect=AssertionError("model asked")):

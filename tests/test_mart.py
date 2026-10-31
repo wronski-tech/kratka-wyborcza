@@ -19,10 +19,11 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import duckdb
+import openai
 import psycopg
 import sqlglot
 
-from api.services import answer, definitions, dynamic_sql, scope
+from api.services import answer, definitions, dynamic_sql, embeddings, scope
 from api.services.mart import entities, examples
 from api.services.mart.build_common import (
     create_committee_aliases,
@@ -1052,6 +1053,10 @@ class TestDynamicQueryFlow(unittest.TestCase):
             patch.object(entities, "resolve_entities", return_value=[]),
             # The stubbed database answers no EXPLAIN; test_too_expensive_query_is_repaired_unrun covers the cost check.
             patch.object(dynamic_sql.safe_sql, "MART_MAX_PLAN_COST", 0),
+            # No embedding requests (test_paraphrase_reuses_validated_sql_only_with_the_same_meaning turns it on),
+            # and an emergency mode one test starts does not reach the next.
+            patch.object(dynamic_sql, "SEMANTIC_CACHE_MIN_SIMILARITY", 0),
+            patch.object(embeddings, "_llm_down_until", 0.0),
         ]
         for p in self.patches:
             p.start()
@@ -1253,6 +1258,26 @@ class TestDynamicQueryFlow(unittest.TestCase):
             self.assertEqual(meta["status"], "rejected")
             run_mock.assert_not_called()
 
+    def test_openai_error_starts_the_emergency_mode(self) -> None:
+        client = MagicMock()
+        client.chat.completions.create.side_effect = openai.APIConnectionError(request=MagicMock())
+        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "OpenAI", MagicMock(return_value=client)), \
+                patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=AssertionError("nothing to run")):
+            first = dynamic_sql.try_dynamic_query("Frekwencja w 2023?")[3]
+            second = dynamic_sql.try_dynamic_query("Frekwencja w 2019?")[3]
+            self.assertFalse(embeddings.llm_available())
+        self.assertEqual((first["status"], second["status"]), ("llm_error", "llm_error"))
+        self.assertEqual(client.chat.completions.create.call_count, 1, "no model call during the emergency mode")
+        # A bad request (here an unknown model) fails that question only.
+        embeddings._llm_down_until = 0.0  # the end of the emergency mode (setUp restores the value after the test)
+        bad = openai.NotFoundError("model not found", response=MagicMock(status_code=404), body=None)
+        client.chat.completions.create.side_effect = bad
+        with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "OpenAI", MagicMock(return_value=client)), \
+                patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=AssertionError("nothing to run")):
+            self.assertEqual(dynamic_sql.try_dynamic_query("Frekwencja w 2015?")[3]["status"], "llm_error")
+            self.assertTrue(embeddings.llm_available())
+        self.assertEqual(client.chat.completions.create.call_count, 2)
+
     def test_question_cost_limit_skips_calls_that_could_cross_it(self) -> None:
         """Default prices: first pass on gpt-4o-mini about 0.0015 USD at most, a repair on gpt-4o about 0.025 USD
         (prompt ~1 500 tokens, up to 2 000 output tokens)."""
@@ -1264,7 +1289,6 @@ class TestDynamicQueryFlow(unittest.TestCase):
             llm = MagicMock(return_value=("SELECT x FROM mart.v_turnout LIMIT 5", {"prompt_tokens": 1500, "completion_tokens": 150}, {}))
             with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "_llm_sql", llm), \
                     patch.object(dynamic_sql, "OPENAI_CHAT_MODEL", "gpt-4o-mini"), patch.object(dynamic_sql, "OPENAI_REPAIR_MODEL", "gpt-4o"), \
-                    patch.object(dynamic_sql, "SEMANTIC_CACHE_MIN_SIMILARITY", 0), \
                     patch("api.services.config.QUESTION_COST_LIMIT_USD", limit), \
                     patch("api.services.config.LLM_PRICES_USD_PER_1M", {"gpt-4o-mini": [0.15, 0.075, 0.6], "gpt-4o": [2.5, 1.25, 10.0]}), \
                     patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=run):
@@ -1282,6 +1306,7 @@ class TestDynamicQueryFlow(unittest.TestCase):
                      "Jaka była najwyższa frekwencja w gminach w 2019?", "Najwyższa frekwencja w gminach, 2023"]
         llm = MagicMock(return_value=(self.GOOD, {}, {}))
         with patch.object(dynamic_sql, "OPENAI_API_KEY", "key"), patch.object(dynamic_sql, "_llm_sql", llm), \
+                patch.object(dynamic_sql, "SEMANTIC_CACHE_MIN_SIMILARITY", 0.92), \
                 patch.object(dynamic_sql, "question_vector", side_effect=lambda q: vectors.get(q, near)), \
                 patch.object(dynamic_sql.safe_sql, "run_readonly", return_value=[{"turnout_pct": 1}]):
             self.assertEqual(dynamic_sql.try_dynamic_query(first)[3]["status"], "first_pass")

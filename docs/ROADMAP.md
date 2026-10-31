@@ -133,7 +133,7 @@ Cel: lepsze rozumienie pytań i odpowiedzi bez faktów spoza SQL. Gotowe, gdy fu
 - [x] 42. Panel kosztów: tokeny dziennie według klucza i modelu.
 - [x] 43. Cache semantyczny: podobne pytanie → ten sam zwalidowany SQL.
 - [x] 44. Limit kosztu jednego pytania.
-- [ ] 45. Tryb awaryjny: przy błędzie OpenAI tryb „Przeglądaj” zamiast szablonów Sejmu.
+- [x] 45. Tryb awaryjny: przy błędzie OpenAI tryb „Przeglądaj” zamiast szablonów Sejmu.
 - [ ] 46. Inny dostawca LLM (np. Azure OpenAI w UE) przez konfigurację.
 - [ ] 47. Anonimizacja logów przed analizą przez LLM.
 - [ ] 48. Limit długości i liczby pytań na sesję.
