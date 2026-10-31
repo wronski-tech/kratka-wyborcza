@@ -143,6 +143,9 @@ Cross-election rules:
   formed the family in that election (e.g. `PiS+Polska Razem+Solidarna Polska` in EP 2014).
 - **`comparable`** in `v_party_change` is true only when the family ran under the same lead alias both
   times. PO 2015 → KO 2019 and PSL 2019 → TD 2023 are false: say so when reporting such a change.
+  Other pairs (Sejm 2011 vs 2023, Sejm 2023 vs EP 2024) join `v_party_results` to itself on `level`,
+  `unit_key` and `party` and compute the same flag from `lead_aliases` (an SQL rule and two curated
+  examples); the answer caveat follows any `comparable = false` row.
 - **TERYT continuity.** Units are matched by TERYT. Warsaw is split into its 18 districts (1465xx)
   in every election except mayors, where the city is one gmina (146501). Gminas created or dissolved
   between 2015 and 2025 (Ostrowice dissolved in 2019; Szczawa and Grabówka created in 2025) have

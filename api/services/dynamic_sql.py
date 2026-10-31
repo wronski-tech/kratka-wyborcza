@@ -59,6 +59,10 @@ SQL_RULES = f"""Rules:
 - Comparisons across elections: mart.v_turnout (turnout of every election), mart.v_party_results
   and mart.v_party_change (party families; return the comparable column so the answer can say
   when the committees differed). Join units by teryt_gmina / teryt_powiat / wojewodztwo.
+  v_party_change only pairs an election with the previous one of the same kind; for any other pair
+  (Sejm 2011 vs 2023, Sejm 2023 vs PE 2024) join v_party_results to itself on level, unit_key and party
+  (the family, e.g. PO and Nowoczesna -> KO, SLD -> Lewica, PSL -> TD/PSL; see mart.party_families)
+  and return pct of both, the change in points and a.lead_aliases = b.lead_aliases AS comparable.
 - Seats under another method or threshold ("co gdyby"): mart.v_seat_methods (Sejm, sejmik), or
   mart.allocate_seats(array_agg(votes ORDER BY committee_id), <district seats>, 'dhondt' | 'sainte_lague' |
   'sainte_lague_modified') per district over the lists that pass the chosen threshold, then sum.

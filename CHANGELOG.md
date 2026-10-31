@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Questions with „między” (between elections, between parties) or „różnica” no longer ask which gmina was meant: the words matched the gminas Miedzna, Miedźna and Miedźno and the surname Różniak.
 - False clarifications: 45 of the 306 evaluation questions ended in a clarification before the model was asked, now none. Round words no longer match the gmina Turek, „mieli” no longer Mielec; a closer or longer place name beats a look-alike (Szczecin/Szczecinek, Bielsko-Biała/Biała), a person named in full beats places like the given name or surname (Przemysław Czarnek: Przemyśl, Czarne); namesakes without a candidacy in the question's year are dropped; „w mieście X” picks the town gmina. Marek Borowski's candidacies 1991–2023 are one person (override). Declined town names are recognised: „Białegostoku”, „Białymstoku”, „Krasnymstawie”, „Jeleniej Górze”, „Białej Podlaskiej”; a surname matching any word of a place name („Dąbrowie Górniczej”, „Białej Podlaskiej”) no longer adds look-alike persons. A capitalized voivodeship („w województwie Podlaskie”) is no longer dropped for a look-alike surname (PODLASKA).
 
 ### Added
+
+- Changes between any two elections by party family: besides `v_party_change` (previous election of the same kind), the model joins `v_party_results` to itself for other pairs (Sejm 2011 vs 2023, Sejm 2023 vs EP 2024) and returns `comparable`, so the PO → KO caveat applies; two curated examples and a `change` evaluation family.
 
 - Correlations with GUS statistics: questions such as „czy bezrobocie w gminach wiązało się z poparciem PiS” get one row with `corr` (r), `regr_slope`, `regr_r2` and the number of gminas or powiats (a new SQL rule, a curated example, two evaluation items in a new `gus` family), and the answer notes that a correlation across units is not causation.
 

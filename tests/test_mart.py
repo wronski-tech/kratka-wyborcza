@@ -673,6 +673,12 @@ class TestClarification(unittest.TestCase):
         self.assertEqual(entities.narrow_matches("Ile głosów dostał Przemysław Czarnek?", [*places, czarnek]), [czarnek])
         # "drugą turę" is not the gmina Turek.
         self.assertNotIn("ture", entities.question_terms("Kto wygrał drugą turę?")[0])
+        # "między wyborami" is not the gmina Miedźna, "różnica" not the surname Różniak.
+        stems, exact = entities.question_terms("Różnica poparcia PiS między wyborami 2019 a 2023")
+        self.assertFalse(entities.score_entry("gmina", "miedzna", stems, exact))
+        self.assertFalse(entities.score_entry("person", "rozniak", stems, exact))
+        stems, exact = entities.question_terms("Frekwencja w Miedźnej")
+        self.assertTrue(entities.score_entry("gmina", "miedzna", stems, exact))
 
     def test_declined_town_names_match(self) -> None:
         for question, name in (("Prezydent Białegostoku", "Białystok"), ("Frekwencja w Białymstoku", "m. Białystok"),

@@ -42,7 +42,7 @@ _STOPWORDS = frozenset(
     wojewodztwo wojewodztwie glosow glosy glos procent poparcie frekwencja frekwencji kandydat kandydaci
     kandydatow partia partii komitet komitetu lista listy roku rok wynik wyniki mandat mandaty mandatow
     posel poslow posla senator senatora miasto miescie wies wsi oraz czy jak dla przez jest byl byla bylo
-    tura ture turze tury turach mieli mial miala mialo
+    tura ture turze tury turach mieli mial miala mialo miedzy roznica roznicy roznice
     the who what which how many much did does was were get got and for from with won win votes vote
     election elections turnout party parties seats seat result results district districts county counties
     municipality municipalities voivodeship voivodeships province president presidential parliament
