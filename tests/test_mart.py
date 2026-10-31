@@ -913,6 +913,8 @@ class TestDynamicQueryFlow(unittest.TestCase):
         self.patches = [
             patch.object(dynamic_sql, "build_context", return_value=("ctx", "load-1", {"examples": []})),
             patch.object(entities, "resolve_entities", return_value=[]),
+            # The stubbed database answers no EXPLAIN; test_too_expensive_query_is_repaired_unrun covers the cost check.
+            patch.object(dynamic_sql.safe_sql, "MART_MAX_PLAN_COST", 0),
         ]
         for p in self.patches:
             p.start()
@@ -941,6 +943,28 @@ class TestDynamicQueryFlow(unittest.TestCase):
             rows, cached_sql, _, meta = dynamic_sql.try_dynamic_query("frekwencja  w 2023?")
             self.assertEqual((meta["status"], cached_sql), ("cached", sql))
             self.assertEqual(fake_llm.call_count, 2)
+
+    def test_too_expensive_query_is_repaired_unrun(self) -> None:
+        slow = "SELECT count(*) AS n FROM mart.precincts a CROSS JOIN mart.precincts b"
+        executed = []
+
+        def run(sql: str):
+            if sql.startswith("EXPLAIN (FORMAT JSON) "):
+                return [{"QUERY PLAN": [{"Plan": {"Total Cost": 945537961.29 if "CROSS JOIN" in sql else 12.5}}]}]
+            if sql.startswith("EXPLAIN "):
+                return [{"QUERY PLAN": "Nested Loop  (cost=0.84..877202010.66)"}]
+            executed.append(sql)
+            return [{"turnout_pct": 1}]
+
+        with patch.object(dynamic_sql.safe_sql, "MART_MAX_PLAN_COST", 5_000_000), \
+                patch.object(dynamic_sql, "_llm_sql", side_effect=[(slow, {}, ""), (self.GOOD, {}, "")]) as fake_llm, \
+                patch.object(dynamic_sql.safe_sql, "run_readonly", side_effect=run):
+            rows, _, _, meta = dynamic_sql.try_dynamic_query("Ile par obwodów jest w kraju?")
+        self.assertEqual((meta["status"], rows), ("repaired", [{"turnout_pct": 1}]))
+        self.assertEqual(executed, [validate_mart_sql(self.GOOD)], "the expensive query never ran")
+        note = fake_llm.call_args.kwargs["previous_error"]
+        self.assertTrue(note.startswith("Estimated query cost 945,537,961 is above the limit 5,000,000."))
+        self.assertIn("Nested Loop", note)
 
     def test_timeout_repair_gets_the_plan(self) -> None:
         slow = "SELECT count(*) AS n FROM mart.precincts a CROSS JOIN mart.precincts b"

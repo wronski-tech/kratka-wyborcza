@@ -19,6 +19,9 @@ MART_DATABASE_URL = os.getenv(
 MART_STATEMENT_TIMEOUT_MS = int(os.getenv("MART_STATEMENT_TIMEOUT_MS", "5000"))
 # Upper bound on rows returned by LLM-generated SQL (a larger or missing LIMIT is replaced).
 MART_MAX_ROWS = int(os.getenv("MART_MAX_ROWS", "500"))
+# Planner cost above which a generated query is not run (0 disables). The heaviest reference query of the
+# evaluation set costs about 360k (0.5 s); a query timing out at 5 s costs tens of millions or more.
+MART_MAX_PLAN_COST = float(os.getenv("MART_MAX_PLAN_COST", "5000000"))
 # Password of the read-only role that ships in docker-compose; refused when PLUJKA_ENV=production.
 MART_DEFAULT_READER_PASSWORD = "plujka_mart_reader"
 # "development" or "production". Production refuses to start with default credentials.

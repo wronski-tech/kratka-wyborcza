@@ -48,7 +48,7 @@ if str(ROOT) not in sys.path:
 
 from api.services import definitions, dynamic_sql, scope  # noqa: E402
 from api.services.mart.entities import fold  # noqa: E402
-from api.services.mart.safe_sql import run_readonly, validate_mart_sql  # noqa: E402
+from api.services.mart.safe_sql import check_cost, run_readonly, validate_mart_sql  # noqa: E402
 
 EVAL_PATH = ROOT / "tests" / "eval" / "questions.jsonl"
 TOLERANCE = 0.0501  # half of 0.1, plus float error
@@ -128,7 +128,9 @@ def check(items: list[dict]) -> int:
             print(f"[warn] {item['id']} {item['question']}\n       {got}")
         if "sql" in item:
             try:
-                rows = run_readonly(validate_mart_sql(item["sql"]))
+                sql = validate_mart_sql(item["sql"])
+                check_cost(sql)  # a reference query the API would refuse to run is a broken item
+                rows = run_readonly(sql)
                 if not rows:
                     problems.append("reference query returned no rows")
             except Exception as exc:

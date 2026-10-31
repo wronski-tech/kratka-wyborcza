@@ -104,6 +104,12 @@ def validate_parts(raw: str) -> str:
     return join_parts([(title, safe_sql.validate_mart_sql(sql)) for title, sql in parts])
 
 
+def check_parts_cost(sql: str) -> None:
+    """Raise ``safe_sql.QueryTooExpensiveError`` when any part of ``sql`` is planned above the cost limit."""
+    for _, select in split_parts(sql):
+        safe_sql.check_cost(select)
+
+
 def run_parts(sql: str) -> list[dict]:
     """Run a validated query text; rows of a multi-part one carry their part title in ``part``."""
     parts = split_parts(sql)
@@ -571,7 +577,7 @@ def period_hint(periods: list[tuple[str, Any, int]], loaded: dict[str, list[int]
 EXPLAIN_MAX_LINES = 30
 
 
-def explain(sql: str, exc: psycopg.Error) -> str | None:
+def explain(sql: str, exc: Exception) -> str | None:
     """The plan of a failed single query (EXPLAIN, read-only, nothing runs) for the repair prompt.
 
     Useful when the query could be planned but failed while running: a timeout shows which scans
@@ -700,11 +706,12 @@ def try_dynamic_query(
             return [], sql, str(exc), {**meta, "status": "skipped", "phase": attempt, "error": str(exc)}
         try:
             phase = time.monotonic()
+            check_parts_cost(sql)  # too expensive: not run, repaired like a failed query
             rows = run_parts(sql)
             timings[f"execute_{attempt}"] = _ms(phase)
             SQL_CACHE.put(cache_key, sql)
             return rows, sql, None, {**meta, "status": attempt}
-        except psycopg.Error as exc:
+        except (psycopg.Error, safe_sql.QueryTooExpensiveError) as exc:
             error = str(exc).splitlines()[0]
             log.info("dynamic SQL failed on attempt %s: %s", attempt, error)
             if attempt == "first_pass":

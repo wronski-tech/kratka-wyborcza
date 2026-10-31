@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Too expensive queries are not run: a generated query whose planner cost (`EXPLAIN`, read-only) is above `MART_MAX_PLAN_COST` (default 5,000,000; the heaviest evaluation reference query costs about 360k) goes straight to the repair attempt with its plan instead of holding a connection until the statement timeout; `run_eval.py --check` applies the same limit to the reference queries.
 - SQL repair with `EXPLAIN`: when the first query fails after planning (a timeout, a run-time error), the repair prompt gets its `EXPLAIN` plan (read-only, on the validated query, at most 30 lines) next to the error, plus a hint for timeouts (filter earlier, use the views and the matched keys); `meta.explain` records whether a plan was sent.
 - Prompt caching: the SQL prompt now starts with its constant part (instructions, rules, loaded elections; about 8,400 characters) and puts the question-specific schema, entities and examples after it, so OpenAI's automatic prompt caching serves that prefix at the cached-input price; cached prompt tokens are in the telemetry (`cached_tokens`) and in a new `cached` column of the evaluation report, priced with `EVAL_USD_PER_1M_CACHED_INPUT`.
 - Model routing: the cheap `OPENAI_CHAT_MODEL` (default `gpt-4o-mini`) writes the SQL first, and a failed query is repaired by the stronger `OPENAI_REPAIR_MODEL` (default `gpt-4o`); `models` in the telemetry names the model of each attempt, and the evaluation report records both.

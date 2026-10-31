@@ -713,8 +713,11 @@ would answer it from Sejm data.
 5. **Validation** (`mart/safe_sql.py`). sqlglot parses the query. Only one SELECT (CTEs and UNION
    allowed) over mart relations is accepted. DML, DDL, `SET`, `SELECT INTO`, `pg_*` functions and
    functions such as `set_config`, `dblink` or `nextval` are rejected, also when quoted
-   (`"pg_read_file"(...)`). `LIMIT` is capped at `MART_MAX_ROWS`. Expensive but harmless queries are
-   bounded by the statement timeout and the row cap. `tests/test_mart.py` has a list of attacks and a
+   (`"pg_read_file"(...)`). `LIMIT` is capped at `MART_MAX_ROWS`. Before a generated query runs,
+   its planner cost (`EXPLAIN`, read-only) is checked against `MART_MAX_PLAN_COST`
+   (`safe_sql.check_cost`): a query above it is not run and goes to the repair attempt like a failed
+   one, with its plan. Queries below the limit are still bounded by the statement timeout and the row
+   cap. `tests/test_mart.py` has a list of attacks and a
    seeded fuzzer that wraps safe queries in injection fragments and checks every accepted output
    independently (one SELECT, mart relations only, no system functions, capped LIMIT); a follow-up's
    previous SQL is only shown to the model, never executed. A question asking two or three separate
@@ -772,6 +775,7 @@ the matched entities, examples used, `schema_relations`, `prompt_chars` and per-
 | `MART_DATABASE_URL` | `postgresql://plujka_mart_reader:plujka_mart_reader@localhost:5432/plujka` | Read-only role. `build_mart.py` creates it with this user and password (Compose: `MART_READER_PASSWORD`). |
 | `MART_STATEMENT_TIMEOUT_MS` | `5000` | Server-side limit for one generated query |
 | `MART_MAX_ROWS` | `500` | Row cap added to generated queries |
+| `MART_MAX_PLAN_COST` | `5000000` | Planner cost above which a generated query is not run but repaired (0 disables); the heaviest evaluation reference query costs about 360k, and `run_eval.py --check` fails a reference query above the limit |
 | `OPENAI_CHAT_MODEL` / `OPENAI_REPAIR_MODEL` | `gpt-4o-mini` / `gpt-4o` | First SQL attempt (also clarification queries and answer text) / the repair after a failed query; set both to one model to turn routing off |
 | `SQL_CACHE_TTL_SECONDS` / `SQL_CACHE_MAX_ENTRIES` | `3600` / `512` | Validated SQL cache (0 disables) |
 | `SQL_EXAMPLES_INDEX` / `SQL_EXAMPLES_K` | `sql_examples` / `4` | Few-shot examples |

@@ -20,7 +20,7 @@ import psycopg
 import sqlglot
 from sqlglot import exp
 
-from api.services.config import MART_DATABASE_URL, MART_MAX_ROWS, MART_STATEMENT_TIMEOUT_MS
+from api.services.config import MART_DATABASE_URL, MART_MAX_PLAN_COST, MART_MAX_ROWS, MART_STATEMENT_TIMEOUT_MS
 from api.services.mart.schema import QUERYABLE_RELATIONS, SCHEMA
 
 # Statement-level nodes that must never appear anywhere in the tree.
@@ -43,6 +43,10 @@ _FORBIDDEN_FUNCTIONS = frozenset(
 
 class UnsafeSqlError(ValueError):
     """The SQL is not a single read-only query over the mart schema."""
+
+
+class QueryTooExpensiveError(Exception):
+    """The planner's cost estimate of a validated query is above ``MART_MAX_PLAN_COST``."""
 
 
 def _function_name(node: exp.Expression) -> str:
@@ -117,3 +121,19 @@ def run_readonly(
             rows = cur.fetchall()
         conn.rollback()
     return [dict(zip(columns, row)) for row in rows]
+
+
+def check_cost(sql: str, limit: float | None = None) -> float:
+    """Planner cost of validated ``sql`` (EXPLAIN, read-only, nothing runs); raise when above ``limit``.
+
+    Catches queries that would only end at the statement timeout (a cross join of precinct tables)
+    before they hold a connection for seconds. ``limit`` defaults to ``MART_MAX_PLAN_COST``; 0 disables the check.
+    """
+    limit = MART_MAX_PLAN_COST if limit is None else limit
+    if not limit:
+        return 0.0
+    plan = run_readonly("EXPLAIN (FORMAT JSON) " + sql)[0]["QUERY PLAN"]
+    cost = float(plan[0]["Plan"]["Total Cost"])
+    if cost > limit:
+        raise QueryTooExpensiveError(f"Estimated query cost {cost:,.0f} is above the limit {limit:,.0f}.")
+    return cost
