@@ -95,7 +95,7 @@ SQL safety), `docs/DATA.md` (sources), `docs/DEPLOYMENT.md` (API keys, Redis lim
 make test                         # unit tests, no DB
 make test-integration             # + DB tests (needs DATABASE_URL with pgvector, PLUJKA_RUN_DB_TESTS=1)
 make coverage                     # unit tests with coverage (floor: fail_under in .coveragerc)
-make test-mart                    # tests on a built mart: /ask end to end with a fake OpenAI server
+make test-mart                    # tests on a built mart: /ask end to end with a fake OpenAI server, endpoint contracts
 make compile                      # byte-compile api, scripts, streamlit_app, tests
 
 python3 scripts/kbw_stage_duckdb.py --root data/kbw_mirror/dane --out data/kbw_stage_parquet
