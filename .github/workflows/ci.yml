@@ -21,9 +21,11 @@ jobs:
           cache-dependency-path: |
             api/requirements.txt
             loader/requirements.txt
+            streamlit_app/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r api/requirements.txt -r loader/requirements.txt coverage==7.17.0
+        # The UI's requirements for tests/test_ui_apptest.py (Streamlit AppTest).
+        run: pip install -r api/requirements.txt -r loader/requirements.txt -r streamlit_app/requirements.txt coverage==7.17.0
 
       - name: Run unit tests
         run: PYTHONPATH=. coverage run -m unittest discover -s tests -p 'test*.py' -v

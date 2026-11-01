@@ -7,6 +7,6 @@ source =
 
 [report]
 # Floor at the measured level: a change that drops total coverage below it fails CI. Raise it as tests are added.
-fail_under = 32
+fail_under = 37
 sort = cover
 skip_empty = true

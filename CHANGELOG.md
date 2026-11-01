@@ -19,9 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- UI tests with Streamlit's AppTest and canned API responses (`tests/test_ui_apptest.py`, in the unit job, which now installs `streamlit_app/requirements.txt`): asking and the answer's checks, one session id per browser session, a clarification option re-asking with its entity, the emergency-mode button opening „Przeglądaj wyniki”, the limit messages and the English labels.
+
 - Contract tests of the endpoints on the built mart (`tests/test_contracts_mart.py`, in `make test-mart`): every OpenAPI operation has a case or a stated reason, so a new endpoint fails until it gets one; each case runs the real SQL and checks the fields consumers read, counts and percentages as JSON numbers, and that bad input is a 4xx.
 
-- Test coverage in CI: the unit job runs under coverage, shows the per-file table in the job summary and fails when the total drops below the floor in `.coveragerc` (32%, measured 33%); `make coverage` locally.
+- Test coverage in CI: the unit job runs under coverage, shows the per-file table in the job summary and fails when the total drops below the floor in `.coveragerc` (37%, measured 38% with the UI tests); `make coverage` locally.
 
 - End-to-end tests of `POST /ask` on the built mart with a fake OpenAI-compatible server instead of the model (`tests/test_e2e_stubbed_llm.py`, `make test-mart`, run by CI after the mart build): a checked answer and a follow-up, an invented number replaced by the summary, a repair by the repair model, unsafe SQL rejected before the database.
 
