@@ -1,8 +1,8 @@
 # Local checks (default test suite does not require PostgreSQL).
 .PHONY: test test-integration test-mart coverage compile lint
 
-# Tests that need a built mart (scripts/build_mart.py): /ask end to end, endpoint contracts; CI runs them after building it.
-MART_TESTS = tests.test_e2e_stubbed_llm tests.test_contracts_mart
+# Tests that need a built mart (scripts/build_mart.py): /ask end to end, endpoint contracts, entities; CI runs them after building it.
+MART_TESTS = tests.test_e2e_stubbed_llm tests.test_contracts_mart tests.test_entities_mart
 
 PYTHON ?= python3
 

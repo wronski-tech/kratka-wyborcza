@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Entity regression tests on the built lexicon (`tests/test_entities_mart.py`, in `make test-mart`): declined town names, look-alike places, words that are not places or persons, „w mieście X”, English aliases and a real town/rural ambiguity, with official TERYT codes; and every evaluation question must clarify exactly when expected (`run_eval.py --check` only warns).
+
 - UI tests with Streamlit's AppTest and canned API responses (`tests/test_ui_apptest.py`, in the unit job, which now installs `streamlit_app/requirements.txt`): asking and the answer's checks, one session id per browser session, a clarification option re-asking with its entity, the emergency-mode button opening „Przeglądaj wyniki”, the limit messages and the English labels.
 
 - Contract tests of the endpoints on the built mart (`tests/test_contracts_mart.py`, in `make test-mart`): every OpenAPI operation has a case or a stated reason, so a new endpoint fails until it gets one; each case runs the real SQL and checks the fields consumers read, counts and percentages as JSON numbers, and that bad input is a 4xx.

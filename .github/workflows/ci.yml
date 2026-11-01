@@ -149,7 +149,7 @@ jobs:
         run: PYTHONPATH=. python scripts/run_eval.py --check
 
       # On the mart just built: /ask end to end with a fake OpenAI server (tests/test_e2e_stubbed_llm.py) and
-      # the contract of every endpoint (tests/test_contracts_mart.py).
+      # the contract of every endpoint (tests/test_contracts_mart.py), entities on the lexicon (tests/test_entities_mart.py).
       - name: Tests against the built mart
         run: make test-mart PYTHON=python
 
