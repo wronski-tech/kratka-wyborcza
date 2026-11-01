@@ -94,6 +94,7 @@ SQL safety), `docs/DATA.md` (sources), `docs/DEPLOYMENT.md` (API keys, Redis lim
 ```bash
 make test                         # unit tests, no DB
 make test-integration             # + DB tests (needs DATABASE_URL with pgvector, PLUJKA_RUN_DB_TESTS=1)
+make test-mart                    # tests on a built mart: /ask end to end with a fake OpenAI server
 make compile                      # byte-compile api, scripts, streamlit_app, tests
 
 python3 scripts/kbw_stage_duckdb.py --root data/kbw_mirror/dane --out data/kbw_stage_parquet

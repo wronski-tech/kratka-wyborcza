@@ -142,6 +142,10 @@ jobs:
       - name: Check the evaluation set against the built mart
         run: PYTHONPATH=. python scripts/run_eval.py --check
 
+      # /ask end to end with a fake OpenAI server (tests/test_e2e_stubbed_llm.py) on the mart just built.
+      - name: Tests against the built mart
+        run: make test-mart PYTHON=python
+
       - name: Dump the mart
         run: |
           docker exec ${{ job.services.postgres.id }} pg_dump -U plujka -n mart -Fc -Z 6 plujka > mart.dump
