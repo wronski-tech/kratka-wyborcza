@@ -183,7 +183,7 @@ gdy nowy serwer powstaje z Terraformu, przechodzi próbę odtworzenia i ma alert
 
 **Testy**
 - [x] 31. Testy end-to-end z zaślepionym LLM.
-- [ ] 32. Pokrycie testami w CI.
+- [x] 32. Pokrycie testami w CI.
 - [ ] 33. Testy kontraktowe nowych endpointów.
 - [ ] 34. Testy UI (`AppTest`).
 - [ ] 35. Test regresyjny encji na bazie.

@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Test coverage in CI: the unit job runs under coverage, shows the per-file table in the job summary and fails when the total drops below the floor in `.coveragerc` (32%, measured 33%); `make coverage` locally.
+
 - End-to-end tests of `POST /ask` on the built mart with a fake OpenAI-compatible server instead of the model (`tests/test_e2e_stubbed_llm.py`, `make test-mart`, run by CI after the mart build): a checked answer and a follow-up, an invented number replaced by the summary, a repair by the repair model, unsafe SQL rejected before the database.
 
 - Prompt versions with evaluation results: `dynamic_sql.PROMPT_VERSION` hashes the SQL rules and the code building the model calls; it is logged with every question and evaluation report, `run_eval.py --record` appends a run's accuracy per family to `tests/eval/prompt_versions.jsonl`, and `run_eval.py --check` names the current version's last result or that it has none.

@@ -1,0 +1,12 @@
+# Coverage of the unit tests (make coverage; CI job "test" reports it in the job summary).
+[run]
+source =
+    api
+    scripts
+    streamlit_app
+
+[report]
+# Floor at the measured level: a change that drops total coverage below it fails CI. Raise it as tests are added.
+fail_under = 32
+sort = cover
+skip_empty = true

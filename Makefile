@@ -1,5 +1,5 @@
 # Local checks (default test suite does not require PostgreSQL).
-.PHONY: test test-integration test-mart compile lint
+.PHONY: test test-integration test-mart coverage compile lint
 
 # Tests that need a built mart (scripts/build_mart.py); CI runs them after building it.
 MART_TESTS = tests.test_e2e_stubbed_llm
@@ -11,6 +11,10 @@ test:
 
 test-integration:
 	PLUJKA_RUN_DB_TESTS=1 PYTHONPATH=. $(PYTHON) -m unittest discover -s tests -p 'test*.py' -v
+
+coverage:  # needs: pip install coverage
+	PYTHONPATH=. $(PYTHON) -m coverage run -m unittest discover -s tests -p 'test*.py'
+	$(PYTHON) -m coverage report
 
 test-mart:
 	PLUJKA_RUN_MART_TESTS=1 PYTHONPATH=. $(PYTHON) -m unittest -v $(MART_TESTS)
