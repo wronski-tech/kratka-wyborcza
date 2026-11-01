@@ -104,7 +104,8 @@ jobs:
             loader/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r api/requirements.txt -r loader/requirements.txt
+        # hypothesis: property tests of mart.allocate_seats (tests/test_seats_properties.py).
+        run: pip install -r api/requirements.txt -r loader/requirements.txt hypothesis==6.170.14
 
       - name: Run tests (including DB integration)
         run: PYTHONPATH=. python -m unittest discover -s tests -p 'test*.py' -v

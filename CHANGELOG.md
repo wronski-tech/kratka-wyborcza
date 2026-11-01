@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Property tests of `mart.allocate_seats` with Hypothesis on PostgreSQL (`tests/test_seats_properties.py`, in the CI integration job): every method matches an exact reference with fractions and the same tie rule, all seats are given out, no votes get no seat, divisor methods never take a seat away when one is added, Hare-Niemeyer stays within the quota, and scaling the votes changes nothing.
+
 - Entity regression tests on the built lexicon (`tests/test_entities_mart.py`, in `make test-mart`): declined town names, look-alike places, words that are not places or persons, „w mieście X”, English aliases and a real town/rural ambiguity, with official TERYT codes; and every evaluation question must clarify exactly when expected (`run_eval.py --check` only warns).
 
 - UI tests with Streamlit's AppTest and canned API responses (`tests/test_ui_apptest.py`, in the unit job, which now installs `streamlit_app/requirements.txt`): asking and the answer's checks, one session id per browser session, a clarification option re-asking with its entity, the emergency-mode button opening „Przeglądaj wyniki”, the limit messages and the English labels.
