@@ -253,7 +253,7 @@ Hofman, Kośla, Hatka); people who changed surname are linked only by an overrid
 
 Current build: 60,709 national persons (56,448 by name and gender, 2,348 with abbreviated given
 names joined, 1,016 by residence, 728 split by voivodeship, 163 by birth year, 6 manual) and
-1,145,815 local persons.
+1,145,814 local persons.
 
 ## Building it
 

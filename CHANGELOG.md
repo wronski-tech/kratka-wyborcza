@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Marek Borowski's 2006 candidacies for mayor of Warsaw and the Mazowsze sejmik belong to his person (override); they were a separate local person, so a question about him offered himself twice.
 - „w Turku” is the town Turek again instead of a question about which TURKO was meant: names with a mobile „e” („Turek” → „Turku”, „Mielec” → „Mielcu”) are matched in their declined form even when they are too short for the near-identical match.
 - Questions naming the election by an adjective („wyborach prezydenckich”, „senackich”, „europejskich”) no longer fall back to the Sejm templates when the generated query finds no rows.
 - The API image could not call OpenAI: `openai==1.52.2` passes `proxies` to httpx, which httpx 0.28 (installed unpinned) removed, so every model call failed with a TypeError. `httpx==0.27.2` is pinned in `api/requirements.txt`.
