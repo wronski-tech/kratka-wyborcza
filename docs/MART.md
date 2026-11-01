@@ -843,7 +843,7 @@ the matched entities, examples used, `schema_relations`, `prompt_chars` and per-
 | `LLM_PROVIDER` | `openai` | `openai` (or an OpenAI-compatible endpoint at `OPENAI_BASE_URL`) or `azure` (Azure OpenAI at `AZURE_OPENAI_ENDPOINT`, API `AZURE_OPENAI_API_VERSION`, default `2024-10-21`; the `OPENAI_*_MODEL` settings are deployment names, the key is `OPENAI_API_KEY`) |
 | `OPENAI_CHAT_MODEL` / `OPENAI_REPAIR_MODEL` | `gpt-4o-mini` / `gpt-4o` | First SQL attempt (also clarification queries and answer text) / the repair after a failed query; set both to one model to turn routing off |
 | `SQL_CACHE_TTL_SECONDS` / `SQL_CACHE_MAX_ENTRIES` | `3600` / `512` | Validated SQL cache (0 disables) |
-| `QUESTION_COST_LIMIT_USD` | `0.05` | OpenAI cost ceiling of one question (prices from `LLM_PRICES_USD_PER_1M`); 0 disables |
+| `QUESTION_COST_LIMIT_USD` | `0.10` | OpenAI cost ceiling of one question (prices from `LLM_PRICES_USD_PER_1M`); 0 disables |
 | `SEMANTIC_CACHE_MIN_SIMILARITY` | `0.92` | Cosine similarity at which a paraphrase reuses a cached SQL (0 disables the semantic cache) |
 | `SQL_EXAMPLES_INDEX` / `SQL_EXAMPLES_K` | `sql_examples` / `4` | Few-shot examples |
 | `ANSWER_SUMMARY_ENABLED` | `1` | LLM answer text (numbers are always checked) |
