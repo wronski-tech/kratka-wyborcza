@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Load test with a fake model (`scripts/load_test.py`, run by CI on the built mart with its latency table in the job summary): concurrent questions and browse requests, p50/p95/max per endpoint, failing on any failed request. One API process answers about 8 questions per second besides the model (CPU-bound; docs/DEPLOYMENT.md). The fake OpenAI server is shared with the end-to-end tests (`scripts/fake_openai.py`).
+
 - Property tests of `mart.allocate_seats` with Hypothesis on PostgreSQL (`tests/test_seats_properties.py`, in the CI integration job): every method matches an exact reference with fractions and the same tie rule, all seats are given out, no votes get no seat, divisor methods never take a seat away when one is added, Hare-Niemeyer stays within the quota, and scaling the votes changes nothing.
 
 - Entity regression tests on the built lexicon (`tests/test_entities_mart.py`, in `make test-mart`): declined town names, look-alike places, words that are not places or persons, „w mieście X”, English aliases and a real town/rural ambiguity, with official TERYT codes; and every evaluation question must clarify exactly when expected (`run_eval.py --check` only warns).

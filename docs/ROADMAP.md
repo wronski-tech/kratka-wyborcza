@@ -188,7 +188,7 @@ gdy nowy serwer powstaje z Terraformu, przechodzi próbę odtworzenia i ma alert
 - [x] 34. Testy UI (`AppTest`).
 - [x] 35. Test regresyjny encji na bazie.
 - [x] 36. Testy właściwości `allocate_seats`.
-- [ ] 37. Test obciążenia z zaślepionym LLM.
+- [x] 37. Test obciążenia z zaślepionym LLM.
 - [ ] 38. Test odtwarzania z backupu w CI.
 
 **Backup i odtwarzanie**

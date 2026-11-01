@@ -174,6 +174,24 @@ Example cron entry (03:15 every night):
 15 3 * * * cd /srv/plujka && DATABASE_URL=... scripts/backup_db.sh /var/backups/plujka >> /var/log/plujka-backup.log 2>&1
 ```
 
+## Load test
+
+`scripts/load_test.py` starts the API in its own process with a fake OpenAI server (`scripts/fake_openai.py`)
+and sends concurrent questions (each worded anew, so the SQL cache does not answer them) and browse
+requests; it prints p50/p95/max per endpoint and fails on any failed request or a p95 above
+`--max-p95-ms`. CI runs it on the built mart (300 requests, 16 concurrent). Rate limits are off for the
+run; the model's own latency is not included unless `--model-delay-ms` adds it.
+
+```bash
+DATABASE_URL=... MART_DATABASE_URL=... python3 scripts/load_test.py --requests 300 --concurrency 16
+```
+
+Measured in a 4-vCPU orb with one API process: a question alone takes about 230 ms besides the model,
+but 16 concurrent ones about 1.9 s each (p95 2.9 s), so one process answers roughly 8 questions per second:
+the work around the model (entity matching, the SQL guard, the answer check) is CPU-bound and one Python
+process uses one core. Production runs two workers (`--workers 2` in `deploy/docker-compose.prod.yml`);
+add workers before adding threads, and add the model's latency (seconds) to these numbers.
+
 ## Telemetry dashboards
 
 Every `/ask` writes a document to the OpenSearch index `question_logs` with `created_at`,

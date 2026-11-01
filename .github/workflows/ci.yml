@@ -154,6 +154,11 @@ jobs:
       - name: Tests against the built mart
         run: make test-mart PYTHON=python
 
+      # Concurrent questions and browse requests with a fake model (scripts/load_test.py); latency table in the
+      # job summary. The p95 limit is loose (shared runners): the check is mainly that nothing fails under load.
+      - name: Load test with a fake model
+        run: PYTHONPATH=. python scripts/load_test.py --requests 300 --concurrency 16 --max-p95-ms 8000 | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Dump the mart
         run: |
           docker exec ${{ job.services.postgres.id }} pg_dump -U plujka -n mart -Fc -Z 6 plujka > mart.dump
