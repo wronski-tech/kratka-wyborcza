@@ -812,7 +812,9 @@ class TestClarification(unittest.TestCase):
     def test_declined_town_names_match(self) -> None:
         for question, name in (("Prezydent Białegostoku", "Białystok"), ("Frekwencja w Białymstoku", "m. Białystok"),
                                ("Wyniki w Krasnymstawie", "Krasnystaw"), ("Wyniki w Jeleniej Górze", "m. Jelenia Góra"),
-                               ("Frekwencja w Białej Podlaskiej", "Biała Podlaska")):
+                               ("Frekwencja w Białej Podlaskiej", "Biała Podlaska"),
+                               # Mobile "e": a five-letter name is too short for the near-identical match.
+                               ("Frekwencja w Turku", "Turek"), ("Wynik w Mielcu", "m. Mielec")):
             with self.subTest(question=question):
                 stems, exact = entities.question_terms(question)
                 self.assertTrue(entities.score_entry("gmina", entities.fold(entities._PLACE_PREFIX.sub("", name)), stems, exact))

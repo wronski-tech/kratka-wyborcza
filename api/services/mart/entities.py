@@ -84,7 +84,11 @@ def _word_stems(word: str) -> set[str]:
         stems.add(form)
         for ending in _ENDINGS:
             if form.endswith(ending) and len(form) - len(ending) >= 3:
-                stems.add(form[: -len(ending)])
+                stem = form[: -len(ending)]
+                stems.add(stem)
+                # Mobile "e" of "-ek"/"-ec" nouns: "Turku" -> "Turek", "Mielcu" -> "Mielec".
+                if re.search(r"[^aeiouy][kc]$", stem):
+                    stems.add(stem[:-1] + "e" + stem[-1])
                 break
     return stems
 

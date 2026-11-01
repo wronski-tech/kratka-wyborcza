@@ -35,8 +35,9 @@ CASES: dict[str, tuple[set[str], set[str], bool]] = {
     "Wynik PiS w województwie Podlaskie w 2023": ({"wojewodztwo:podlaskie"}, {"person"}, False),
     # English names come from entity_aliases.csv.
     "Turnout in Warsaw in 2023": ({"powiat:1465"}, {"person"}, False),
-    # Town and rural gmina of one name are a real ambiguity.
+    # Town and rural gmina of one name are a real ambiguity; „Turku” is the town Turek, not the surname TURKO.
     "Kto wygrał w Mielcu w 2023?": ({"gmina:181101", "gmina:181105"}, set(), True),
+    "Frekwencja w Turku w 2023": ({"gmina:302701", "gmina:302708"}, {"person"}, True),
 }
 
 
