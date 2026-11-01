@@ -47,7 +47,10 @@ class TestMartOnlyElections(unittest.TestCase):
         empty = ([], "SELECT 1 WHERE false", None, {"status": "first_pass"})
         with patch.object(router, "try_dynamic_query", return_value=empty), \
                 patch.object(router, "_route_templates", side_effect=AssertionError("template routing used")):
-            for question in ("Bezrobocie a wynik PiS w powiatach w 2023", "Who won the presidential election in 2015?"):
+            # Adjectives name the election too: "prezydenckich", "senackich", "europejskich".
+            for question in ("Bezrobocie a wynik PiS w powiatach w 2023", "Who won the presidential election in 2015?",
+                             "Frekwencja w wyborach prezydenckich 2020", "Kto wygrał wybory senackie w 2023?",
+                             "Wynik KO w wyborach europejskich 2024"):
                 response = router.route_question(question)
                 self.assertEqual(response["intent"], "dynamic_sql")
 

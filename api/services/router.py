@@ -62,8 +62,9 @@ INTENT_TEXT = {
 # Elections the legacy templates do not know (they answer from Sejm data). When LLM SQL over the
 # mart finds nothing for such a question, the router returns that instead of a Sejm template answer.
 _MART_ONLY_ELECTION_RE = re.compile(
-    r"prezydent|referend|sejmik|samorz[aą]d|w[oó]jt|burmistrz|europarlament|parlament\w* europejsk|"
-    r"europos[lł]|senat|radn|rad[ayz]i? (gmin|powiat|miasta|dzielnic)|"
+    # Stems cover the adjectives: "prezydenckich", "senackich", "europejskich" (wybory europejskie).
+    r"prezyden|referend|sejmik|samorz[aą]d|w[oó]jt|burmistrz|europarlament|europejsk|eurowybor|"
+    r"europos[lł]|sena[tc]|radn|rad[ayz]i? (gmin|powiat|miasta|dzielnic)|"
     # GUS statistics (population, unemployment, salaries): the Sejm templates cannot answer them either.
     r"\bgus\b|ludno[sś][cć]|mieszka[nń]c|bezrob|wynagrodz|zarob|pensj|g[eę]sto[sś][cć]|zaludn|wiejsk"
     # The same in English.
