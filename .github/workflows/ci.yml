@@ -159,6 +159,22 @@ jobs:
       - name: Load test with a fake model
         run: PYTHONPATH=. python scripts/load_test.py --requests 300 --concurrency 16 --max-p95-ms 8000 | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # The nightly backup (public schema: question log tables, saved views, token usage) restored into an empty
+      # database by the procedure in docs/DEPLOYMENT.md must have the same tables, indexes and rows.
+      - name: Backup and restore
+        run: |
+          pg_dump --version
+          PYTHONPATH=. python -c "
+          from api.services import db
+          db.init_database()
+          db.save_view('restore check', 'SELECT 1')
+          db.record_usage('ci', {'gpt-4o-mini': {'prompt_tokens': 10, 'completion_tokens': 2}})"
+          BACKUP_SCHEMAS=public scripts/backup_db.sh /tmp/backups
+          psql "$DATABASE_URL" -c "CREATE DATABASE plujka_restore"
+          restored=postgresql://plujka:plujka@localhost:5432/plujka_restore
+          pg_restore --clean --if-exists --no-owner --exit-on-error -d "$restored" /tmp/backups/plujka-*.dump
+          PYTHONPATH=. python scripts/check_restore.py "$DATABASE_URL" "$restored" --schemas public
+
       - name: Dump the mart
         run: |
           docker exec ${{ job.services.postgres.id }} pg_dump -U plujka -n mart -Fc -Z 6 plujka > mart.dump

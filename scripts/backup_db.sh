@@ -26,6 +26,11 @@ schema_args=()
 for schema in ${BACKUP_SCHEMAS:-}; do
   schema_args+=(--schema "$schema")
 done
+# A schema-only dump leaves out the extensions (vector, pg_trgm) its tables and indexes need; without them
+# it cannot be restored into an empty database.
+if [ "${#schema_args[@]}" -gt 0 ]; then
+  schema_args+=(--extension '*')
+fi
 
 # Write to a temporary name first so an interrupted dump never looks like a valid backup.
 pg_dump --format=custom --no-owner "${schema_args[@]}" --file "$target.partial" "$DATABASE_URL"

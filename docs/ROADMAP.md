@@ -189,7 +189,7 @@ gdy nowy serwer powstaje z Terraformu, przechodzi próbę odtworzenia i ma alert
 - [x] 35. Test regresyjny encji na bazie.
 - [x] 36. Testy właściwości `allocate_seats`.
 - [x] 37. Test obciążenia z zaślepionym LLM.
-- [ ] 38. Test odtwarzania z backupu w CI.
+- [x] 38. Test odtwarzania z backupu w CI.
 
 **Backup i odtwarzanie**
 - [ ] 39. Nocny backup `public` na Storage Box, retencja 7 dni / 4 tygodnie / 6 miesięcy.

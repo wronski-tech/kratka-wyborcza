@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A backup of chosen schemas (`BACKUP_SCHEMAS=public scripts/backup_db.sh`) could not be restored into an empty database: `pg_dump --schema` leaves out the extensions, so the `vector` columns and `pg_trgm` indexes failed. The dump now includes them.
 - Marek Borowski's 2006 candidacies for mayor of Warsaw and the Mazowsze sejmik belong to his person (override); they were a separate local person, so a question about him offered himself twice.
 - „w Turku” is the town Turek again instead of a question about which TURKO was meant: names with a mobile „e” („Turek” → „Turku”, „Mielec” → „Mielcu”) are matched in their declined form even when they are too short for the near-identical match.
 - Questions naming the election by an adjective („wyborach prezydenckich”, „senackich”, „europejskich”) no longer fall back to the Sejm templates when the generated query finds no rows.
@@ -20,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - False clarifications: 45 of the 306 evaluation questions ended in a clarification before the model was asked, now none. Round words no longer match the gmina Turek, „mieli” no longer Mielec; a closer or longer place name beats a look-alike (Szczecin/Szczecinek, Bielsko-Biała/Biała), a person named in full beats places like the given name or surname (Przemysław Czarnek: Przemyśl, Czarne); namesakes without a candidacy in the question's year are dropped; „w mieście X” picks the town gmina. Marek Borowski's candidacies 1991–2023 are one person (override). Declined town names are recognised: „Białegostoku”, „Białymstoku”, „Krasnymstawie”, „Jeleniej Górze”, „Białej Podlaskiej”; a surname matching any word of a place name („Dąbrowie Górniczej”, „Białej Podlaskiej”) no longer adds look-alike persons. A capitalized voivodeship („w województwie Podlaskie”) is no longer dropped for a look-alike surname (PODLASKA).
 
 ### Added
+
+- Backup restore test in CI: the `public` backup is restored into an empty database by the documented procedure and compared with its source (`scripts/check_restore.py`: tables, indexes, functions, sequences and row counts; an empty source fails).
 
 - Load test with a fake model (`scripts/load_test.py`, run by CI on the built mart with its latency table in the job summary): concurrent questions and browse requests, p50/p95/max per endpoint, failing on any failed request. One API process answers about 8 questions per second besides the model (CPU-bound; docs/DEPLOYMENT.md). The fake OpenAI server is shared with the end-to-end tests (`scripts/fake_openai.py`).
 

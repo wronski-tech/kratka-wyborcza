@@ -163,6 +163,14 @@ pg_restore --clean --if-exists --no-owner -d "$DATABASE_URL" backups/plujka-YYYY
 DATABASE_URL=... python scripts/build_mart.py   # recreates plujka_mart_reader and its grants
 ```
 
+A dump of chosen schemas (`BACKUP_SCHEMAS`) also carries the extensions (`vector`, `pg_trgm`) its tables
+and indexes need, so it restores into an empty database. To check a restore against its source (a restore
+drill, or CI after every push), compare tables, indexes, functions, sequences and row counts:
+
+```bash
+python scripts/check_restore.py "$SOURCE_URL" "$RESTORED_URL" --schemas public
+```
+
 What a database backup does not cover: thumbs-down feedback (`data/feedback/feedback.jsonl` on the
 API host) and the OpenSearch indexes (`question_logs`, `sql_examples`). Copy the feedback file with
 the dump; the examples index is rebuilt from `sql_examples.jsonl` at startup, and the question log
