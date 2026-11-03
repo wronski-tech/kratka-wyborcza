@@ -47,7 +47,7 @@ jobs:
       EVAL_USD_PER_1M_CACHED_INPUT: ${{ vars.EVAL_USD_PER_1M_CACHED_INPUT }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
