@@ -13,7 +13,7 @@ _spec.loader.exec_module(backup_retention)  # type: ignore[union-attr]
 
 
 def name(day: dt.date, time: str = "031500") -> str:
-    return f"plujka-{day:%Y%m%d}-{time}.dump"
+    return f"kratka-wyborcza-{day:%Y%m%d}-{time}.dump"
 
 
 class TestRetention(unittest.TestCase):
@@ -41,7 +41,7 @@ class TestRetention(unittest.TestCase):
 
     def test_dumps_and_file_archives_are_separate_series(self) -> None:
         day1, day2 = dt.date(2026, 1, 1), dt.date(2026, 1, 2)
-        files = [f"plujka-files-{d:%Y%m%d}-031600.tar.gz" for d in (day1, day2)]
+        files = [f"kratka-wyborcza-files-{d:%Y%m%d}-031600.tar.gz" for d in (day1, day2)]
         # One day each: the newer dump and the newer archive stay, though the archive of day 2 is the newest of all.
         self.assertEqual(backup_retention.to_delete([name(day1), name(day2), *files], daily=1, weekly=0, monthly=0),
                          [name(day1), files[0]])
@@ -52,7 +52,7 @@ class TestRetention(unittest.TestCase):
         self.assertEqual(backup_retention.to_delete(names, daily=2, weekly=0, monthly=0), [name(dt.date(2026, 1, 1))])
 
     def test_other_files_are_never_deleted(self) -> None:
-        names = ["plujka-20260101-031500.dump.partial", "plujka-20260101-031500.dump.age.partial", "notes.txt", name(dt.date(2026, 1, 1)), name(dt.date(2026, 1, 2))]
+        names = ["kratka-wyborcza-20260101-031500.dump.partial", "kratka-wyborcza-20260101-031500.dump.age.partial", "notes.txt", name(dt.date(2026, 1, 1)), name(dt.date(2026, 1, 2))]
         self.assertEqual(backup_retention.to_delete(names, daily=1, weekly=0, monthly=0), [name(dt.date(2026, 1, 1))])
 
 

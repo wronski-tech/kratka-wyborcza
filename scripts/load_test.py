@@ -80,7 +80,7 @@ def main() -> None:
     from api.main import app
     from api.services.mart.safe_sql import run_readonly
 
-    for name in ("opensearch", "api.services.opensearch_store", "api.services.mart.examples", "httpx", "plujka.api"):
+    for name in ("opensearch", "api.services.opensearch_store", "api.services.mart.examples", "httpx", "kratka_wyborcza.api"):
         logging.getLogger(name).setLevel(logging.CRITICAL)  # no OpenSearch or public tables needed for the run
     years = [r["year"] for r in run_readonly("SELECT DISTINCT year FROM mart.elections WHERE election = 'sejm' ORDER BY 1")]
     if not years:

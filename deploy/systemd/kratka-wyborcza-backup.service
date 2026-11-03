@@ -1,0 +1,16 @@
+# Nightly backup of the public schema to the Storage Box (deploy/backup_storagebox.sh).
+# Installed by cloud-init; on an older server: sudo cp deploy/systemd/kratka-wyborcza-backup.* /etc/systemd/system/
+# && sudo systemctl daemon-reload && sudo systemctl enable --now kratka-wyborcza-backup.timer
+[Unit]
+Description=Kratka Wyborcza backup to the Storage Box
+After=kratka-wyborcza.service
+Requires=docker.service
+# Waits for the operator's Storage Box setup (docs/DEPLOYMENT.md, "Nightly backup to the Storage Box").
+ConditionPathExists=/srv/kratka-wyborcza/deploy/backup.env
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/srv/kratka-wyborcza
+EnvironmentFile=/srv/kratka-wyborcza/deploy/backup.env
+ExecStart=/srv/kratka-wyborcza/deploy/backup_storagebox.sh

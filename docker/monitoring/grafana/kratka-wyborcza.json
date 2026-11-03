@@ -1,8 +1,8 @@
 {
-  "uid": "plujka",
+  "uid": "kratka-wyborcza",
   "title": "Kratka Wyborcza",
   "tags": [
-    "plujka"
+    "kratka-wyborcza"
   ],
   "timezone": "browser",
   "schemaVersion": 39,
@@ -61,7 +61,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (status) (rate(plujka_http_requests_total{route!=\"/metrics\"}[5m]))",
+          "expr": "sum by (status) (rate(kratka_wyborcza_http_requests_total{route!=\"/metrics\"}[5m]))",
           "legendFormat": "{{status}}",
           "datasource": {
             "type": "prometheus",
@@ -117,7 +117,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum(rate(plujka_http_requests_total{status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(plujka_http_requests_total{route!=\"/metrics\"}[5m])), 1e-9)",
+          "expr": "(sum(rate(kratka_wyborcza_http_requests_total{status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(kratka_wyborcza_http_requests_total{route!=\"/metrics\"}[5m])), 1e-9)",
           "legendFormat": "5xx",
           "datasource": {
             "type": "prometheus",
@@ -171,7 +171,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(plujka_http_request_duration_seconds_bucket{route!=\"/metrics\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(kratka_wyborcza_http_request_duration_seconds_bucket{route!=\"/metrics\"}[5m])))",
           "legendFormat": "{{route}}",
           "datasource": {
             "type": "prometheus",
@@ -225,7 +225,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (status) (increase(plujka_ask_total[1h]))",
+          "expr": "sum by (status) (increase(kratka_wyborcza_ask_total[1h]))",
           "legendFormat": "{{status}}",
           "datasource": {
             "type": "prometheus",
@@ -279,7 +279,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (kind) (increase(plujka_llm_tokens_total[1h]))",
+          "expr": "sum by (kind) (increase(kratka_wyborcza_llm_tokens_total[1h]))",
           "legendFormat": "{{kind}}",
           "datasource": {
             "type": "prometheus",
@@ -323,7 +323,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(increase(plujka_llm_cost_usd_total[24h]))",
+          "expr": "sum(increase(kratka_wyborcza_llm_cost_usd_total[24h]))",
           "legendFormat": "USD",
           "datasource": {
             "type": "prometheus",
@@ -689,7 +689,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (datname) (pg_stat_activity_max_tx_duration{datname=~\"plujka.*\"})",
+          "expr": "max by (datname) (pg_stat_activity_max_tx_duration{datname=~\"kratka_wyborcza.*\"})",
           "legendFormat": "{{datname}}",
           "datasource": {
             "type": "prometheus",
@@ -743,7 +743,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "pg_database_size_bytes{datname=~\"plujka.*\"}",
+          "expr": "pg_database_size_bytes{datname=~\"kratka_wyborcza.*\"}",
           "legendFormat": "{{datname}}",
           "datasource": {
             "type": "prometheus",

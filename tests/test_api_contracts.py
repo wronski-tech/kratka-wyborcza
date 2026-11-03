@@ -177,7 +177,7 @@ class TestAskEndpoint(unittest.TestCase):
         self.assertEqual(answer["follow_ups"], ["A w 2019?", "A w podziale na województwa?", "Jak to się zmieniło w porównaniu z 2019?"])
 
     def test_request_id_in_header_logs_question_log_and_errors(self) -> None:
-        with patch("api.main.opensearch_store.log_question") as logged, self.assertLogs("plujka.api", "INFO") as logs:
+        with patch("api.main.opensearch_store.log_question") as logged, self.assertLogs("kratka_wyborcza.api", "INFO") as logs:
             response = self.client.post("/ask", json={"question": "q"}, headers={"X-Request-ID": "caddy-0001-abcd"})
         self.assertEqual(response.headers["X-Request-ID"], "caddy-0001-abcd")
         self.assertEqual(logged.call_args.args[0]["request_id"], "caddy-0001-abcd")
@@ -189,7 +189,7 @@ class TestAskEndpoint(unittest.TestCase):
         self.assertRegex(replaced, r"^[0-9a-f]{32}$")
         # An unhandled error answers 500 with the id, so a user's report leads to the traceback.
         self.route.side_effect = RuntimeError("boom")
-        with self.assertLogs("plujka.api", "ERROR"):
+        with self.assertLogs("kratka_wyborcza.api", "ERROR"):
             failed = TestClient(app, raise_server_exceptions=False).post("/ask", json={"question": "q"},
                                                                           headers={"X-Request-ID": "caddy-0002-abcd"})
         self.assertEqual((failed.status_code, failed.json()["request_id"]), (500, "caddy-0002-abcd"))
@@ -213,10 +213,10 @@ class TestAskEndpoint(unittest.TestCase):
             key = (name, tuple(sorted(labels.items())))
             return after.get(key, 0) - before.get(key, 0)
 
-        self.assertEqual(grew("plujka_ask_total", status="repaired", answer_source="fallback"), 1)
-        self.assertEqual(grew("plujka_llm_tokens_total", kind="prompt"), 1200)
-        self.assertEqual(grew("plujka_llm_tokens_total", kind="completion"), 80)
-        self.assertEqual(grew("plujka_http_requests_total", method="POST", route="/ask", status="200"), 1)
+        self.assertEqual(grew("kratka_wyborcza_ask_total", status="repaired", answer_source="fallback"), 1)
+        self.assertEqual(grew("kratka_wyborcza_llm_tokens_total", kind="prompt"), 1200)
+        self.assertEqual(grew("kratka_wyborcza_llm_tokens_total", kind="completion"), 80)
+        self.assertEqual(grew("kratka_wyborcza_http_requests_total", method="POST", route="/ask", status="200"), 1)
         # Path parameters stay out of the labels: one series per route template, not per view id.
         self.assertTrue(any(dict(labels).get("route") == "/views/{view_id}" for (_, labels) in after))
         self.assertFalse(any("0123456789ab" in str(labels) for (_, labels) in after))
@@ -240,9 +240,9 @@ class TestAskEndpoint(unittest.TestCase):
 
     def test_llm_provider_from_configuration(self) -> None:
         with patch("api.services.llm_client.openai") as sdk, patch.object(config, "OPENAI_API_KEY", "k"):
-            with patch.object(config, "LLM_PROVIDER", "azure"), patch.object(config, "AZURE_OPENAI_ENDPOINT", "https://plujka-eu.openai.azure.com"):
+            with patch.object(config, "LLM_PROVIDER", "azure"), patch.object(config, "AZURE_OPENAI_ENDPOINT", "https://kratka-wyborcza-eu.openai.azure.com"):
                 llm_client.llm_client()
-            sdk.AzureOpenAI.assert_called_once_with(api_key="k", azure_endpoint="https://plujka-eu.openai.azure.com",
+            sdk.AzureOpenAI.assert_called_once_with(api_key="k", azure_endpoint="https://kratka-wyborcza-eu.openai.azure.com",
                                                     api_version=config.AZURE_OPENAI_API_VERSION)
             with patch.object(config, "OPENAI_BASE_URL", ""):
                 llm_client.llm_client()

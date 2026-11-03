@@ -1,6 +1,6 @@
 apiVersion: 1
 providers:
-  - name: plujka
+  - name: kratka-wyborcza
     type: file
     disableDeletion: true
     allowUiUpdates: false

@@ -38,7 +38,7 @@ def _t(text: str) -> str:
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 # Sent as X-API-Key when the API requires keys (API_KEYS on the API side).
-API_KEY = os.getenv("PLUJKA_API_KEY", "")
+API_KEY = os.getenv("KRATKA_WYBORCZA_API_KEY", "")
 API_HEADERS = {"X-API-Key": API_KEY} if API_KEY else {}
 # Same limit as the API (QUESTION_MAX_CHARS); the field stops typing there.
 QUESTION_MAX_CHARS = int(os.getenv("QUESTION_MAX_CHARS", "500"))
@@ -162,7 +162,7 @@ def _ask(question: str, entity_refs: list[dict] | None = None, previous: dict | 
             st.warning(_t("Pytanie jest za długie albo puste.") + f" (max {QUESTION_MAX_CHARS})")
             return None
         if response.status_code == 401:
-            st.error("API wymaga klucza (ustaw PLUJKA_API_KEY dla interfejsu).")
+            st.error("API wymaga klucza (ustaw KRATKA_WYBORCZA_API_KEY dla interfejsu).")
             return None
         response.raise_for_status()
         return response.json()
@@ -208,7 +208,7 @@ def _voice_input() -> None:
     elif not response.ok:
         st.warning(f"Nie udało się rozpoznać nagrania (HTTP {response.status_code}); wpisz pytanie.")
     else:
-        st.session_state["plujka_question_input"] = response.json()["text"][:QUESTION_MAX_CHARS]
+        st.session_state["kratka_wyborcza_question_input"] = response.json()["text"][:QUESTION_MAX_CHARS]
         st.caption(_t("Rozpoznany tekst jest w polu pytania: sprawdź go i wyślij."))
 
 
@@ -867,7 +867,7 @@ def _fetch_person(person_id: int) -> dict | None:
         st.warning("Nie ma już tej osoby w bazie (baza mogła zostać przebudowana). Zadaj pytanie ponownie.")
         return None
     if response.status_code == 401:
-        st.error("API wymaga klucza (ustaw PLUJKA_API_KEY dla interfejsu).")
+        st.error("API wymaga klucza (ustaw KRATKA_WYBORCZA_API_KEY dla interfejsu).")
         return None
     if response.status_code == 503:
         st.warning("Baza wyników jest chwilowo niedostępna. Spróbuj ponownie za chwilę.")
@@ -886,7 +886,7 @@ def _api_get(path: str, params: dict | None = None, invalid: str = "Nieprawidło
         st.error(f"Coś poszło nie tak z API: {error}")
         return None
     if response.status_code == 401:
-        st.error("API wymaga klucza (ustaw PLUJKA_API_KEY dla interfejsu).")
+        st.error("API wymaga klucza (ustaw KRATKA_WYBORCZA_API_KEY dla interfejsu).")
         return None
     if response.status_code == 503:
         st.warning("Baza wyników jest chwilowo niedostępna. Spróbuj ponownie za chwilę.")
@@ -1098,53 +1098,53 @@ st.markdown(
     """
     <style>
         :root {
-            --plujka-ink: #1e1b4b;
-            --plujka-muted: #64748b;
-            --plujka-line: rgba(99, 102, 241, 0.15);
-            --plujka-glow: rgba(99, 102, 241, 0.08);
+            --kratka-wyborcza-ink: #1e1b4b;
+            --kratka-wyborcza-muted: #64748b;
+            --kratka-wyborcza-line: rgba(99, 102, 241, 0.15);
+            --kratka-wyborcza-glow: rgba(99, 102, 241, 0.08);
         }
         .main .block-container {
             padding-top: 2rem;
             padding-bottom: 3rem;
             max-width: 880px;
         }
-        h1 { letter-spacing: -0.03em !important; font-weight: 700 !important; color: var(--plujka-ink) !important; }
-        .plujka-hero {
+        h1 { letter-spacing: -0.03em !important; font-weight: 700 !important; color: var(--kratka-wyborcza-ink) !important; }
+        .kratka-wyborcza-hero {
             background: linear-gradient(125deg, #f4f7ff 0%, #fef6ff 48%, #fff9f3 100%);
-            border: 1px solid var(--plujka-line);
+            border: 1px solid var(--kratka-wyborcza-line);
             border-radius: 18px;
             padding: 1.35rem 1.5rem 1.5rem;
             margin-bottom: 1.25rem;
-            box-shadow: 0 12px 40px var(--plujka-glow);
+            box-shadow: 0 12px 40px var(--kratka-wyborcza-glow);
         }
-        .plujka-hero h2 {
+        .kratka-wyborcza-hero h2 {
             margin: 0;
             font-size: 1.65rem;
             font-weight: 700;
-            color: var(--plujka-ink);
+            color: var(--kratka-wyborcza-ink);
             line-height: 1.2;
         }
-        .plujka-hero p {
+        .kratka-wyborcza-hero p {
             margin: 0.45rem 0 0 0;
-            color: var(--plujka-muted);
+            color: var(--kratka-wyborcza-muted);
             font-size: 0.98rem;
             line-height: 1.45;
         }
         /* Streamlit follows the system theme by default ("Use system setting"); keep the hero readable in dark mode. */
         @media (prefers-color-scheme: dark) {
             :root {
-                --plujka-ink: #e0e7ff;
-                --plujka-muted: #a5b4fc;
-                --plujka-line: rgba(165, 180, 252, 0.25);
-                --plujka-glow: rgba(0, 0, 0, 0.3);
+                --kratka-wyborcza-ink: #e0e7ff;
+                --kratka-wyborcza-muted: #a5b4fc;
+                --kratka-wyborcza-line: rgba(165, 180, 252, 0.25);
+                --kratka-wyborcza-glow: rgba(0, 0, 0, 0.3);
             }
-            .plujka-hero { background: linear-gradient(125deg, #1e1b4b 0%, #312e81 52%, #3b0764 100%); }
+            .kratka-wyborcza-hero { background: linear-gradient(125deg, #1e1b4b 0%, #312e81 52%, #3b0764 100%); }
         }
         /* Phones: Streamlit stacks columns below 640px; use the width and keep the hero compact. */
         @media (max-width: 640px) {
             .main .block-container { padding: 1rem 0.75rem 2rem; }
-            .plujka-hero { padding: 0.9rem 1rem; border-radius: 14px; }
-            .plujka-hero h2 { font-size: 1.3rem; }
+            .kratka-wyborcza-hero { padding: 0.9rem 1rem; border-radius: 14px; }
+            .kratka-wyborcza-hero h2 { font-size: 1.3rem; }
         }
         /* Visible keyboard focus on every control. */
         :focus-visible { outline: 2px solid #6366f1 !important; outline-offset: 2px; }
@@ -1158,7 +1158,7 @@ if "widget" not in st.query_params:
     switch = "?" + urlencode({**{k: v for k, v in st.query_params.items() if k != "lang"}, **({} if LANG == "en" else {"lang": "en"})})
     st.markdown(
         f"""
-        <div class="plujka-hero">
+        <div class="kratka-wyborcza-hero">
             <h2>{_t("Kratka Wyborcza: dane, nie opinie")}</h2>
             <p><a href="{switch}" target="_self" hreflang="{"pl" if LANG == "en" else "en"}">{other}</a>{
             " · " + _t("Odpowiedzi i dane są po polsku.") if LANG == "en" else ""}</p>
@@ -2050,7 +2050,7 @@ def _gaps_and_sources() -> None:
 @st.fragment(run_every=_READINESS_POLL_INTERVAL)
 def _api_data_readiness_banner() -> None:
     """Api data readiness banner."""
-    if st.session_state.get("_plujka_api_data_ready"):
+    if st.session_state.get("_kratka_wyborcza_api_data_ready"):
         st.success("**Baza gotowa** — możesz korzystać z pełnych danych KBW.")
         return
 
@@ -2062,7 +2062,7 @@ def _api_data_readiness_banner() -> None:
         st.error("Nie mogę połączyć się z API. Sprawdź, czy backend działa (`/health`).")
         return
     if payload.get("data_ready"):
-        st.session_state["_plujka_api_data_ready"] = True
+        st.session_state["_kratka_wyborcza_api_data_ready"] = True
         st.success("**Baza gotowa** — możesz korzystać z pełnych danych KBW.")
     else:
         st.warning(
@@ -2138,7 +2138,7 @@ with st.container(border=True):
             _t("Twoje pytanie"),
             placeholder=_t("np. Ile głosów miała KO w 2023? · posłowie PiS z Wrocławia"),
             label_visibility="visible",
-            key="plujka_question_input",
+            key="kratka_wyborcza_question_input",
             max_chars=QUESTION_MAX_CHARS,
         )
         q_val = (question or "").strip()

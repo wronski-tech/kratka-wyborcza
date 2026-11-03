@@ -1,6 +1,6 @@
 locals {
-  name   = "plujka-${var.environment}"
-  labels = { app = "plujka", environment = var.environment }
+  name   = "kratka-wyborcza-${var.environment}"
+  labels = { app = "kratka-wyborcza", environment = var.environment }
 }
 
 resource "hcloud_ssh_key" "operator" {

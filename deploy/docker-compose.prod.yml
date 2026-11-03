@@ -1,7 +1,7 @@
 # Production override (Hetzner server, see infra/hetzner): data on the volume /mnt/data, no published
 # Paths are relative to the repository root (the project directory of the first compose file).
 # ports except Caddy, owner password from .env, uvicorn behind the proxy under /api, images from GHCR
-# (workflow Images; PLUJKA_IMAGE_TAG in .env, set by deploy/update_app.sh).
+# (workflow Images; KRATKA_WYBORCZA_IMAGE_TAG in .env, set by deploy/update_app.sh).
 #   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d
 services:
   postgres:
@@ -19,16 +19,16 @@ services:
     restart: unless-stopped
 
   api:
-    image: ghcr.io/wronski-tech/plujka-api:${PLUJKA_IMAGE_TAG:-latest}
+    image: ghcr.io/wronski-tech/kratka-wyborcza-api:${KRATKA_WYBORCZA_IMAGE_TAG:-latest}
     environment:
-      DATABASE_URL: postgresql://plujka:${POSTGRES_PASSWORD}@postgres:5432/plujka
-      # The mart lives in its own database, switched by deploy/deploy_mart.sh (plujka_mart_a / _b).
-      MART_DATABASE_URL: postgresql://plujka_mart_reader:${MART_READER_PASSWORD:?set MART_READER_PASSWORD in .env}@postgres:5432/${MART_DB:-plujka_mart_a}
-      PLUJKA_ENV: production
+      DATABASE_URL: postgresql://kratka_wyborcza:${POSTGRES_PASSWORD}@postgres:5432/kratka_wyborcza
+      # The mart lives in its own database, switched by deploy/deploy_mart.sh (kratka_wyborcza_mart_a / _b).
+      MART_DATABASE_URL: postgresql://kratka_wyborcza_mart_reader:${MART_READER_PASSWORD:?set MART_READER_PASSWORD in .env}@postgres:5432/${MART_DB:-kratka_wyborcza_mart_a}
+      KRATKA_WYBORCZA_ENV: production
       FEEDBACK_JSONL_PATH: /app/feedback/feedback.jsonl
       # Both workers write their metrics here and /metrics sums them (api/services/metrics.py).
       PROMETHEUS_MULTIPROC_DIR: /tmp/metrics
-      SENTRY_RELEASE: ${PLUJKA_IMAGE_TAG:-}
+      SENTRY_RELEASE: ${KRATKA_WYBORCZA_IMAGE_TAG:-}
     tmpfs:
       - /tmp/metrics
     # Client addresses from Caddy's X-Forwarded-For (the API is reachable only inside the compose network).
@@ -40,14 +40,14 @@ services:
     restart: unless-stopped
 
   streamlit:
-    image: ghcr.io/wronski-tech/plujka-streamlit:${PLUJKA_IMAGE_TAG:-latest}
+    image: ghcr.io/wronski-tech/kratka-wyborcza-streamlit:${KRATKA_WYBORCZA_IMAGE_TAG:-latest}
     ports: !reset []
     restart: unless-stopped
 
   loader:
-    image: ghcr.io/wronski-tech/plujka-loader:${PLUJKA_IMAGE_TAG:-latest}
+    image: ghcr.io/wronski-tech/kratka-wyborcza-loader:${KRATKA_WYBORCZA_IMAGE_TAG:-latest}
     environment:
-      DATABASE_URL: postgresql://plujka:${POSTGRES_PASSWORD}@postgres:5432/plujka
+      DATABASE_URL: postgresql://kratka_wyborcza:${POSTGRES_PASSWORD}@postgres:5432/kratka_wyborcza
 
   redis:
     profiles: !reset []
@@ -78,9 +78,9 @@ services:
     ports: !override
       - "127.0.0.1:3000:3000"
     volumes: !override
-      - ./docker/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/plujka.yml:ro
-      - ./docker/monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/plujka.yml:ro
-      - ./docker/monitoring/grafana/plujka.json:/etc/grafana/dashboards/plujka.json:ro
+      - ./docker/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/kratka-wyborcza.yml:ro
+      - ./docker/monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/kratka-wyborcza.yml:ro
+      - ./docker/monitoring/grafana/kratka-wyborcza.json:/etc/grafana/dashboards/kratka-wyborcza.json:ro
       - /mnt/data/grafana:/var/lib/grafana
     restart: unless-stopped
 
@@ -104,12 +104,12 @@ services:
   postgres-exporter:
     profiles: !reset []
     environment:
-      DATA_SOURCE_NAME: postgresql://plujka:${POSTGRES_PASSWORD}@postgres:5432/plujka?sslmode=disable
+      DATA_SOURCE_NAME: postgresql://kratka_wyborcza:${POSTGRES_PASSWORD}@postgres:5432/kratka_wyborcza?sslmode=disable
     restart: unless-stopped
 
   caddy:
     image: caddy:2
-    container_name: plujka-caddy
+    container_name: kratka-wyborcza-caddy
     env_file: deploy/caddy.env
     ports:
       - "80:80"

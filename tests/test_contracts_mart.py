@@ -1,4 +1,4 @@
-"""Contract tests of the API endpoints on a built mart (``PLUJKA_RUN_MART_TESTS=1``, ``make test-mart``).
+"""Contract tests of the API endpoints on a built mart (``KRATKA_WYBORCZA_RUN_MART_TESTS=1``, ``make test-mart``).
 
 Every operation in the OpenAPI schema has a case here or a reason in ``EXCLUDED``, so a new endpoint fails
 until it gets one. A case runs the endpoint's fixed SQL on the real mart (unit tests stub the database)
@@ -14,7 +14,7 @@ import re
 import unittest
 from typing import Any
 
-_RUN = os.environ.get("PLUJKA_RUN_MART_TESTS", "").strip().lower() in ("1", "true", "yes")
+_RUN = os.environ.get("KRATKA_WYBORCZA_RUN_MART_TESTS", "").strip().lower() in ("1", "true", "yes")
 
 # (method, OpenAPI path) -> (URL, query parameters or JSON body, fields of the first item).
 # ``{person}`` and ``{report}`` are filled in from the mart (Jarosław Wałęsa, the first report).
@@ -90,7 +90,7 @@ def _first(body: Any) -> dict:
     return body
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_MART_TESTS=1 (built mart) to run contract tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_MART_TESTS=1 (built mart) to run contract tests")
 class TestEndpointContracts(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

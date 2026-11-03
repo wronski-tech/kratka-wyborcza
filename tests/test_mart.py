@@ -86,7 +86,7 @@ class TestSafeSql(unittest.TestCase):
             "SELECT * FROM public.kbw_facts",
             "SELECT * FROM kbw_facts",
             "SELECT * FROM pg_catalog.pg_roles",
-            "SELECT set_config('role', 'plujka', false)",
+            "SELECT set_config('role', 'kratka_wyborcza', false)",
             "SELECT pg_sleep(10)",
             "SELECT * INTO mart.copy FROM mart.persons",
             "WITH x AS (DELETE FROM mart.persons RETURNING *) SELECT * FROM x",
@@ -103,7 +103,7 @@ class TestSafeSql(unittest.TestCase):
             "COPY (SELECT 1) TO PROGRAM 'id'",
             "SELECT 1 INTO TEMP t",
             "DO $$ BEGIN PERFORM 1; END $$",
-            "SELECT * FROM mart.persons WHERE full_name = '' OR 1=1; SET ROLE plujka",
+            "SELECT * FROM mart.persons WHERE full_name = '' OR 1=1; SET ROLE kratka_wyborcza",
         ]
         for sql in unsafe:
             with self.subTest(sql=sql), self.assertRaises(UnsafeSqlError):

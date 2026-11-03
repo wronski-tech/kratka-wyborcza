@@ -1,6 +1,6 @@
 """End-to-end KBW pipeline on a tiny synthetic row (requires PostgreSQL + extensions).
 
-Runs when ``PLUJKA_RUN_DB_TESTS=1`` (see CI integration job).
+Runs when ``KRATKA_WYBORCZA_RUN_DB_TESTS=1`` (see CI integration job).
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from unittest import mock
 
 from api.services import db, kbw_analytics, kbw_import
 
-_RUN = os.environ.get("PLUJKA_RUN_DB_TESTS", "").strip().lower() in ("1", "true", "yes")
+_RUN = os.environ.get("KRATKA_WYBORCZA_RUN_DB_TESTS", "").strip().lower() in ("1", "true", "yes")
 
 _FIXTURE_YEAR = 2099
 _FIXTURE_REL_PATH = "test_fixture/2099/sejm/wyniki_gl_na_kandydatow_po_gminach_sejm_csv/x.csv"
@@ -64,7 +64,7 @@ def _seed_minimal_sejm_candidate_fact() -> None:
             )
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_DB_TESTS=1 to run DB integration tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_DB_TESTS=1 to run DB integration tests")
 class TestKbwMinimalFixture(unittest.TestCase):
     def setUp(self) -> None:
         db.init_database()

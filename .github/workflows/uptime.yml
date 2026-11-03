@@ -2,7 +2,7 @@
 # GET /api/health (status ok, mart loaded) and the UI page through Caddy, three tries a minute apart. When
 # they fail, an issue "Kratka Wyborcza is down" is opened (assigned to ALERT_ASSIGNEES, GitHub notifies them and the
 # repository's watchers) and that run fails (GitHub mails the failure too); when the site answers again, the
-# issue gets a comment and is closed. Needs the repository variable PLUJKA_URL.
+# issue gets a comment and is closed. Needs the repository variable KRATKA_WYBORCZA_URL.
 name: Uptime
 
 on:
@@ -23,7 +23,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      BASE: ${{ vars.PLUJKA_URL }}
+      BASE: ${{ vars.KRATKA_WYBORCZA_URL }}
       ASSIGNEES: ${{ vars.ALERT_ASSIGNEES }}
       TITLE: Kratka Wyborcza is down
     steps:
@@ -31,7 +31,7 @@ jobs:
         id: check
         run: |
           if [ -z "$BASE" ]; then
-            echo "::notice::set the repository variable PLUJKA_URL to monitor the site"
+            echo "::notice::set the repository variable KRATKA_WYBORCZA_URL to monitor the site"
             echo "state=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi

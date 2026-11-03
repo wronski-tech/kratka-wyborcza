@@ -3,7 +3,7 @@
 # backups from the Storage Box, check they are fresh and intact, restore the public schema and the feedback,
 # rebuild the OpenSearch question log, and report what came back. With a base URL it ends with the smoke test.
 #
-# Run on the new server (stack up, mart deployed) as deploy, from /srv/plujka, with deploy/drill.env
+# Run on the new server (stack up, mart deployed) as deploy, from /srv/kratka-wyborcza, with deploy/drill.env
 # (STORAGE_BOX, STORAGE_BOX_KEY, STORAGE_BOX_DIR as in deploy/backup.env; never create backup.env on a drill
 # server, or its nightly backup lands next to production's) and AGE_IDENTITY, the backup's age private key from
 # the password manager (a file; delete it after the drill). Optional: MAX_AGE_HOURS (default 36),
@@ -20,12 +20,12 @@ if [ -f deploy/drill.env ]; then
   set +a
 fi
 : "${STORAGE_BOX:?set STORAGE_BOX=user@host of the Storage Box (deploy/drill.env)}"
-remote_dir="${STORAGE_BOX_DIR:-plujka}"
+remote_dir="${STORAGE_BOX_DIR:-kratka-wyborcza}"
 work="${DRILL_DIR:-/mnt/data/restore-drill}"
 ssh_opts=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new ${STORAGE_BOX_KEY:+-i "$STORAGE_BOX_KEY"})
 box() { ssh -p 23 "${ssh_opts[@]}" "$STORAGE_BOX" "$@"; }
 dc=(docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml)
-psql() { "${dc[@]}" exec -T postgres psql -U plujka -d plujka -v ON_ERROR_STOP=1 -tA "$@"; }
+psql() { "${dc[@]}" exec -T postgres psql -U kratka_wyborcza -d kratka_wyborcza -v ON_ERROR_STOP=1 -tA "$@"; }
 fail() { echo "restore drill failed: $*" >&2; exit 1; }
 
 # The restore replaces the public schema: refuse on a server with history (production), allow a new one
@@ -38,8 +38,8 @@ fi
 
 # The newest backup of each kind, by the UTC stamp in its name.
 listing=$(box ls -1 "$remote_dir")
-dump=$(grep -E '^plujka-[0-9]{8}-[0-9]{6}\.dump(\.age)?$' <<<"$listing" | sort | tail -1) || fail "no dump on the box"
-files=$(grep -E '^plujka-files-[0-9]{8}-[0-9]{6}\.tar\.gz(\.age)?$' <<<"$listing" | sort | tail -1) \
+dump=$(grep -E '^kratka-wyborcza-[0-9]{8}-[0-9]{6}\.dump(\.age)?$' <<<"$listing" | sort | tail -1) || fail "no dump on the box"
+files=$(grep -E '^kratka-wyborcza-files-[0-9]{8}-[0-9]{6}\.tar\.gz(\.age)?$' <<<"$listing" | sort | tail -1) \
   || fail "no files archive on the box"
 for name in "$dump" "$files"; do
   stamp=$(grep -oE '[0-9]{8}-[0-9]{6}' <<<"$name")
@@ -65,7 +65,7 @@ files=${files%.age}
 
 # The documented restore (docs/DEPLOYMENT.md, Backups), with the API stopped so nothing writes meanwhile.
 "${dc[@]}" stop api
-"${dc[@]}" exec -T postgres pg_restore --clean --if-exists --no-owner -U plujka -d plujka < "$work/$dump" \
+"${dc[@]}" exec -T postgres pg_restore --clean --if-exists --no-owner -U kratka_wyborcza -d kratka_wyborcza < "$work/$dump" \
   || fail "pg_restore of $dump"
 "${dc[@]}" up -d api
 

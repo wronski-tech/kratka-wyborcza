@@ -38,7 +38,7 @@ SQL safety), `docs/DATA.md` (sources), `docs/DEPLOYMENT.md` (API keys, Redis lim
 | `scripts/check_sources.py`, `data/source_manifest.json` | Detects republished KBW files (HEAD vs manifest), re-stages them, names the family-years to rebuild |
 | `scripts/scrape_list_groups_2006.py`, `data/pkw_html/` | 2006 list blocs scraped from PKW's results pages (not in KBW files), read by `build_rady.add_list_groups` |
 | `streamlit_app/app.py`, `streamlit_app/map_units.py`, `streamlit_app/geo/` | UI: answer, table, bar chart, choropleth (TERYT-keyed boundaries; old codes via `geo/teryt_changes.json`), SQL + source, follow-up toggle |
-| `tests/` | `unittest`. DB tests run only with `PLUJKA_RUN_DB_TESTS=1` |
+| `tests/` | `unittest`. DB tests run only with `KRATKA_WYBORCZA_RUN_DB_TESTS=1` |
 
 ## Rules
 
@@ -94,15 +94,15 @@ SQL safety), `docs/DATA.md` (sources), `docs/DEPLOYMENT.md` (API keys, Redis lim
 
 ```bash
 make test                         # unit tests, no DB
-make test-integration             # + DB tests (needs DATABASE_URL with pgvector, PLUJKA_RUN_DB_TESTS=1)
+make test-integration             # + DB tests (needs DATABASE_URL with pgvector, KRATKA_WYBORCZA_RUN_DB_TESTS=1)
 make coverage                     # unit tests with coverage (floor: fail_under in .coveragerc)
 make test-mart                    # tests on a built mart: /ask end to end with a fake OpenAI server, endpoint contracts, entities on the lexicon
 make compile                      # byte-compile api, scripts, streamlit_app, tests
 
 python3 scripts/kbw_stage_duckdb.py --root data/kbw_mirror/dane --out data/kbw_stage_parquet
 for d in data/pkw_all/sejmsenat*/zip; do python3 scripts/kbw_stage_duckdb.py --root "$d" --out data/pkw_stage_parquet; done
-DATABASE_URL=postgresql://plujka:plujka@localhost:5432/plujka python3 scripts/build_mart.py [--years 2023] [--elections prezydent,pe]
-MART_DATABASE_URL=postgresql://plujka_mart_reader:plujka_mart_reader@localhost:5432/plujka python3 scripts/add_sql_example.py --check
+DATABASE_URL=postgresql://kratka_wyborcza:kratka_wyborcza@localhost:5432/kratka_wyborcza python3 scripts/build_mart.py [--years 2023] [--elections prezydent,pe]
+MART_DATABASE_URL=postgresql://kratka_wyborcza_mart_reader:kratka_wyborcza_mart_reader@localhost:5432/kratka_wyborcza python3 scripts/add_sql_example.py --check
 
 docker compose up -d                                  # postgres, opensearch, api, streamlit
 docker compose --profile tools run --rm loader        # stage + import + build mart

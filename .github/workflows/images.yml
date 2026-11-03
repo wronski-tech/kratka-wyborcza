@@ -1,5 +1,5 @@
 # Docker images on GHCR for the production compose file (deploy/docker-compose.prod.yml):
-# ghcr.io/<owner>/plujka-{api,streamlit,loader}:<commit sha>, plus :latest on main and :<tag> on
+# ghcr.io/<owner>/kratka-wyborcza-{api,streamlit,loader}:<commit sha>, plus :latest on main and :<tag> on
 # version tags. Trivy reports known vulnerabilities (fixed upstream, HIGH and CRITICAL) per image.
 name: Images
 
@@ -31,7 +31,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/plujka-${{ matrix.component }}
+          images: ghcr.io/${{ github.repository_owner }}/kratka-wyborcza-${{ matrix.component }}
           tags: |
             type=sha,format=long,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
@@ -52,7 +52,7 @@ jobs:
       - name: Vulnerability report
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/plujka-${{ matrix.component }}:${{ github.sha }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/kratka-wyborcza-${{ matrix.component }}:${{ github.sha }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           format: table

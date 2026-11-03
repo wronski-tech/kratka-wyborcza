@@ -1,29 +1,29 @@
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: plujka-postgres
+    container_name: kratka-wyborcza-postgres
     environment:
-      POSTGRES_DB: plujka
-      POSTGRES_USER: plujka
-      POSTGRES_PASSWORD: plujka
+      POSTGRES_DB: kratka_wyborcza
+      POSTGRES_USER: kratka_wyborcza
+      POSTGRES_PASSWORD: kratka_wyborcza
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U plujka -d plujka"]
+      test: ["CMD-SHELL", "pg_isready -U kratka_wyborcza -d kratka_wyborcza"]
       interval: 5s
       timeout: 5s
       retries: 20
 
   opensearch:
     image: opensearchproject/opensearch:2.15.0
-    container_name: plujka-opensearch
+    container_name: kratka-wyborcza-opensearch
     environment:
       discovery.type: single-node
       plugins.security.disabled: "true"
       DISABLE_INSTALL_DEMO_CONFIG: "true"
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-PlujkaAdmin123!}
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-KratkaWyborczaAdmin123!}
       OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
@@ -40,13 +40,13 @@ services:
     build:
       context: .
       dockerfile: docker/api.Dockerfile
-    container_name: plujka-api
+    container_name: kratka-wyborcza-api
     environment:
-      DATABASE_URL: postgresql://plujka:plujka@postgres:5432/plujka
+      DATABASE_URL: postgresql://kratka_wyborcza:kratka_wyborcza@postgres:5432/kratka_wyborcza
       # Read-only role created by scripts/build_mart.py; used for LLM-generated SQL.
-      MART_DATABASE_URL: postgresql://plujka_mart_reader:${MART_READER_PASSWORD:-plujka_mart_reader}@postgres:5432/plujka
+      MART_DATABASE_URL: postgresql://kratka_wyborcza_mart_reader:${MART_READER_PASSWORD:-kratka_wyborcza_mart_reader}@postgres:5432/kratka_wyborcza
       # production refuses to start with default passwords or without a rate limit.
-      PLUJKA_ENV: ${PLUJKA_ENV:-development}
+      KRATKA_WYBORCZA_ENV: ${KRATKA_WYBORCZA_ENV:-development}
       ASK_RATE_LIMIT_PER_MINUTE: ${ASK_RATE_LIMIT_PER_MINUTE:-30}
       QUESTION_MAX_CHARS: ${QUESTION_MAX_CHARS:-500}
       SESSION_QUESTION_LIMIT: ${SESSION_QUESTION_LIMIT:-100}
@@ -88,10 +88,10 @@ services:
     build:
       context: .
       dockerfile: docker/streamlit.Dockerfile
-    container_name: plujka-streamlit
+    container_name: kratka-wyborcza-streamlit
     environment:
       API_URL: http://api:8000
-      PLUJKA_API_KEY: ${PLUJKA_API_KEY:-}
+      KRATKA_WYBORCZA_API_KEY: ${KRATKA_WYBORCZA_API_KEY:-}
     ports:
       - "8501:8501"
     depends_on:
@@ -101,11 +101,11 @@ services:
     build:
       context: .
       dockerfile: docker/loader.Dockerfile
-    container_name: plujka-loader
+    container_name: kratka-wyborcza-loader
     environment:
-      DATABASE_URL: postgresql://plujka:plujka@postgres:5432/plujka
+      DATABASE_URL: postgresql://kratka_wyborcza:kratka_wyborcza@postgres:5432/kratka_wyborcza
       # The build sets the reader role's password from this URL.
-      MART_DATABASE_URL: postgresql://plujka_mart_reader:${MART_READER_PASSWORD:-plujka_mart_reader}@postgres:5432/plujka
+      MART_DATABASE_URL: postgresql://kratka_wyborcza_mart_reader:${MART_READER_PASSWORD:-kratka_wyborcza_mart_reader}@postgres:5432/kratka_wyborcza
       OPENSEARCH_URL: http://opensearch:9200
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}
@@ -131,7 +131,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: plujka-redis
+    container_name: kratka-wyborcza-redis
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     profiles:
       - redis
@@ -139,7 +139,7 @@ services:
   # Kibana-like UI for the question_logs index (status, latency, tokens, errors).
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:2.15.0
-    container_name: plujka-opensearch-dashboards
+    container_name: kratka-wyborcza-opensearch-dashboards
     environment:
       OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
       DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
@@ -155,7 +155,7 @@ services:
   # Grafana shows the provisioned dashboard "Kratka Wyborcza" at http://localhost:3000.
   prometheus:
     image: prom/prometheus:v2.55.1
-    container_name: plujka-prometheus
+    container_name: kratka-wyborcza-prometheus
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus",
               "--storage.tsdb.retention.time=30d"]
     volumes:
@@ -170,7 +170,7 @@ services:
   # Sends alerts (docker/monitoring/alerts.yml) to a Slack-compatible webhook; without one they only show here.
   alertmanager:
     image: prom/alertmanager:v0.27.0
-    container_name: plujka-alertmanager
+    container_name: kratka-wyborcza-alertmanager
     environment:
       ALERT_WEBHOOK_SECRET: ${ALERT_WEBHOOK_SECRET:-}
     entrypoint:
@@ -191,16 +191,16 @@ services:
 
   grafana:
     image: grafana/grafana:11.3.1
-    container_name: plujka-grafana
+    container_name: kratka-wyborcza-grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
-      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/plujka.json
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/kratka-wyborcza.json
     volumes:
-      - ./docker/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/plujka.yml:ro
-      - ./docker/monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/plujka.yml:ro
-      - ./docker/monitoring/grafana/plujka.json:/etc/grafana/dashboards/plujka.json:ro
+      - ./docker/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/kratka-wyborcza.yml:ro
+      - ./docker/monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/kratka-wyborcza.yml:ro
+      - ./docker/monitoring/grafana/kratka-wyborcza.json:/etc/grafana/dashboards/kratka-wyborcza.json:ro
       - grafana_data:/var/lib/grafana
     ports:
       - "3000:3000"
@@ -213,7 +213,7 @@ services:
   # 30 days, Grafana searches them (Explore, data source Loki).
   loki:
     image: grafana/loki:3.2.1
-    container_name: plujka-loki
+    container_name: kratka-wyborcza-loki
     command: ["-config.file=/etc/loki/loki.yml"]
     volumes:
       - ./docker/monitoring/loki.yml:/etc/loki/loki.yml:ro
@@ -223,7 +223,7 @@ services:
 
   alloy:
     image: grafana/alloy:v1.4.3
-    container_name: plujka-alloy
+    container_name: kratka-wyborcza-alloy
     command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
     volumes:
       - ./docker/monitoring/config.alloy:/etc/alloy/config.alloy:ro
@@ -237,7 +237,7 @@ services:
 
   node-exporter:
     image: prom/node-exporter:v1.8.2
-    container_name: plujka-node-exporter
+    container_name: kratka-wyborcza-node-exporter
     command: ["--path.rootfs=/host"]
     pid: host
     volumes:
@@ -247,9 +247,9 @@ services:
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.16.0
-    container_name: plujka-postgres-exporter
+    container_name: kratka-wyborcza-postgres-exporter
     environment:
-      DATA_SOURCE_NAME: postgresql://plujka:plujka@postgres:5432/plujka?sslmode=disable
+      DATA_SOURCE_NAME: postgresql://kratka_wyborcza:kratka_wyborcza@postgres:5432/kratka_wyborcza?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy

@@ -34,25 +34,25 @@ tests:
   # A long transaction of the API alerts; the restore of deploy_mart.sh does not.
   - interval: 1m
     input_series:
-      - series: 'pg_stat_activity_max_tx_duration{datname="plujka",usename="plujka",application_name="",state="active"}'
+      - series: 'pg_stat_activity_max_tx_duration{datname="kratka_wyborcza",usename="kratka_wyborcza",application_name="",state="active"}'
         values: "0 200x10"
-      - series: 'pg_stat_activity_max_tx_duration{datname="plujka_mart_b",usename="plujka",application_name="pg_restore",state="active"}'
+      - series: 'pg_stat_activity_max_tx_duration{datname="kratka_wyborcza_mart_b",usename="kratka_wyborcza",application_name="pg_restore",state="active"}'
         values: "0 900x10"
     alert_rule_test:
       - eval_time: 5m
         alertname: SlowQuery
         exp_alerts:
-          - exp_labels: {severity: warning, datname: plujka, usename: plujka}
-            exp_annotations: {summary: "A transaction of plujka in plujka runs for 3m 20s"}
+          - exp_labels: {severity: warning, datname: kratka_wyborcza, usename: kratka_wyborcza}
+            exp_annotations: {summary: "A transaction of kratka_wyborcza in kratka_wyborcza runs for 3m 20s"}
 
   # 10 % errors at 1 request/s alert; the same share at a trickle of traffic does not.
   - interval: 1m
     input_series:
-      - series: 'plujka_http_requests_total{route="/ask",status="200"}'
+      - series: 'kratka_wyborcza_http_requests_total{route="/ask",status="200"}'
         values: "0+54x30"
-      - series: 'plujka_http_requests_total{route="/ask",status="500"}'
+      - series: 'kratka_wyborcza_http_requests_total{route="/ask",status="500"}'
         values: "0+6x30"
-      - series: 'plujka_http_requests_total{route="/metrics",status="200"}'
+      - series: 'kratka_wyborcza_http_requests_total{route="/metrics",status="200"}'
         values: "0+1000x30"
     alert_rule_test:
       - eval_time: 20m
@@ -62,9 +62,9 @@ tests:
             exp_annotations: {summary: "10% of API requests end in a 5xx error"}
   - interval: 1m
     input_series:
-      - series: 'plujka_http_requests_total{route="/ask",status="200"}'
+      - series: 'kratka_wyborcza_http_requests_total{route="/ask",status="200"}'
         values: "0+0.27x30"
-      - series: 'plujka_http_requests_total{route="/ask",status="500"}'
+      - series: 'kratka_wyborcza_http_requests_total{route="/ask",status="500"}'
         values: "0+0.03x30"
     alert_rule_test:
       - eval_time: 20m
@@ -73,7 +73,7 @@ tests:
 
   - interval: 1m
     input_series:
-      - series: 'plujka_llm_tokens_total{kind="prompt"}'
+      - series: 'kratka_wyborcza_llm_tokens_total{kind="prompt"}'
         values: "0+40000x60"
     alert_rule_test:
       - eval_time: 30m
@@ -88,7 +88,7 @@ tests:
   # Last backup at t=0; 30 h later it is stale. Without the metric, BackupNeverRan fires after 2 h.
   - interval: 1h
     input_series:
-      - series: "plujka_backup_last_success_timestamp_seconds"
+      - series: "kratka_wyborcza_backup_last_success_timestamp_seconds"
         values: "0x40"
     alert_rule_test:
       - eval_time: 29h

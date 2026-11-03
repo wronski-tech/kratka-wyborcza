@@ -27,20 +27,20 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: plujka
-          POSTGRES_PASSWORD: plujka
-          POSTGRES_DB: plujka
+          POSTGRES_USER: kratka_wyborcza
+          POSTGRES_PASSWORD: kratka_wyborcza
+          POSTGRES_DB: kratka_wyborcza
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U plujka -d plujka"
+          --health-cmd "pg_isready -U kratka_wyborcza -d kratka_wyborcza"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
 
     env:
-      DATABASE_URL: postgresql://plujka:plujka@localhost:5432/plujka
-      MART_DATABASE_URL: postgresql://plujka_mart_reader:plujka_mart_reader@localhost:5432/plujka
+      DATABASE_URL: postgresql://kratka_wyborcza:kratka_wyborcza@localhost:5432/kratka_wyborcza
+      MART_DATABASE_URL: postgresql://kratka_wyborcza_mart_reader:kratka_wyborcza_mart_reader@localhost:5432/kratka_wyborcza
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       EVAL_USD_PER_1M_INPUT: ${{ vars.EVAL_USD_PER_1M_INPUT }}
       EVAL_USD_PER_1M_OUTPUT: ${{ vars.EVAL_USD_PER_1M_OUTPUT }}
@@ -67,9 +67,9 @@ jobs:
         run: |
           gh release download mart-latest -p 'mart.dump*'
           sha256sum -c mart.dump.sha256
-          docker exec -i ${{ job.services.postgres.id }} psql -U plujka -d plujka -v ON_ERROR_STOP=1 \
+          docker exec -i ${{ job.services.postgres.id }} psql -U kratka_wyborcza -d kratka_wyborcza -v ON_ERROR_STOP=1 \
             -c "CREATE EXTENSION IF NOT EXISTS pg_trgm"
-          docker exec -i ${{ job.services.postgres.id }} pg_restore -U plujka -d plujka --no-owner --no-privileges \
+          docker exec -i ${{ job.services.postgres.id }} pg_restore -U kratka_wyborcza -d kratka_wyborcza --no-owner --no-privileges \
             --exit-on-error --section=pre-data --section=data < mart.dump
           PYTHONPATH=. python -u scripts/build_mart.py --derived-only
 

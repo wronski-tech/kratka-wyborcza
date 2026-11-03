@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://plujka:plujka@localhost:5432/plujka")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://kratka_wyborcza:kratka_wyborcza@localhost:5432/kratka_wyborcza")
 OPENSEARCH_URL = os.getenv("OPENSEARCH_URL", "http://localhost:9200")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 # LLM provider (api/services/llm_client.py): "openai" (or an OpenAI-compatible endpoint at OPENAI_BASE_URL) or
@@ -29,7 +29,7 @@ EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "128"))
 # Read-only login role for LLM-generated SQL over the `mart` schema (created by scripts/build_mart.py).
 MART_DATABASE_URL = os.getenv(
     "MART_DATABASE_URL",
-    "postgresql://plujka_mart_reader:plujka_mart_reader@localhost:5432/plujka",
+    "postgresql://kratka_wyborcza_mart_reader:kratka_wyborcza_mart_reader@localhost:5432/kratka_wyborcza",
 )
 # Server-side limit for one LLM-generated query (milliseconds).
 MART_STATEMENT_TIMEOUT_MS = int(os.getenv("MART_STATEMENT_TIMEOUT_MS", "5000"))
@@ -38,10 +38,10 @@ MART_MAX_ROWS = int(os.getenv("MART_MAX_ROWS", "500"))
 # Planner cost above which a generated query is not run (0 disables). The heaviest reference query of the
 # evaluation set costs about 360k (0.5 s); a query timing out at 5 s costs tens of millions or more.
 MART_MAX_PLAN_COST = float(os.getenv("MART_MAX_PLAN_COST", "5000000"))
-# Password of the read-only role that ships in docker-compose; refused when PLUJKA_ENV=production.
-MART_DEFAULT_READER_PASSWORD = "plujka_mart_reader"
+# Password of the read-only role that ships in docker-compose; refused when KRATKA_WYBORCZA_ENV=production.
+MART_DEFAULT_READER_PASSWORD = "kratka_wyborcza_mart_reader"
 # "development" or "production". Production refuses to start with default credentials.
-PLUJKA_ENV = os.getenv("PLUJKA_ENV", "development").strip().lower()
+KRATKA_WYBORCZA_ENV = os.getenv("KRATKA_WYBORCZA_ENV", "development").strip().lower()
 # Folder with DejaVuSans.ttf and DejaVuSans-Bold.ttf for the PDF reports (Polish letters); Debian's
 # fonts-dejavu-core installs them here (docker/api.Dockerfile).
 REPORT_FONT_DIR = os.getenv("REPORT_FONT_DIR", "/usr/share/fonts/truetype/dejavu")
@@ -82,6 +82,6 @@ FEEDBACK_JSONL_PATH = os.getenv("FEEDBACK_JSONL_PATH", "data/feedback/feedback.j
 QUESTION_HINTS_SEMANTIC_MIN_CHARS = int(os.getenv("QUESTION_HINTS_SEMANTIC_MIN_CHARS", "6"))
 
 # Error tracking (Sentry or GlitchTip, same SDK): unhandled errors and ERROR log lines go to this DSN; off when
-# empty. The release is the deployed commit (PLUJKA_IMAGE_TAG on the server).
+# empty. The release is the deployed commit (KRATKA_WYBORCZA_IMAGE_TAG on the server).
 SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
 SENTRY_RELEASE = os.getenv("SENTRY_RELEASE", "").strip() or None

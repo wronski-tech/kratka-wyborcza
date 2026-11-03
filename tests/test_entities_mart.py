@@ -1,4 +1,4 @@
-"""Entity resolution on the real lexicon of a built mart (``PLUJKA_RUN_MART_TESTS=1``, ``make test-mart``).
+"""Entity resolution on the real lexicon of a built mart (``KRATKA_WYBORCZA_RUN_MART_TESTS=1``, ``make test-mart``).
 
 Unit tests use small hand-made lexicons; this runs the questions against ``mart.entity_lexicon`` as built,
 so a rebuild, a new alias or a new election that makes a question match the wrong place, person or
@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import unittest
 
-_RUN = os.environ.get("PLUJKA_RUN_MART_TESTS", "").strip().lower() in ("1", "true", "yes")
+_RUN = os.environ.get("KRATKA_WYBORCZA_RUN_MART_TESTS", "").strip().lower() in ("1", "true", "yes")
 
 # question -> (refs that must be matched, refs that must not, whether it asks to clarify).
 # Refs are "kind:ref" (TERYT codes, committee names) or "kind:name" for persons, whose ids the build assigns;
@@ -41,7 +41,7 @@ CASES: dict[str, tuple[set[str], set[str], bool]] = {
 }
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_MART_TESTS=1 (built mart) to run entity tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_MART_TESTS=1 (built mart) to run entity tests")
 class TestEntitiesOnTheLexicon(unittest.TestCase):
     def test_tricky_questions(self) -> None:
         from api.services import dynamic_sql

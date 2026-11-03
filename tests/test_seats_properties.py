@@ -1,4 +1,4 @@
-"""Property tests of ``mart.allocate_seats`` on PostgreSQL (``PLUJKA_RUN_DB_TESTS=1``; needs ``pip install hypothesis``).
+"""Property tests of ``mart.allocate_seats`` on PostgreSQL (``KRATKA_WYBORCZA_RUN_DB_TESTS=1``; needs ``pip install hypothesis``).
 
 Hypothesis draws vote lists and seat counts; each case runs the SQL function and checks it against an
 exact reference written here with fractions, and against properties every allocation must have: all
@@ -15,7 +15,7 @@ import unittest
 from fractions import Fraction
 from typing import Any
 
-_RUN = os.environ.get("PLUJKA_RUN_DB_TESTS", "").strip().lower() in ("1", "true", "yes")
+_RUN = os.environ.get("KRATKA_WYBORCZA_RUN_DB_TESTS", "").strip().lower() in ("1", "true", "yes")
 
 DIVISOR_METHODS = ("dhondt", "sainte_lague", "sainte_lague_modified", "sainte_lague_modified_whole")
 METHODS = (*DIVISOR_METHODS, "hare_niemeyer")
@@ -50,7 +50,7 @@ def reference(votes: list[int], seats: int, method: str) -> list[int]:
     return won
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_DB_TESTS=1 to run DB integration tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_DB_TESTS=1 to run DB integration tests")
 class TestAllocateSeatsProperties(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

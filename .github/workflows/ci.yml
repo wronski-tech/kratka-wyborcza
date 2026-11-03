@@ -76,21 +76,21 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: plujka
-          POSTGRES_PASSWORD: plujka
-          POSTGRES_DB: plujka
+          POSTGRES_USER: kratka_wyborcza
+          POSTGRES_PASSWORD: kratka_wyborcza
+          POSTGRES_DB: kratka_wyborcza
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U plujka -d plujka"
+          --health-cmd "pg_isready -U kratka_wyborcza -d kratka_wyborcza"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
 
     env:
-      DATABASE_URL: postgresql://plujka:plujka@localhost:5432/plujka
-      MART_DATABASE_URL: postgresql://plujka_mart_reader:plujka_mart_reader@localhost:5432/plujka
-      PLUJKA_RUN_DB_TESTS: "1"
+      DATABASE_URL: postgresql://kratka_wyborcza:kratka_wyborcza@localhost:5432/kratka_wyborcza
+      MART_DATABASE_URL: postgresql://kratka_wyborcza_mart_reader:kratka_wyborcza_mart_reader@localhost:5432/kratka_wyborcza
+      KRATKA_WYBORCZA_RUN_DB_TESTS: "1"
 
     steps:
       - uses: actions/checkout@v4
@@ -135,9 +135,9 @@ jobs:
         run: |
           start=$(date +%s)
           # The DB tests above created an empty mart schema; the dump brings its own.
-          docker exec -i ${{ job.services.postgres.id }} psql -U plujka -d plujka -v ON_ERROR_STOP=1 \
+          docker exec -i ${{ job.services.postgres.id }} psql -U kratka_wyborcza -d kratka_wyborcza -v ON_ERROR_STOP=1 \
             -c "DROP SCHEMA IF EXISTS mart CASCADE" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm"
-          docker exec -i ${{ job.services.postgres.id }} pg_restore -U plujka -d plujka --no-owner --no-privileges \
+          docker exec -i ${{ job.services.postgres.id }} pg_restore -U kratka_wyborcza -d kratka_wyborcza --no-owner --no-privileges \
             --exit-on-error --section=pre-data --section=data < mart.dump
           PYTHONPATH=. python -u scripts/build_mart.py --derived-only
           echo "MART_BUILD_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
@@ -170,14 +170,14 @@ jobs:
           db.save_view('restore check', 'SELECT 1')
           db.record_usage('ci', {'gpt-4o-mini': {'prompt_tokens': 10, 'completion_tokens': 2}})"
           BACKUP_SCHEMAS=public scripts/backup_db.sh /tmp/backups
-          psql "$DATABASE_URL" -c "CREATE DATABASE plujka_restore"
-          restored=postgresql://plujka:plujka@localhost:5432/plujka_restore
-          pg_restore --clean --if-exists --no-owner --exit-on-error -d "$restored" /tmp/backups/plujka-*.dump
+          psql "$DATABASE_URL" -c "CREATE DATABASE kratka_wyborcza_restore"
+          restored=postgresql://kratka_wyborcza:kratka_wyborcza@localhost:5432/kratka_wyborcza_restore
+          pg_restore --clean --if-exists --no-owner --exit-on-error -d "$restored" /tmp/backups/kratka-wyborcza-*.dump
           PYTHONPATH=. python scripts/check_restore.py "$DATABASE_URL" "$restored" --schemas public
 
       - name: Dump the mart
         run: |
-          docker exec ${{ job.services.postgres.id }} pg_dump -U plujka -n mart -Fc -Z 6 plujka > mart.dump
+          docker exec ${{ job.services.postgres.id }} pg_dump -U kratka_wyborcza -n mart -Fc -Z 6 kratka_wyborcza > mart.dump
           sha256sum mart.dump > mart.dump.sha256
 
       - name: Save mart cache
@@ -190,7 +190,7 @@ jobs:
       # Sizes that limit this setup: the release asset (2 GB per file) and the runner's disk.
       - name: Mart sizes
         run: |
-          mart=$(docker exec ${{ job.services.postgres.id }} psql -U plujka -d plujka -Atc \
+          mart=$(docker exec ${{ job.services.postgres.id }} psql -U kratka_wyborcza -d kratka_wyborcza -Atc \
             "SELECT sum(pg_total_relation_size(c.oid)) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'mart'")
           dump=$(stat -c %s mart.dump)
           free=$(df --output=avail -B1 . | tail -1)
@@ -261,11 +261,11 @@ jobs:
           up='[.data.result[] | select(.value[1] == "1")] | length == 4'
           for i in $(seq 1 30); do curl -fsS 'localhost:9090/api/v1/query?query=up' | jq -e "$up" >/dev/null && break; sleep 5; done
           curl -fsS 'localhost:9090/api/v1/query?query=up' | jq -e "$up"
-          curl -fsS 'localhost:9090/api/v1/query?query=plujka_ask_total' | jq -e '.data.result | length > 0'
+          curl -fsS 'localhost:9090/api/v1/query?query=kratka_wyborcza_ask_total' | jq -e '.data.result | length > 0'
           curl -fsS localhost:9090/api/v1/rules | jq -e '[.data.groups[].rules[] | select(.health == "ok")] | length == 7'
           curl -fsS localhost:9090/api/v1/alertmanagers | jq -e '.data.activeAlertmanagers | length == 1'
           for i in $(seq 1 30); do curl -fsS -u admin:admin localhost:3000/api/health >/dev/null && break; sleep 2; done
-          curl -fsS -u admin:admin localhost:3000/api/dashboards/uid/plujka | jq -e '.dashboard.title == "Kratka Wyborcza"'
+          curl -fsS -u admin:admin localhost:3000/api/dashboards/uid/kratka-wyborcza | jq -e '.dashboard.title == "Kratka Wyborcza"'
           # Alloy ships the API's log lines (with their request ids) to Loki.
           loki='localhost:3000/api/datasources/proxy/uid/loki/loki/api/v1'
           for i in $(seq 1 30); do curl -fsS -u admin:admin "$loki/label/service/values" | jq -e '.data | index("api")' >/dev/null && break; sleep 5; done

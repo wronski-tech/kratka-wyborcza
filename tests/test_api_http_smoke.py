@@ -1,6 +1,6 @@
 """HTTP smoke tests via FastAPI TestClient (PostgreSQL required).
 
-Skip unless ``PLUJKA_RUN_DB_TESTS=1``. CI integration job sets this. Lifespan runs
+Skip unless ``KRATKA_WYBORCZA_RUN_DB_TESTS=1``. CI integration job sets this. Lifespan runs
 ``db.init_database``; OpenSearch is not required — ``ensure_index`` / ``log_question``
 are patched for these tests.
 """
@@ -11,7 +11,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-_RUN = os.environ.get("PLUJKA_RUN_DB_TESTS", "").strip().lower() in ("1", "true", "yes")
+_RUN = os.environ.get("KRATKA_WYBORCZA_RUN_DB_TESTS", "").strip().lower() in ("1", "true", "yes")
 
 _ROUTER_STUB = {
     "question": "smoke",
@@ -25,7 +25,7 @@ _ROUTER_STUB = {
 }
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_DB_TESTS=1 to run HTTP smoke tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_DB_TESTS=1 to run HTTP smoke tests")
 class TestApiHttpSmoke(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

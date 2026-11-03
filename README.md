@@ -70,7 +70,7 @@ across elections. Details and known gaps: [docs/MART.md](docs/MART.md).
    | Streamlit   | http://localhost:8501     |
    | API         | http://localhost:8000     |
    | OpenSearch  | http://localhost:9200     |
-   | PostgreSQL  | localhost:5432 (`plujka` / `plujka`) |
+   | PostgreSQL  | localhost:5432 (`kratka_wyborcza` / `kratka_wyborcza`) |
 
 The API does **not** import election data on startup. Build the mart with the **`loader` container**: `docker compose --profile tools run --rm loader python -u scripts/build_mart.py --jobs 3` builds it from the committed parquet (about 10 minutes); the default loader command also re-stages a local KBW mirror and imports the legacy `kbw_facts`. Until the mart or `kbw_facts` has rows, `GET /health` returns `data_ready: false`; Streamlit shows a short notice until data is present. Above the question box, expandable panels call **`/kbw/catalog/summary`** and **`/health?details=1`** for mirror inventory and approximate table sizes (Streamlit fragments refresh on an interval).
 
@@ -83,7 +83,7 @@ The API does **not** import election data on startup. Build the mart with the **
 | `OPENAI_EMBEDDING_MODEL` | Embeddings model (default `text-embedding-3-small`) |
 | `OPENSEARCH_INITIAL_ADMIN_PASSWORD` | OpenSearch admin password (see `docker-compose.yml` default) |
 | `QUESTION_HINTS_SEMANTIC_MIN_CHARS` | Min length of `q` before kNN hints run (default `6`) |
-| `API_KEYS` / `PLUJKA_API_KEY` | Optional keys required by `/ask` and `/feedback` / the key the UI sends |
+| `API_KEYS` / `KRATKA_WYBORCZA_API_KEY` | Optional keys required by `/ask` and `/feedback` / the key the UI sends |
 | `REDIS_URL` | Optional shared rate limit and token budget (`docker compose --profile redis up -d`) |
 | `DAILY_TOKEN_LIMIT_PER_CLIENT` | Optional OpenAI tokens per API key or IP and day for `/ask` |
 
@@ -97,7 +97,7 @@ The API container mounts `./data` at `/app/data` (mirror and imports read from t
 make test
 ```
 
-Uses `unittest` only (no DB). Optional Postgres-backed checks: `make test-integration` (requires `DATABASE_URL` and `PLUJKA_RUN_DB_TESTS=1`), including DB helpers, **`TestClient` HTTP smoke** (`/health`, `/kbw/catalog/summary`, stubbed `/ask`), and the KBW fixture router test. **GitHub Actions** (`.github/workflows/ci.yml`) runs the unit job first, then an **integration** job with `pgvector/pgvector:pg16`: DB tests, a full `scripts/build_mart.py` from the committed parquet (every consistency check must pass) and `scripts/add_sql_example.py --check`.
+Uses `unittest` only (no DB). Optional Postgres-backed checks: `make test-integration` (requires `DATABASE_URL` and `KRATKA_WYBORCZA_RUN_DB_TESTS=1`), including DB helpers, **`TestClient` HTTP smoke** (`/health`, `/kbw/catalog/summary`, stubbed `/ask`), and the KBW fixture router test. **GitHub Actions** (`.github/workflows/ci.yml`) runs the unit job first, then an **integration** job with `pgvector/pgvector:pg16`: DB tests, a full `scripts/build_mart.py` from the committed parquet (every consistency check must pass) and `scripts/add_sql_example.py --check`.
 
 ## API
 

@@ -1,4 +1,4 @@
-"""PostgreSQL checks of the mart (``PLUJKA_RUN_DB_TESTS=1``; needs CREATEROLE on DATABASE_URL).
+"""PostgreSQL checks of the mart (``KRATKA_WYBORCZA_RUN_DB_TESTS=1``; needs CREATEROLE on DATABASE_URL).
 
 The read-only role must deny writes, other schemas and long queries; person linking must split
 namesakes by birth year, build local persons and apply manual overrides. The linking test fills the candidate tables
@@ -12,10 +12,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-_RUN = os.environ.get("PLUJKA_RUN_DB_TESTS", "").strip().lower() in ("1", "true", "yes")
+_RUN = os.environ.get("KRATKA_WYBORCZA_RUN_DB_TESTS", "").strip().lower() in ("1", "true", "yes")
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_DB_TESTS=1 to run DB integration tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_DB_TESTS=1 to run DB integration tests")
 class TestMartReaderRole(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -45,7 +45,7 @@ class TestMartReaderRole(unittest.TestCase):
                 run_readonly(sql, timeout_ms=500)
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_DB_TESTS=1 to run DB integration tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_DB_TESTS=1 to run DB integration tests")
 class TestPersonEndpointsDb(unittest.TestCase):
     """``GET /persons`` and ``GET /persons/{id}`` run their fixed queries as the reader on a built mart."""
 
@@ -77,7 +77,7 @@ class TestPersonEndpointsDb(unittest.TestCase):
         self.assertEqual(client.get(f"/persons/{missing}").status_code, 404)
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_DB_TESTS=1 to run DB integration tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_DB_TESTS=1 to run DB integration tests")
 class TestBuildChecksDb(unittest.TestCase):
     """Every loaded election keeps the consistency checks it passed (``GET /checks``)."""
 
@@ -110,7 +110,7 @@ class TestBuildChecksDb(unittest.TestCase):
                 self.assertEqual({c["failing_rows"] for c in checks}, {0})
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_DB_TESTS=1 to run DB integration tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_DB_TESTS=1 to run DB integration tests")
 class TestPersonLinking(unittest.TestCase):
     CANDIDATE_TABLES = ("sejm_candidates", "senat_candidates", "prezydent_candidates", "pe_candidates",
                         "sejmik_candidates", "wbp_candidates", "rada_candidates")
@@ -359,7 +359,7 @@ class TestPersonLinking(unittest.TestCase):
                 conn.rollback()
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_DB_TESTS=1 to run DB integration tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_DB_TESTS=1 to run DB integration tests")
 class TestSenatByelectionsDb(unittest.TestCase):
     def test_mistyped_votes_fail_the_build(self) -> None:
         import tempfile
@@ -383,7 +383,7 @@ class TestSenatByelectionsDb(unittest.TestCase):
                 conn.rollback()
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_DB_TESTS=1 to run DB integration tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_DB_TESTS=1 to run DB integration tests")
 class TestLocalReferendaDb(unittest.TestCase):
     def test_statements_follow_the_votes(self) -> None:
         import tempfile

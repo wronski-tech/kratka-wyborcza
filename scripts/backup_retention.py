@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Which backups to delete under a daily / weekly / monthly retention (default 7 / 4 / 6).
 
-Reads backup file names on stdin and prints the ones to delete: database dumps (``plujka-YYYYmmdd-HHMMSS.dump``)
-and archives of feedback and configuration (``plujka-files-YYYYmmdd-HHMMSS.tar.gz``), each series on its own;
+Reads backup file names on stdin and prints the ones to delete: database dumps (``kratka-wyborcza-YYYYmmdd-HHMMSS.dump``)
+and archives of feedback and configuration (``kratka-wyborcza-files-YYYYmmdd-HHMMSS.tar.gz``), each series on its own;
 an encrypted backup (``.age`` appended) belongs to the series of its plain name.
 The newest backup of each of the last ``--daily`` days that have a backup is kept, likewise per ISO week and
 per month; a backup kept by any rule stays. Periods are counted among existing backups, not on the calendar, so when
 backups stop being made, nothing more is deleted. Other names are ignored (never deleted).
 
-  ssh -p 23 u1@u1.your-storagebox.de ls -1 plujka | python3 scripts/backup_retention.py
+  ssh -p 23 u1@u1.your-storagebox.de ls -1 kratka-wyborcza | python3 scripts/backup_retention.py
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ import re
 import sys
 from collections.abc import Callable, Iterable
 
-NAME = re.compile(r"^(plujka-files|plujka)-(\d{8})-(\d{6})\.(?:tar\.gz|dump)(?:\.age)?$")
+NAME = re.compile(r"^(kratka-wyborcza-files|kratka-wyborcza)-(\d{8})-(\d{6})\.(?:tar\.gz|dump)(?:\.age)?$")
 
 
 def to_delete(names: Iterable[str], daily: int = 7, weekly: int = 4, monthly: int = 6) -> list[str]:

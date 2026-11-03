@@ -16,7 +16,7 @@ flowchart LR
 ```
 
 1. **Access** — when `API_KEYS` is set, `POST /ask`, `POST /feedback` and `GET /persons*` require an `X-API-Key` header (401 otherwise). `POST /ask` is rate-limited per API key or client IP (`ASK_RATE_LIMIT_PER_MINUTE`, HTTP 429); with `REDIS_URL` the limit is shared by all workers.
-2. **Dynamic SQL first** — `route_question` in `api/services/router.py` calls `dynamic_sql.try_dynamic_query` for every question. It resolves entities against `mart.entity_lexicon` (returning `intent = "clarification"` with options when several people or same-name gminas match), describes only the mart relations of the election kinds the question names, adds similar verified examples, asks the LLM for one SELECT over `mart` (or up to three for a question asking separate things; their rows carry the part title in `part`), validates it with sqlglot and runs it as `plujka_mart_reader` (one repair attempt on error; validated SQL is cached per mart load). Telemetry is in `params._dynamic_sql_meta`.
+2. **Dynamic SQL first** — `route_question` in `api/services/router.py` calls `dynamic_sql.try_dynamic_query` for every question. It resolves entities against `mart.entity_lexicon` (returning `intent = "clarification"` with options when several people or same-name gminas match), describes only the mart relations of the election kinds the question names, adds similar verified examples, asks the LLM for one SELECT over `mart` (or up to three for a question asking separate things; their rows carry the part title in `part`), validates it with sqlglot and runs it as `kratka_wyborcza_mart_reader` (one repair attempt on error; validated SQL is cached per mart load). Telemetry is in `params._dynamic_sql_meta`.
 3. **Follow-ups** — a request may carry `previous: {question, sql, entity_refs}`. Entity kinds the new question does not name (person, place, committee) are inherited from the previous question, and the previous question and SQL go into the prompt, so "A w 2019?" after "Frekwencja w Krakowie w 2023?" asks about Kraków in 2019.
 4. **Template fallback** — only when dynamic SQL returned no rows (no OpenAI key, failed or empty query), and the request is not a clarification answer, not a follow-up and does not name an election only the mart covers, the legacy path runs: `extract_intent_and_entity` and embeddings pick one of `SQL_TEMPLATES` (Sejm data in `kbw_facts`).
 5. **Answer** — `answer.compose_answer` turns the rows into Polish text. LLM text is used only when every number in it appears in the rows or the question; otherwise the answer is a summary built from the rows. `answer.explanation` describes the query in Polish, read from the SQL with sqlglot (`answer.explain_sql`: sources, conditions, calculations, grouping, order), never written by the model. Numeric values in `result` are JSON numbers (PostgreSQL `numeric` 34.27 is sent as `34.27`, not `"34.27"`).
@@ -30,7 +30,7 @@ The Streamlit UI also offers a person search ("Szukaj osoby") that calls `GET /p
 
 On API startup (`lifespan` in `api/main.py`):
 
-1. Production check — with `PLUJKA_ENV=production` the API refuses to start with the default database passwords or a disabled rate limit (otherwise it logs warnings).
+1. Production check — with `KRATKA_WYBORCZA_ENV=production` the API refuses to start with the default database passwords or a disabled rate limit (otherwise it logs warnings).
 2. `db.init_database()` — schema / migrations as implemented in `api/services/db.py`.
 3. `opensearch_store.ensure_index()` — creates the `question_logs` index if missing; `examples.ensure_index()` creates the `sql_examples` index and indexes the curated examples (failures fall back to the curated file).
 
@@ -57,7 +57,7 @@ elected, age where published) ordered by the election date in `mart.elections`; 
 (`person_id` changes on every mart load). `GET /persons?name=…&limit=20` (max 50) is a prefix search
 over persons in `mart.entity_lexicon` (national persons, elected mayors and sejmik councillors): every
 word must start a word of the name and one must start the surname; case and diacritics are ignored.
-Both run fixed, parameterized SQL as `plujka_mart_reader` through `safe_sql.run_readonly(sql, params=…)`
+Both run fixed, parameterized SQL as `kratka_wyborcza_mart_reader` through `safe_sql.run_readonly(sql, params=…)`
 (read-only transaction, `MART_STATEMENT_TIMEOUT_MS`); a database error, e.g. while the mart is rebuilt,
 returns 503. They require `X-API-Key` when `API_KEYS` is set but do not count against
 `ASK_RATE_LIMIT_PER_MINUTE` or the token budget (no LLM). The Streamlit UI offers "Zobacz wszystkie
@@ -67,7 +67,7 @@ a "Pobierz CSV" button (`;` separator, decimal comma, UTF-8 with BOM for Excel i
 
 ## Configuration
 
-Central defaults and env vars are in `api/services/config.py` (`DATABASE_URL`, `MART_DATABASE_URL`, `MART_STATEMENT_TIMEOUT_MS`, `MART_MAX_ROWS`, `SQL_CACHE_*`, `SQL_EXAMPLES_*`, `ANSWER_SUMMARY_ENABLED`, `ASK_RATE_LIMIT_PER_MINUTE`, `REDIS_URL`, `API_KEYS`, `PLUJKA_ENV`, `OPENSEARCH_URL`, OpenAI models, `EMBEDDING_DIM`, `FEEDBACK_JSONL_PATH`). See the table in [MART.md](MART.md#configuration). Docker Compose wires these for containers (see `docker-compose.yml`).
+Central defaults and env vars are in `api/services/config.py` (`DATABASE_URL`, `MART_DATABASE_URL`, `MART_STATEMENT_TIMEOUT_MS`, `MART_MAX_ROWS`, `SQL_CACHE_*`, `SQL_EXAMPLES_*`, `ANSWER_SUMMARY_ENABLED`, `ASK_RATE_LIMIT_PER_MINUTE`, `REDIS_URL`, `API_KEYS`, `KRATKA_WYBORCZA_ENV`, `OPENSEARCH_URL`, OpenAI models, `EMBEDDING_DIM`, `FEEDBACK_JSONL_PATH`). See the table in [MART.md](MART.md#configuration). Docker Compose wires these for containers (see `docker-compose.yml`).
 
 ## Where to change behavior
 

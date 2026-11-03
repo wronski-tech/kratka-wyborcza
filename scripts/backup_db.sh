@@ -2,7 +2,7 @@
 # Back up the Kratka Wyborcza PostgreSQL database with pg_dump (custom format, compressed).
 #
 # Usage:
-#   DATABASE_URL=postgresql://plujka:...@host:5432/plujka scripts/backup_db.sh [backup_dir]
+#   DATABASE_URL=postgresql://kratka_wyborcza:...@host:5432/kratka_wyborcza scripts/backup_db.sh [backup_dir]
 #
 # Environment:
 #   DATABASE_URL   owner connection (default: local docker-compose database)
@@ -14,16 +14,16 @@
 #                  only logs, feedback and legacy tables matter.
 #
 # Restore (into an empty database):
-#   pg_restore --clean --if-exists --no-owner -d "$DATABASE_URL" backups/plujka-YYYYmmdd-HHMMSS.dump
-# The read-only role plujka_mart_reader is not part of a dump; scripts/build_mart.py recreates it.
+#   pg_restore --clean --if-exists --no-owner -d "$DATABASE_URL" backups/kratka-wyborcza-YYYYmmdd-HHMMSS.dump
+# The read-only role kratka_wyborcza_mart_reader is not part of a dump; scripts/build_mart.py recreates it.
 set -euo pipefail
 
-DATABASE_URL="${DATABASE_URL:-postgresql://plujka:plujka@localhost:5432/plujka}"
+DATABASE_URL="${DATABASE_URL:-postgresql://kratka_wyborcza:kratka_wyborcza@localhost:5432/kratka_wyborcza}"
 BACKUP_DIR="${1:-backups}"
 BACKUP_KEEP="${BACKUP_KEEP:-7}"
 
 mkdir -p "$BACKUP_DIR"
-target="$BACKUP_DIR/plujka-$(date -u +%Y%m%d-%H%M%S).dump"
+target="$BACKUP_DIR/kratka-wyborcza-$(date -u +%Y%m%d-%H%M%S).dump"
 schema_args=()
 for schema in ${BACKUP_SCHEMAS:-}; do
   schema_args+=(--schema "$schema")
@@ -44,7 +44,7 @@ mv "$target.partial" "$target"
 echo "backup written: $target ($(du -h "$target" | cut -f1))"
 
 if [ "$BACKUP_KEEP" -gt 0 ]; then
-  ls -1t "$BACKUP_DIR"/plujka-*.dump | tail -n +"$((BACKUP_KEEP + 1))" | while read -r old; do
+  ls -1t "$BACKUP_DIR"/kratka-wyborcza-*.dump | tail -n +"$((BACKUP_KEEP + 1))" | while read -r old; do
     rm -f -- "$old"
     echo "removed old backup: $old"
   done

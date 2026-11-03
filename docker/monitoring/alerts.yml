@@ -1,7 +1,7 @@
 # Alert rules (docs/DEPLOYMENT.md, Alerts); tests in alerts.test.yml (promtool test rules, run in CI).
 # Prometheus evaluates them, Alertmanager sends firing and resolved alerts to ALERT_WEBHOOK_SECRET.
 groups:
-  - name: plujka
+  - name: kratka-wyborcza
     rules:
       - alert: TargetDown
         expr: up == 0
@@ -25,7 +25,7 @@ groups:
       # dumps and psql sessions of deploy_mart.sh and the backup run long by design.
       - alert: SlowQuery
         expr: >-
-          max by (datname, usename) (pg_stat_activity_max_tx_duration{datname=~"plujka.*",
+          max by (datname, usename) (pg_stat_activity_max_tx_duration{datname=~"kratka_wyborcza.*",
           application_name!~"pg_restore|pg_dump|psql"}) > 120
         for: 2m
         labels:
@@ -35,9 +35,9 @@ groups:
 
       - alert: ServerErrors
         expr: >-
-          sum(rate(plujka_http_requests_total{status=~"5.."}[10m]))
-          / sum(rate(plujka_http_requests_total{route!="/metrics"}[10m])) > 0.05
-          and sum(rate(plujka_http_requests_total{route!="/metrics"}[10m])) > 0.01
+          sum(rate(kratka_wyborcza_http_requests_total{status=~"5.."}[10m]))
+          / sum(rate(kratka_wyborcza_http_requests_total{route!="/metrics"}[10m])) > 0.05
+          and sum(rate(kratka_wyborcza_http_requests_total{route!="/metrics"}[10m])) > 0.01
         for: 5m
         labels:
           severity: critical
@@ -46,7 +46,7 @@ groups:
 
       # About 2 USD per hour with gpt-4o-mini and occasional gpt-4o repairs; raise it with real traffic.
       - alert: TokenSpike
-        expr: sum(increase(plujka_llm_tokens_total[1h])) > 2000000
+        expr: sum(increase(kratka_wyborcza_llm_tokens_total[1h])) > 2000000
         labels:
           severity: warning
         annotations:
@@ -54,14 +54,14 @@ groups:
 
       # deploy/backup_storagebox.sh writes the time of its last complete run (node-exporter textfile).
       - alert: BackupStale
-        expr: time() - plujka_backup_last_success_timestamp_seconds > 30 * 3600
+        expr: time() - kratka_wyborcza_backup_last_success_timestamp_seconds > 30 * 3600
         labels:
           severity: critical
         annotations:
           summary: "The last complete backup to the Storage Box was {{ $value | humanizeDuration }} ago"
 
       - alert: BackupNeverRan
-        expr: absent(plujka_backup_last_success_timestamp_seconds)
+        expr: absent(kratka_wyborcza_backup_last_success_timestamp_seconds)
         for: 2h
         labels:
           severity: warning

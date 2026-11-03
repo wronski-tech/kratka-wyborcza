@@ -6,7 +6,7 @@ Box for backups. The mart is not built on the server: CI builds and checks it an
 
 | Resource | Purpose |
 | --- | --- |
-| `hcloud_server.app` | Ubuntu 24.04, Docker, `/srv/plujka` (the repository), systemd unit `plujka.service` |
+| `hcloud_server.app` | Ubuntu 24.04, Docker, `/srv/kratka-wyborcza` (the repository), systemd unit `kratka-wyborcza.service` |
 | `hcloud_volume.data` | `/mnt/data`: PostgreSQL, OpenSearch, Caddy certificates, feedback, deploy work files |
 | `hcloud_firewall.web` | SSH from `admin_cidrs`, HTTP/HTTPS from anywhere; nothing else is reachable |
 | `hcloud_storage_box.backups` | Nightly backups (skipped when `storage_box_type = ""`) |
@@ -32,14 +32,14 @@ Box for backups. The mart is not built on the server: CI builds and checks it an
    Terraform state or Git:
 
    ```bash
-   scp deploy/env.production.example deploy@<ipv4>:/srv/plujka/.env
-   ssh deploy@<ipv4> 'chmod 600 /srv/plujka/.env && nano /srv/plujka/.env && sudo systemctl start plujka'
+   scp deploy/env.production.example deploy@<ipv4>:/srv/kratka-wyborcza/.env
+   ssh deploy@<ipv4> 'chmod 600 /srv/kratka-wyborcza/.env && nano /srv/kratka-wyborcza/.env && sudo systemctl start kratka-wyborcza'
    ```
 
-7. Mart: `ssh deploy@<ipv4> /srv/plujka/deploy/deploy_mart.sh` (about 6 minutes).
+7. Mart: `ssh deploy@<ipv4> /srv/kratka-wyborcza/deploy/deploy_mart.sh` (about 6 minutes).
 8. Backups (production): create the backup encryption key on your own computer (not on the server), install
    the server's SSH key on the Storage Box and write `deploy/backup.env`
-   as in docs/DEPLOYMENT.md ("Nightly backup to the Storage Box"); `plujka-backup.timer` then runs every
+   as in docs/DEPLOYMENT.md ("Nightly backup to the Storage Box"); `kratka-wyborcza-backup.timer` then runs every
    night.
 
 Staging uses the same module with its own state key and `staging.tfvars` (smaller server, no

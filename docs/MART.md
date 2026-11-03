@@ -267,14 +267,14 @@ for d in data/pkw_all/sejmsenat*/zip; do
 done
 
 # 2. Build the mart (about 9 minutes for everything serially, under 8 with --jobs 3 on 4 CPUs; about 4 of them are persons, views and the seat check).
-DATABASE_URL=postgresql://plujka:plujka@localhost:5432/plujka python3 scripts/build_mart.py
+DATABASE_URL=postgresql://kratka_wyborcza:kratka_wyborcza@localhost:5432/kratka_wyborcza python3 scripts/build_mart.py
 python3 scripts/build_mart.py --years 2023                  # every family of one year
 python3 scripts/build_mart.py --elections prezydent,pe      # some families, all years
 MART_DUCKDB_MEMORY_LIMIT=3GB python3 scripts/build_mart.py --jobs 3   # families in parallel processes (CI)
 python3 scripts/build_mart.py --elections pe --skip-derived  # load only; persons and views on the next full run
 
 # 3. Check the curated SQL examples against the new build.
-MART_DATABASE_URL=postgresql://plujka_mart_reader:...@localhost:5432/plujka python3 scripts/add_sql_example.py --check
+MART_DATABASE_URL=postgresql://kratka_wyborcza_mart_reader:...@localhost:5432/kratka_wyborcza python3 scripts/add_sql_example.py --check
 ```
 
 `build_mart.py` groups elections in families built from the same files: `parliament` (Sejm+Senate),
@@ -753,7 +753,7 @@ would answer it from Sejm data.
    things may get one SELECT per part (`{"parts": [{"title", "sql"}]}`, kept as one text of
    `-- part: <title>` blocks, `dynamic_sql.split_parts`); every part is validated and one rejected
    part rejects the whole answer.
-6. **Execution** as `plujka_mart_reader` (`MART_DATABASE_URL`): read-only transactions, `mart` only,
+6. **Execution** as `kratka_wyborcza_mart_reader` (`MART_DATABASE_URL`): read-only transactions, `mart` only,
    statement timeout `MART_STATEMENT_TIMEOUT_MS`. On a database error the model gets one repair
    attempt (`OPENAI_REPAIR_MODEL`) with the error message and, when the failed query could be planned
    (a timeout, a run-time error such as division by zero; not an unknown column), its `EXPLAIN` plan
@@ -840,7 +840,7 @@ there. Dashboards over the question log: see
 
 | Variable | Default | Purpose |
 | -------- | ------- | ------- |
-| `MART_DATABASE_URL` | `postgresql://plujka_mart_reader:plujka_mart_reader@localhost:5432/plujka` | Read-only role. `build_mart.py` creates it with this user and password (Compose: `MART_READER_PASSWORD`). |
+| `MART_DATABASE_URL` | `postgresql://kratka_wyborcza_mart_reader:kratka_wyborcza_mart_reader@localhost:5432/kratka_wyborcza` | Read-only role. `build_mart.py` creates it with this user and password (Compose: `MART_READER_PASSWORD`). |
 | `MART_STATEMENT_TIMEOUT_MS` | `5000` | Server-side limit for one generated query |
 | `MART_MAX_ROWS` | `500` | Row cap added to generated queries |
 | `MART_MAX_PLAN_COST` | `5000000` | Planner cost above which a generated query is not run but repaired (0 disables); the heaviest evaluation reference query costs about 360k, and `run_eval.py --check` fails a reference query above the limit |
@@ -849,7 +849,7 @@ there. Dashboards over the question log: see
 | `SQL_CACHE_TTL_SECONDS` / `SQL_CACHE_MAX_ENTRIES` | `3600` / `512` | Validated SQL cache (0 disables) |
 | `QUESTION_COST_LIMIT_USD` | `0.10` | OpenAI cost ceiling of one question (prices from `LLM_PRICES_USD_PER_1M`); 0 disables |
 | `SENTRY_DSN` | empty | Sentry or GlitchTip project DSN: unhandled errors and ERROR log lines go there, tagged with the request id; off when empty ([DEPLOYMENT.md](DEPLOYMENT.md#error-tracking)) |
-| `SENTRY_RELEASE` | empty | Release named in error events (production: the deployed commit, `PLUJKA_IMAGE_TAG`) |
+| `SENTRY_RELEASE` | empty | Release named in error events (production: the deployed commit, `KRATKA_WYBORCZA_IMAGE_TAG`) |
 | `SEMANTIC_CACHE_MIN_SIMILARITY` | `0.92` | Cosine similarity at which a paraphrase reuses a cached SQL (0 disables the semantic cache) |
 | `SQL_EXAMPLES_INDEX` / `SQL_EXAMPLES_K` | `sql_examples` / `4` | Few-shot examples |
 | `ANSWER_SUMMARY_ENABLED` | `1` | LLM answer text (numbers are always checked) |
@@ -861,8 +861,8 @@ there. Dashboards over the question log: see
 | `API_KEYS` | empty | Comma-separated keys; when set, `/ask` and `/feedback` require `X-API-Key` |
 | `ADMIN_API_KEYS` | empty | Keys that may read `GET /costs`; without them only an API without `API_KEYS` shows it |
 | `LLM_PRICES_USD_PER_1M` | gpt-4o-mini, gpt-4o | JSON `{model: [input, cached input, output]}` in USD per million tokens, for the cost estimate |
-| `PLUJKA_ENV` | `development` | `production` refuses to start with default passwords or no rate limit |
+| `KRATKA_WYBORCZA_ENV` | `development` | `production` refuses to start with default passwords or no rate limit |
 
-Production checklist: set `PLUJKA_ENV=production`, a strong `MART_READER_PASSWORD` and owner
+Production checklist: set `KRATKA_WYBORCZA_ENV=production`, a strong `MART_READER_PASSWORD` and owner
 password, and rebuild (the build sets the reader password). With several API workers set
 `REDIS_URL`; for a non-public API set `API_KEYS`. Backups and dashboards: [DEPLOYMENT.md](DEPLOYMENT.md).

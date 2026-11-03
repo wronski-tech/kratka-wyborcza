@@ -1,7 +1,7 @@
 environment      = "staging"
 server_type      = "cx33"
 volume_size_gb   = 60
-domain           = "staging.plujka.example.org"
+domain           = "staging.kratka-wyborcza.example.org"
 acme_email       = "ops@example.org"
 ssh_public_key   = "ssh-ed25519 AAAA... operator"
 admin_cidrs      = ["203.0.113.10/32"]

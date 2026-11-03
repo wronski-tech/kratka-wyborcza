@@ -48,7 +48,7 @@ class SlidingWindowLimiter:
 class RedisWindowLimiter:
     """Shared limit across processes: one counter per key and window in Redis (INCR + EXPIRE)."""
 
-    def __init__(self, client: Any, limit: int, window_seconds: int = 60, prefix: str = "plujka:ratelimit") -> None:
+    def __init__(self, client: Any, limit: int, window_seconds: int = 60, prefix: str = "kratka_wyborcza:ratelimit") -> None:
         self.client = client
         self.limit = limit
         self.window = window_seconds
@@ -75,11 +75,11 @@ class RedisWindowLimiter:
 class TokenBudget:
     """LLM tokens (prompt + completion) per client key and UTC day, capped at ``limit`` (0: unlimited).
 
-    With a Redis ``client`` the counters are shared by all API processes (``plujka:tokens:<key>:<day>``,
+    With a Redis ``client`` the counters are shared by all API processes (``kratka_wyborcza:tokens:<key>:<day>``,
     kept for two days); without it, or when Redis fails, each process counts on its own.
     """
 
-    def __init__(self, limit: int, client: Any = None, prefix: str = "plujka:tokens") -> None:
+    def __init__(self, limit: int, client: Any = None, prefix: str = "kratka_wyborcza:tokens") -> None:
         self.limit = limit
         self.client = client
         self.prefix = prefix
@@ -140,6 +140,6 @@ def make_limiter(limit: int, redis_url: str = "") -> SlidingWindowLimiter | Redi
     return RedisWindowLimiter(_redis_client(redis_url), limit)
 
 
-def make_token_budget(limit: int, redis_url: str = "", prefix: str = "plujka:tokens") -> TokenBudget:
+def make_token_budget(limit: int, redis_url: str = "", prefix: str = "kratka_wyborcza:tokens") -> TokenBudget:
     """Daily budget (tokens, or questions of a session), shared through Redis when ``redis_url`` is set."""
     return TokenBudget(limit, _redis_client(redis_url) if redis_url and limit > 0 else None, prefix)

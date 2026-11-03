@@ -59,7 +59,7 @@ class TestMainPage(unittest.TestCase):
         return _response(*self.replies.pop(0))
 
     def ask(self, question: str = QUESTION) -> None:
-        self.at.text_input(key="plujka_question_input").input(question)
+        self.at.text_input(key="kratka_wyborcza_question_input").input(question)
         next(b for b in self.at.button if b.label in ("Wyślij zapytanie", "Ask")).click().run()
         self.assertFalse(self.at.exception)
 
@@ -116,7 +116,7 @@ class TestMainPage(unittest.TestCase):
             with self.subTest(text=text):
                 self.ask()
                 self.assertIn(text, [w.value for w in self.at.warning])
-        self.assertEqual(self.at.text_input(key="plujka_question_input").max_chars, 500)
+        self.assertEqual(self.at.text_input(key="kratka_wyborcza_question_input").max_chars, 500)
 
     def test_english_labels(self) -> None:
         self.at.query_params["lang"] = "en"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Smoke test of a deployment through Caddy: API health with a loaded mart, a person search, one
-# question, and the UI. Usage: deploy/smoke_test.sh https://plujka.example.org [api-key]
+# question, and the UI. Usage: deploy/smoke_test.sh https://kratka-wyborcza.example.org [api-key]
 set -euo pipefail
 base="${1:?usage: smoke_test.sh <base-url> [api-key]}"
 key="${2:-}"

@@ -1,0 +1,17 @@
+# The stack (docker compose); installed by cloud-init, it starts once /srv/kratka-wyborcza/.env exists.
+[Unit]
+Description=Kratka Wyborcza (docker compose)
+After=docker.service mnt-data.mount
+Requires=docker.service mnt-data.mount
+ConditionPathExists=/srv/kratka-wyborcza/.env
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+WorkingDirectory=/srv/kratka-wyborcza
+ExecStart=/usr/bin/docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --remove-orphans
+ExecStop=/usr/bin/docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml stop
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target

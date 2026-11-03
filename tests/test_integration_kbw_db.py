@@ -2,7 +2,7 @@
 
 Enable with::
 
-    PLUJKA_RUN_DB_TESTS=1 PYTHONPATH=. python3 -m unittest tests.test_integration_kbw_db -v
+    KRATKA_WYBORCZA_RUN_DB_TESTS=1 PYTHONPATH=. python3 -m unittest tests.test_integration_kbw_db -v
 
 Uses ``DATABASE_URL`` (see ``api/services/config.py`` default).
 """
@@ -12,10 +12,10 @@ from __future__ import annotations
 import os
 import unittest
 
-_RUN = os.environ.get("PLUJKA_RUN_DB_TESTS", "").strip().lower() in ("1", "true", "yes")
+_RUN = os.environ.get("KRATKA_WYBORCZA_RUN_DB_TESTS", "").strip().lower() in ("1", "true", "yes")
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_DB_TESTS=1 to run DB integration tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_DB_TESTS=1 to run DB integration tests")
 class TestKbwDatabaseIntegration(unittest.TestCase):
     def test_init_and_analytics_view(self) -> None:
         from api.services import db

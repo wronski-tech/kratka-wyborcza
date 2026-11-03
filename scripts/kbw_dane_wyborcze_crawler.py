@@ -89,7 +89,7 @@ FILE_SUFFIXES = (
 )
 
 USER_AGENT = (
-    "PlujkaKBWCrawler/1.0 (+local mirror of public KBW Dane Wyborcze; "
+    "KratkaWyborczaKBWCrawler/1.0 (+local mirror of public KBW Dane Wyborcze; "
     "https://danewyborcze.kbw.gov.pl/) Python-urllib"
 )
 

@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Deploy the mart built and checked by CI (release asset mart.dump) without downtime: restore it into
-# the mart database that is not in use (plujka_mart_a / plujka_mart_b), rebuild persons and views,
+# the mart database that is not in use (kratka_wyborcza_mart_a / kratka_wyborcza_mart_b), rebuild persons and views,
 # check it, then point the API at it (MART_DB in .env) and restart the API. The previous mart database
 # stays for rollback: set MART_DB back and run `docker compose ... up -d api`.
 #
-# Usage (on the server, in /srv/plujka): deploy/deploy_mart.sh [release-tag]   (default: mart-latest)
+# Usage (on the server, in /srv/kratka-wyborcza): deploy/deploy_mart.sh [release-tag]   (default: mart-latest)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 tag="${1:-mart-latest}"
-repo="${PLUJKA_REPO:-wronski-tech/plujka}"
+repo="${KRATKA_WYBORCZA_REPO:-wronski-tech/plujka}"
 dc=(docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml)
 work=/mnt/data/mart-deploy
 
@@ -17,8 +17,8 @@ set -a
 # shellcheck disable=SC1091
 source .env
 set +a
-current="${MART_DB:-plujka_mart_a}"
-if [ "$current" = plujka_mart_a ]; then target=plujka_mart_b; else target=plujka_mart_a; fi
+current="${MART_DB:-kratka_wyborcza_mart_a}"
+if [ "$current" = kratka_wyborcza_mart_a ]; then target=kratka_wyborcza_mart_b; else target=kratka_wyborcza_mart_a; fi
 echo "deploy mart $tag into $target (in use: $current)"
 
 mkdir -p "$work"
@@ -27,17 +27,17 @@ curl -fsSL -o "$work/mart.dump" "$base/mart.dump"
 curl -fsSL -o "$work/mart.dump.sha256" "$base/mart.dump.sha256"
 (cd "$work" && sha256sum -c mart.dump.sha256)
 
-psql() { "${dc[@]}" exec -T postgres psql -U plujka -v ON_ERROR_STOP=1 "$@"; }
-psql -d plujka -c "DROP DATABASE IF EXISTS $target" -c "CREATE DATABASE $target"
+psql() { "${dc[@]}" exec -T postgres psql -U kratka_wyborcza -v ON_ERROR_STOP=1 "$@"; }
+psql -d kratka_wyborcza -c "DROP DATABASE IF EXISTS $target" -c "CREATE DATABASE $target"
 # A schema-only dump does not carry extensions; the trigram index on v_person_history needs pg_trgm.
 psql -d "$target" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm"
 # Tables and data only: the materialized views are rebuilt by build_mart.py --derived-only, which
 # analyzes them in order (pg_restore's own REFRESH runs without statistics and takes far longer).
-"${dc[@]}" exec -T postgres pg_restore -U plujka -d "$target" --no-owner --no-privileges --exit-on-error \
+"${dc[@]}" exec -T postgres pg_restore -U kratka_wyborcza -d "$target" --no-owner --no-privileges --exit-on-error \
   --section=pre-data --section=data < "$work/mart.dump"
 "${dc[@]}" run --rm \
-  -e DATABASE_URL="postgresql://plujka:$POSTGRES_PASSWORD@postgres:5432/$target" \
-  -e MART_DATABASE_URL="postgresql://plujka_mart_reader:$MART_READER_PASSWORD@postgres:5432/$target" \
+  -e DATABASE_URL="postgresql://kratka_wyborcza:$POSTGRES_PASSWORD@postgres:5432/$target" \
+  -e MART_DATABASE_URL="postgresql://kratka_wyborcza_mart_reader:$MART_READER_PASSWORD@postgres:5432/$target" \
   loader python -u scripts/build_mart.py --derived-only
 
 elections=$(psql -d "$target" -Atc "SELECT count(*) FROM mart.elections")

@@ -37,7 +37,7 @@ from pypdf import PdfReader
 ROOT = Path(__file__).resolve().parents[1]
 BASE_URL = "https://pkw.gov.pl"
 INDEX = "/wybory-i-referenda/wybory-do-sejmu-i-do-senatu/wybory-uzupelniajace-do-senatu-rp"
-USER_AGENT = "plujka-senat-byelections/1.0 (+https://github.com/wronski-tech/plujka)"
+USER_AGENT = "kratka-wyborcza-senat-byelections/1.0 (+https://github.com/wronski-tech/plujka)"
 OUT = ROOT / "data" / "pkw_html" / "senat_byelections.csv"
 MONTHS = {m: i for i, m in enumerate(("stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia",
                                       "września", "października", "listopada", "grudnia"), 1)}

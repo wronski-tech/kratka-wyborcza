@@ -68,10 +68,10 @@ jobs:
         env:
           HOST: ${{ vars.DEPLOY_HOST }}
           SHA: ${{ steps.target.outputs.sha }}
-        run: ssh -i ~/.ssh/id_deploy "deploy@$HOST" "/srv/plujka/deploy/update_app.sh $SHA"
+        run: ssh -i ~/.ssh/id_deploy "deploy@$HOST" "/srv/kratka-wyborcza/deploy/update_app.sh $SHA"
 
       - name: Deploy the mart
         if: steps.target.outputs.configured == 'true' && inputs.mart
         env:
           HOST: ${{ vars.DEPLOY_HOST }}
-        run: ssh -i ~/.ssh/id_deploy "deploy@$HOST" "/srv/plujka/deploy/deploy_mart.sh mart-latest"
+        run: ssh -i ~/.ssh/id_deploy "deploy@$HOST" "/srv/kratka-wyborcza/deploy/deploy_mart.sh mart-latest"

@@ -1,7 +1,7 @@
 #cloud-config
 # First boot of the Kratka Wyborcza server: Docker, the data volume on /mnt/data, the repository in
-# /srv/plujka and a systemd unit that starts the stack once /srv/plujka/.env exists (secrets are
-# copied by the operator, never stored in Terraform or Git). See infra/hetzner/README.md.
+# /srv/kratka-wyborcza and the systemd units of deploy/systemd: the stack starts once .env exists (secrets
+# are copied by the operator, never stored in Terraform or Git). See infra/hetzner/README.md.
 disable_root: true
 ssh_pwauth: false
 
@@ -36,24 +36,6 @@ write_files:
   - path: /etc/sysctl.d/90-opensearch.conf
     content: |
       vm.max_map_count=262144
-  - path: /etc/systemd/system/plujka.service
-    content: |
-      [Unit]
-      Description=Kratka Wyborcza (docker compose)
-      After=docker.service mnt-data.mount
-      Requires=docker.service mnt-data.mount
-      ConditionPathExists=/srv/plujka/.env
-
-      [Service]
-      Type=oneshot
-      RemainAfterExit=true
-      WorkingDirectory=/srv/plujka
-      ExecStart=/usr/bin/docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --remove-orphans
-      ExecStop=/usr/bin/docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml stop
-      TimeoutStartSec=1800
-
-      [Install]
-      WantedBy=multi-user.target
   - path: /etc/systemd/system/mnt-data.mount
     content: |
       [Unit]
@@ -79,12 +61,12 @@ runcmd:
   - chown 65534:65534 /mnt/data/prometheus
   - chown 472:0 /mnt/data/grafana
   - chown 10001:10001 /mnt/data/loki
-  - git clone --branch ${git_ref} ${repo_url} /srv/plujka
-  - printf 'DOMAIN=%s\nACME_EMAIL=%s\n' '${domain}' '${acme_email}' > /srv/plujka/deploy/caddy.env
-  - chown -R deploy:deploy /srv/plujka
-  # Nightly backup to the Storage Box; it waits for deploy/backup.env (docs/DEPLOYMENT.md).
-  - cp /srv/plujka/deploy/systemd/plujka-backup.service /srv/plujka/deploy/systemd/plujka-backup.timer /etc/systemd/system/
+  - git clone --branch ${git_ref} ${repo_url} /srv/kratka-wyborcza
+  - printf 'DOMAIN=%s\nACME_EMAIL=%s\n' '${domain}' '${acme_email}' > /srv/kratka-wyborcza/deploy/caddy.env
+  - chown -R deploy:deploy /srv/kratka-wyborcza
+  # The stack starts once .env exists; the nightly backup waits for deploy/backup.env (docs/DEPLOYMENT.md).
+  - cp /srv/kratka-wyborcza/deploy/systemd/kratka-wyborcza.service /srv/kratka-wyborcza/deploy/systemd/kratka-wyborcza-backup.service /srv/kratka-wyborcza/deploy/systemd/kratka-wyborcza-backup.timer /etc/systemd/system/
   - systemctl daemon-reload
-  - systemctl enable plujka-backup.timer
-  - systemctl enable plujka.service
+  - systemctl enable kratka-wyborcza-backup.timer
+  - systemctl enable kratka-wyborcza.service
   - systemctl enable --now unattended-upgrades fail2ban

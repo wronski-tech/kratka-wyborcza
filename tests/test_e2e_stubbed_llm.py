@@ -2,7 +2,7 @@
 
 Everything but the model is real: the OpenAI SDK talks HTTP to the fake server (``OPENAI_BASE_URL``), and
 the router, entity resolution, prompt, SQL guard, read-only role, repair, number check and response go
-through the production code. Needs a built mart: ``PLUJKA_RUN_MART_TESTS=1`` (``make test-mart``); CI runs
+through the production code. Needs a built mart: ``KRATKA_WYBORCZA_RUN_MART_TESTS=1`` (``make test-mart``); CI runs
 it after building the mart.
 """
 
@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 from scripts import fake_openai
 
-_RUN = os.environ.get("PLUJKA_RUN_MART_TESTS", "").strip().lower() in ("1", "true", "yes")
+_RUN = os.environ.get("KRATKA_WYBORCZA_RUN_MART_TESTS", "").strip().lower() in ("1", "true", "yes")
 
 TURNOUT_2023 = "SELECT year, turnout_pct FROM mart.v_turnout WHERE election = 'sejm' AND level = 'country' AND year = 2023 LIMIT 5"
 
@@ -41,7 +41,7 @@ class FakeOpenAI:
         return json.dumps({"answer": FakeOpenAI.answers.pop(0) if FakeOpenAI.answers else ""})
 
 
-@unittest.skipUnless(_RUN, "Set PLUJKA_RUN_MART_TESTS=1 (built mart) to run end-to-end tests")
+@unittest.skipUnless(_RUN, "Set KRATKA_WYBORCZA_RUN_MART_TESTS=1 (built mart) to run end-to-end tests")
 class TestAskEndToEnd(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

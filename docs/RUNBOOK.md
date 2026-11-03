@@ -1,7 +1,7 @@
 # Runbook
 
 What to check when production misbehaves. Commands assume the Compose deployment of
-[DEPLOYMENT.md](DEPLOYMENT.md) in `/srv/plujka`; `dc` stands for `docker compose`.
+[DEPLOYMENT.md](DEPLOYMENT.md) in `/srv/kratka-wyborcza`; `dc` stands for `docker compose`.
 
 ## First look
 
@@ -30,8 +30,8 @@ Symptoms: `/health` fails or `data_ready: false`, `/persons` returns 503, logs s
 
 ```bash
 dc logs --since 15m postgres | tail -50
-dc exec postgres pg_isready -U plujka
-dc exec postgres psql -U plujka -c "SELECT count(*) FROM mart.elections"
+dc exec postgres pg_isready -U kratka_wyborcza
+dc exec postgres psql -U kratka_wyborcza -c "SELECT count(*) FROM mart.elections"
 ```
 
 - Disk full: free space (old backups, `docker system prune`), then `dc restart postgres`.

@@ -11,14 +11,14 @@ from typing import Any
 
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, Histogram, generate_latest, multiprocess
 
-REQUESTS = Counter("plujka_http_requests_total", "HTTP requests by route template and status code",
+REQUESTS = Counter("kratka_wyborcza_http_requests_total", "HTTP requests by route template and status code",
                    ["method", "route", "status"])
-LATENCY = Histogram("plujka_http_request_duration_seconds", "HTTP request duration by route template",
+LATENCY = Histogram("kratka_wyborcza_http_request_duration_seconds", "HTTP request duration by route template",
                     ["method", "route"], buckets=(0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 40))
-ASKS = Counter("plujka_ask_total", "Answered /ask requests by SQL status and answer source",
+ASKS = Counter("kratka_wyborcza_ask_total", "Answered /ask requests by SQL status and answer source",
                ["status", "answer_source"])
-TOKENS = Counter("plujka_llm_tokens_total", "Model tokens spent on /ask", ["kind"])
-COST = Counter("plujka_llm_cost_usd_total", "Model cost of /ask in USD (LLM_PRICES_USD_PER_1M)")
+TOKENS = Counter("kratka_wyborcza_llm_tokens_total", "Model tokens spent on /ask", ["kind"])
+COST = Counter("kratka_wyborcza_llm_cost_usd_total", "Model cost of /ask in USD (LLM_PRICES_USD_PER_1M)")
 
 
 def observe_request(method: str, route: str, status: int, seconds: float) -> None:
