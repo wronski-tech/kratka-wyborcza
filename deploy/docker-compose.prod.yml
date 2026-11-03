@@ -28,6 +28,7 @@ services:
       FEEDBACK_JSONL_PATH: /app/feedback/feedback.jsonl
       # Both workers write their metrics here and /metrics sums them (api/services/metrics.py).
       PROMETHEUS_MULTIPROC_DIR: /tmp/metrics
+      SENTRY_RELEASE: ${PLUJKA_IMAGE_TAG:-}
     tmpfs:
       - /tmp/metrics
     # Client addresses from Caddy's X-Forwarded-For (the API is reachable only inside the compose network).

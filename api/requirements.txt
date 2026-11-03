@@ -11,3 +11,4 @@ sqlglot==25.34.1
 redis==5.0.8
 fpdf2==2.8.8
 prometheus-client==0.21.1
+sentry-sdk[fastapi]==2.73.0

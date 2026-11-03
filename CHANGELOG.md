@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Error tracking with Sentry or GlitchTip (`SENTRY_DSN`): unhandled errors and ERROR log lines, tagged with the request id, the environment and the deployed commit; no client IPs, API keys or local variables.
+
 - Central logs with a request id: Caddy and the UI send `X-Request-ID` (the API makes one otherwise); it is in every API log line, the response header, the question log entry and the body of a 500 response, and the UI shows it with an error. Grafana Alloy ships every container's output to Loki (30 days), searchable in Grafana; the dashboard shows the API's warnings and errors. Container logs rotate (cloud-init `daemon.json`).
 
 - Alerts: Prometheus rules for a target down, a disk over 85 %, a transaction over 2 minutes, over 5 % server errors, a token spike and a stale or missing backup (the backup script records its last complete run for node-exporter), tested with `promtool` in CI; Alertmanager sends them to a Slack-compatible webhook (`ALERT_WEBHOOK_SECRET`).

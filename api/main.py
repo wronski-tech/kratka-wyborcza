@@ -21,6 +21,8 @@ from typing import Any, Literal
 
 import openai
 import psycopg
+import sentry_sdk
+from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
@@ -52,6 +54,22 @@ def _record_with_request_id(*args: Any, **kwargs: Any) -> logging.LogRecord:
 logging.setLogRecordFactory(_record_with_request_id)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s")
 log = logging.getLogger("plujka.api")
+
+
+def _tag_request_id(event: Any, hint: Any) -> Any:
+    """Sentry events carry the request id, which leads to the request's log lines in Loki."""
+    event.setdefault("tags", {})["request_id"] = _request_id.get()
+    return event
+
+
+if config.SENTRY_DSN:
+    # Unhandled errors are logged with their traceback (see _observe_request); the logging integration sends
+    # ERROR lines as events. No personal data (client IPs, cookies), no API keys (X-API-Key is not on the SDK's
+    # default list of sensitive names) and no local variables: frames hold raw ASGI headers and connection strings.
+    sentry_sdk.init(dsn=config.SENTRY_DSN, environment=config.PLUJKA_ENV, release=config.SENTRY_RELEASE,
+                    send_default_pii=False, include_local_variables=False, traces_sample_rate=0,
+                    before_send=_tag_request_id,
+                    event_scrubber=EventScrubber(denylist=[*DEFAULT_DENYLIST, "x-api-key"]))
 ask_limiter = make_limiter(config.ASK_RATE_LIMIT_PER_MINUTE, config.REDIS_URL)
 token_budget = make_token_budget(config.DAILY_TOKEN_LIMIT_PER_CLIENT, config.REDIS_URL)
 session_questions = make_token_budget(config.SESSION_QUESTION_LIMIT, config.REDIS_URL, prefix="plujka:session")

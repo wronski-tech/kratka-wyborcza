@@ -80,3 +80,8 @@ SEED_SAMPLE_CSV = os.getenv("SEED_SAMPLE_CSV", "data/sample/sejm_results_sample_
 FEEDBACK_JSONL_PATH = os.getenv("FEEDBACK_JSONL_PATH", "data/feedback/feedback.jsonl")
 # Skip semantic (embedding) hints for very short fragments to save latency / OpenAI calls.
 QUESTION_HINTS_SEMANTIC_MIN_CHARS = int(os.getenv("QUESTION_HINTS_SEMANTIC_MIN_CHARS", "6"))
+
+# Error tracking (Sentry or GlitchTip, same SDK): unhandled errors and ERROR log lines go to this DSN; off when
+# empty. The release is the deployed commit (PLUJKA_IMAGE_TAG on the server).
+SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
+SENTRY_RELEASE = os.getenv("SENTRY_RELEASE", "").strip() or None

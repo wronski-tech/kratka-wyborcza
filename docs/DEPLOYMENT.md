@@ -16,7 +16,8 @@ dashboards and how the staged data is versioned. Configuration variables are lis
 5. A scheduled backup (`scripts/backup_db.sh`) and a restore test.
 6. `OPENAI_API_KEY`; without it every question falls back to the legacy Sejm templates.
 7. Uptime monitoring from outside: the repository variable `PLUJKA_URL` ([below](#uptime-monitoring)), and
-   alerts from inside: `ALERT_WEBHOOK_SECRET` ([Alerts](#alerts)).
+   alerts from inside: `ALERT_WEBHOOK_SECRET` ([Alerts](#alerts)), and error tracking: `SENTRY_DSN`
+   ([Error tracking](#error-tracking)).
 
 ## Production on Hetzner
 
@@ -354,6 +355,21 @@ Docker socket, which is root on the host in effect; it only lists containers and
 rotates container logs at 5 × 20 MB per container (`/etc/docker/daemon.json` from cloud-init; on an older
 server write the same file, `sudo systemctl restart docker`, and recreate the containers). On a server created
 before Loki: `sudo mkdir -p /mnt/data/loki && sudo chown 10001:10001 /mnt/data/loki`.
+
+## Error tracking
+
+With `SENTRY_DSN` set, the API sends unhandled errors (with their traceback) and every ERROR log line to
+[Sentry](https://sentry.io) or [GlitchTip](https://glitchtip.com), which takes the same SDK and DSN: GlitchTip's
+hosted free tier, or self-hosted next to other services. Each event is tagged with the request id (search
+for it in Loki, [Logs](#logs)), the environment (`PLUJKA_ENV`) and, on the server, the release (the deployed
+commit). Events carry no client IPs, cookies, API keys (`X-API-Key` is filtered) or local variables; only
+errors are sent, no performance traces. An unhandled error answers 500 with the request id, so a user's
+report and the event meet.
+
+Setup: create a project (platform Python / FastAPI), put its DSN in `.env` as `SENTRY_DSN` and recreate the
+API (`docker compose ... up -d api`). To check it, look for the events of a request that failed, or send one
+from the container: `docker compose ... exec api python -c "import sentry_sdk, os;
+sentry_sdk.init(os.environ['SENTRY_DSN']); sentry_sdk.capture_message('test'); sentry_sdk.flush()"`.
 
 ## Alerts
 

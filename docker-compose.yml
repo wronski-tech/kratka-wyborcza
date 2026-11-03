@@ -72,6 +72,8 @@ services:
       AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
       AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-10-21}
       EMBEDDING_DIM: "128"
+      # Sentry or GlitchTip DSN for unhandled errors (docs/DEPLOYMENT.md, Error tracking); off when empty.
+      SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
       - "8000:8000"
     volumes:

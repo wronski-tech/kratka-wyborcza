@@ -848,6 +848,8 @@ there. Dashboards over the question log: see
 | `OPENAI_CHAT_MODEL` / `OPENAI_REPAIR_MODEL` | `gpt-4o-mini` / `gpt-4o` | First SQL attempt (also clarification queries and answer text) / the repair after a failed query; set both to one model to turn routing off |
 | `SQL_CACHE_TTL_SECONDS` / `SQL_CACHE_MAX_ENTRIES` | `3600` / `512` | Validated SQL cache (0 disables) |
 | `QUESTION_COST_LIMIT_USD` | `0.10` | OpenAI cost ceiling of one question (prices from `LLM_PRICES_USD_PER_1M`); 0 disables |
+| `SENTRY_DSN` | empty | Sentry or GlitchTip project DSN: unhandled errors and ERROR log lines go there, tagged with the request id; off when empty ([DEPLOYMENT.md](DEPLOYMENT.md#error-tracking)) |
+| `SENTRY_RELEASE` | empty | Release named in error events (production: the deployed commit, `PLUJKA_IMAGE_TAG`) |
 | `SEMANTIC_CACHE_MIN_SIMILARITY` | `0.92` | Cosine similarity at which a paraphrase reuses a cached SQL (0 disables the semantic cache) |
 | `SQL_EXAMPLES_INDEX` / `SQL_EXAMPLES_K` | `sql_examples` / `4` | Few-shot examples |
 | `ANSWER_SUMMARY_ENABLED` | `1` | LLM answer text (numbers are always checked) |
