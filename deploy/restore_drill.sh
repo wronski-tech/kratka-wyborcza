@@ -5,7 +5,8 @@
 #
 # Run on the new server (stack up, mart deployed) as deploy, from /srv/plujka, with deploy/drill.env
 # (STORAGE_BOX, STORAGE_BOX_KEY, STORAGE_BOX_DIR as in deploy/backup.env; never create backup.env on a drill
-# server, or its nightly backup lands next to production's). Optional: MAX_AGE_HOURS (default 36),
+# server, or its nightly backup lands next to production's) and AGE_IDENTITY, the backup's age private key from
+# the password manager (a file; delete it after the drill). Optional: MAX_AGE_HOURS (default 36),
 # FEEDBACK_DIR (default /mnt/data/feedback), DRILL_DIR (default /mnt/data/restore-drill).
 #
 # Usage: deploy/restore_drill.sh [base-url [api-key]]
@@ -37,8 +38,8 @@ fi
 
 # The newest backup of each kind, by the UTC stamp in its name.
 listing=$(box ls -1 "$remote_dir")
-dump=$(grep -E '^plujka-[0-9]{8}-[0-9]{6}\.dump$' <<<"$listing" | sort | tail -1) || fail "no dump on the box"
-files=$(grep -E '^plujka-files-[0-9]{8}-[0-9]{6}\.tar\.gz$' <<<"$listing" | sort | tail -1) \
+dump=$(grep -E '^plujka-[0-9]{8}-[0-9]{6}\.dump(\.age)?$' <<<"$listing" | sort | tail -1) || fail "no dump on the box"
+files=$(grep -E '^plujka-files-[0-9]{8}-[0-9]{6}\.tar\.gz(\.age)?$' <<<"$listing" | sort | tail -1) \
   || fail "no files archive on the box"
 for name in "$dump" "$files"; do
   stamp=$(grep -oE '[0-9]{8}-[0-9]{6}' <<<"$name")
@@ -54,7 +55,13 @@ for name in "$dump" "$files"; do
   scp -P 23 "${ssh_opts[@]}" -q "$STORAGE_BOX:$remote_dir/$name" "$work/$name"
   [ "$(sha256sum "$work/$name" | cut -d' ' -f1)" = "$(box sha256sum "$remote_dir/$name" | cut -d' ' -f1)" ] \
     || fail "checksum of the downloaded $name differs from the box"
+  if [[ $name == *.age ]]; then
+    [ -r "${AGE_IDENTITY:-}" ] || fail "$name is encrypted: set AGE_IDENTITY to the file with its private key"
+    age -d -i "$AGE_IDENTITY" -o "$work/${name%.age}" "$work/$name" || fail "decrypting $name"
+  fi
 done
+dump=${dump%.age}
+files=${files%.age}
 
 # The documented restore (docs/DEPLOYMENT.md, Backups), with the API stopped so nothing writes meanwhile.
 "${dc[@]}" stop api

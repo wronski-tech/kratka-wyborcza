@@ -37,7 +37,8 @@ Box for backups. The mart is not built on the server: CI builds and checks it an
    ```
 
 7. Mart: `ssh deploy@<ipv4> /srv/plujka/deploy/deploy_mart.sh` (about 6 minutes).
-8. Backups (production): install the server's SSH key on the Storage Box and write `deploy/backup.env`
+8. Backups (production): create the backup encryption key on your own computer (not on the server), install
+   the server's SSH key on the Storage Box and write `deploy/backup.env`
    as in docs/DEPLOYMENT.md ("Nightly backup to the Storage Box"); `plujka-backup.timer` then runs every
    night.
 

@@ -187,7 +187,8 @@ docker compose exec api python scripts/reindex_question_log.py [--since 2026-11-
 
 On the Hetzner server `plujka-backup.timer` (`deploy/systemd/`, installed by cloud-init) runs
 `deploy/backup_storagebox.sh` at 03:15 UTC. It uploads two files to the Storage Box over SSH (port 23), each
-checked by SHA-256 on the box and only then renamed to its final name:
+encrypted with [age](https://age-encryption.org) (`.age` appended to the name below), checked by SHA-256 on
+the box and only then renamed to its final name:
 
 - `plujka-YYYYmmdd-HHMMSS.dump`: the `public` schema, dumped by the server's own `pg_dump` inside the
   postgres container;
@@ -198,31 +199,49 @@ checked by SHA-256 on the box and only then renamed to its final name:
 
 Retention on the box is 7 daily, 4 weekly and 6 monthly backups of each kind (`scripts/backup_retention.py`:
 the newest backup of each period, counting only periods that have one, so nothing is deleted when backups
-stop); the newest 3 of each stay in `/mnt/data/backups`. The mart is not part of
+stop); the newest 3 of each stay unencrypted in `/mnt/data/backups` (the server holds the data anyway). The
+mart is not part of
 it: CI publishes it (release `mart-latest`) and `deploy/deploy_mart.sh` restores it.
 
+**Encryption key, off the server.** The server only has the public key (a recipient), so whoever gets the
+server or the box cannot read the backups. Once, on your own computer:
+
+```bash
+age-keygen -o plujka-backup.key   # prints "Public key: age1..."
+```
+
+Store `plujka-backup.key` (the private key) in the password manager and keep a second copy offline (on paper
+or a USB stick in a safe): without it no backup can be restored, and nothing on the server can recreate it.
+Delete the file afterwards. A new key pair applies to the next backup; keep the old private key until the
+last backup made with it has expired (6 months).
+
 Once per server, as `deploy` in `/srv/plujka` (user and host: `terraform output storage_box_username` and
-`storage_box_server`; the first command asks for the Storage Box password):
+`storage_box_server`; the second command asks for the Storage Box password; `age1...` is the public key):
 
 ```bash
 ssh-keygen -t ed25519 -N '' -f deploy/storagebox_key
 ssh -p 23 u123456@u123456.your-storagebox.de install-ssh-key < deploy/storagebox_key.pub
-printf 'STORAGE_BOX=u123456@u123456.your-storagebox.de\nSTORAGE_BOX_KEY=/srv/plujka/deploy/storagebox_key\n' > deploy/backup.env
+printf 'STORAGE_BOX=u123456@u123456.your-storagebox.de\nSTORAGE_BOX_KEY=/srv/plujka/deploy/storagebox_key\nBACKUP_AGE_RECIPIENT=age1...\n' > deploy/backup.env
 sudo systemctl start plujka-backup.service && journalctl -u plujka-backup.service -n 20
 ```
 
-The timer does nothing until `deploy/backup.env` exists. On a server created before the timer existed,
+The timer does nothing until `deploy/backup.env` exists, and the backup fails without `BACKUP_AGE_RECIPIENT`
+(on a server set up before encryption, add the line; `age` comes with cloud-init, otherwise
+`sudo apt-get install age`). On a server created before the timer existed,
 install it with `sudo cp deploy/systemd/plujka-backup.* /etc/systemd/system/ && sudo systemctl daemon-reload
 && sudo systemctl enable --now plujka-backup.timer`. Restore a backup from the box with
-`scp -P 23 -i deploy/storagebox_key u123456@u123456.your-storagebox.de:plujka/<name>.dump .`, then as above;
-for the files, `tar -xzf plujka-files-<stamp>.tar.gz`, copy `feedback/*` to `/mnt/data/feedback/` and use
+`scp -P 23 -i deploy/storagebox_key u123456@u123456.your-storagebox.de:plujka/<name>.dump.age .` and
+`age -d -i plujka-backup.key -o <name>.dump <name>.dump.age` (the private key from the password manager, in a
+file you delete afterwards), then as above; for the files, decrypt the same way, `tar -xzf
+plujka-files-<stamp>.tar.gz`, copy `feedback/*` to `/mnt/data/feedback/` and use
 `config/env` as `.env` with the secrets filled in.
 
 ### Restore drill
 
 Once a month (the workflow `restore-drill.yml` opens an issue with this checklist on the 1st) restore the
 newest backups on a new, throwaway server and check the service answers from them. The drill needs the
-Hetzner token, the Storage Box password and the secrets from the password manager, so a person runs it;
+Hetzner token, the Storage Box password, the backup key and the secrets from the password manager, so a
+person runs it;
 it takes about 30 minutes.
 
 1. Server: from `infra/hetzner`, with the staging variables, its own name and state key (no Storage Box of
@@ -243,15 +262,17 @@ it takes about 30 minutes.
    ssh-keygen -t ed25519 -N '' -f deploy/storagebox_key
    ssh -p 23 u123456@u123456.your-storagebox.de install-ssh-key < deploy/storagebox_key.pub
    printf 'STORAGE_BOX=u123456@u123456.your-storagebox.de\nSTORAGE_BOX_KEY=/srv/plujka/deploy/storagebox_key\n' > deploy/drill.env
+   (umask 077; nano /dev/shm/plujka-backup.key)   # paste the private key from the password manager
+   echo 'AGE_IDENTITY=/dev/shm/plujka-backup.key' >> deploy/drill.env
    ```
 
 4. The drill: `deploy/restore_drill.sh https://drill.plujka.example.org`. It refuses a server with
    questions logged before today (production), takes the newest dump and files archive, fails when either
-   is older than 36 hours or its checksum differs from the box, restores `public` with the API stopped,
+   is older than 36 hours, its checksum differs from the box or it does not decrypt, restores `public` with the API stopped,
    copies the feedback, lists `.env` variables that differ from the backed-up configuration, rebuilds the
    OpenSearch question log, prints what came back (logged questions and the newest one, saved views,
    feedback lines; an empty question log fails) and ends with the smoke test.
-5. Clean up: remove this server's key from `.ssh/authorized_keys` on the box (fetch it with `scp -P 23`,
+5. Clean up: `rm /dev/shm/plujka-backup.key`, remove this server's key from `.ssh/authorized_keys` on the box (fetch it with `scp -P 23`,
    delete the line ending in `deploy@plujka-drill`, upload it back), then `terraform destroy -var-file=staging.tfvars -var environment=drill -var
    domain=drill.plujka.example.org` and the DNS record. Note the result (backup age, counts, anything
    that failed) in the issue and close it.

@@ -6,10 +6,13 @@
 #                                        server configuration: .env with secret values removed, caddy.env, backup.env
 # The mart is not backed up: CI publishes it (release mart-latest) and deploy/deploy_mart.sh restores it.
 # Secrets (passwords, API keys) are not in any backup: keep them in a password manager.
+# Uploads are encrypted with age to a public key (BACKUP_AGE_RECIPIENT, ".age" appended to the names); the private
+# key never comes to the server, so neither the server nor the box can read the backups on the box.
 #
 # Run by plujka-backup.timer (deploy/systemd/) as deploy, from /srv/plujka, with deploy/backup.env:
 #   STORAGE_BOX=u123456@u123456.your-storagebox.de   user@host (terraform output storage_box_username / _server)
 #   STORAGE_BOX_KEY=/srv/plujka/deploy/storagebox_key  private key installed on the box (docs/DEPLOYMENT.md)
+#   BACKUP_AGE_RECIPIENT=age1...                        age public key; its private key is in the password manager
 #   STORAGE_BOX_DIR=plujka                              directory on the box (default plujka)
 #   BACKUP_DIR=/mnt/data/backups                        local copies, the newest 3 of each kind are kept (default)
 #   FEEDBACK_DIR=/mnt/data/feedback                     the API's feedback directory (default)
@@ -17,16 +20,20 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 : "${STORAGE_BOX:?set STORAGE_BOX=user@host of the Storage Box}"
+: "${BACKUP_AGE_RECIPIENT:?set BACKUP_AGE_RECIPIENT=age1... (public key; docs/DEPLOYMENT.md, Nightly backup)}"
 remote_dir="${STORAGE_BOX_DIR:-plujka}"
 backup_dir="${BACKUP_DIR:-/mnt/data/backups}"
 ssh_opts=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new ${STORAGE_BOX_KEY:+-i "$STORAGE_BOX_KEY"})
 box() { ssh -p 23 "${ssh_opts[@]}" "$STORAGE_BOX" "$@"; }
 
-# Upload under a temporary name, check the checksum on the box, then rename: a broken upload never looks
-# like a backup, and retention never counts it.
+# Encrypt, upload under a temporary name, check the checksum on the box, then rename: a broken upload never
+# looks like a backup, and retention never counts it. The local copies in $backup_dir stay plain: they are on
+# the server that holds the data anyway.
 upload() {
-  local file=$1 name local_sum remote_sum
-  name=$(basename "$file")
+  local name local_sum remote_sum file
+  name=$(basename "$1").age
+  file="$stage/$name"
+  age -r "$BACKUP_AGE_RECIPIENT" -o "$file" "$1"
   scp -P 23 "${ssh_opts[@]}" -q "$file" "$STORAGE_BOX:$remote_dir/$name.partial"
   local_sum=$(sha256sum "$file" | cut -d' ' -f1)
   remote_sum=$(box sha256sum "$remote_dir/$name.partial" | cut -d' ' -f1)

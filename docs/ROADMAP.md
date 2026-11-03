@@ -196,7 +196,7 @@ gdy nowy serwer powstaje z Terraformu, przechodzi próbę odtworzenia i ma alert
 - [x] 40. Backup `feedback.jsonl` i konfiguracji.
 - [x] 41. Snapshoty OpenSearch albo log pytań w Postgresie (pgvector).
 - [x] 42. Comiesięczna próba odtworzenia na nowym serwerze.
-- [ ] 43. Szyfrowanie backupów, klucz poza serwerem.
+- [x] 43. Szyfrowanie backupów, klucz poza serwerem.
 
 **Monitoring i bezpieczeństwo**
 - [ ] 44. Monitoring dostępności z zewnątrz z alertem.

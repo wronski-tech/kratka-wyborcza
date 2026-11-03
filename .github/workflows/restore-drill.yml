@@ -30,6 +30,6 @@ jobs:
 
           - [ ] Drill server created (\`terraform apply ... -var environment=drill\`), DNS record set
           - [ ] \`.env\` from the password manager, \`deploy/deploy_mart.sh\`
-          - [ ] Storage Box key and \`deploy/drill.env\` (not \`backup.env\`)
+          - [ ] Storage Box key, backup key in \`/dev/shm\` and \`deploy/drill.env\` (not \`backup.env\`)
           - [ ] \`deploy/restore_drill.sh https://<drill domain>\` passed; backup age and counts noted below
-          - [ ] Key removed from the Storage Box, \`terraform destroy\`, DNS record removed"
+          - [ ] Backup key deleted, SSH key removed from the Storage Box, \`terraform destroy\`, DNS record removed"

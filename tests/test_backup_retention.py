@@ -46,8 +46,13 @@ class TestRetention(unittest.TestCase):
         self.assertEqual(backup_retention.to_delete([name(day1), name(day2), *files], daily=1, weekly=0, monthly=0),
                          [name(day1), files[0]])
 
+    def test_encrypted_backups_continue_their_series(self) -> None:
+        # After encryption is switched on, the plain dumps of earlier days age out like any other.
+        names = [name(dt.date(2026, 1, 1)), name(dt.date(2026, 1, 2)) + ".age", name(dt.date(2026, 1, 3)) + ".age"]
+        self.assertEqual(backup_retention.to_delete(names, daily=2, weekly=0, monthly=0), [name(dt.date(2026, 1, 1))])
+
     def test_other_files_are_never_deleted(self) -> None:
-        names = ["plujka-20260101-031500.dump.partial", "notes.txt", name(dt.date(2026, 1, 1)), name(dt.date(2026, 1, 2))]
+        names = ["plujka-20260101-031500.dump.partial", "plujka-20260101-031500.dump.age.partial", "notes.txt", name(dt.date(2026, 1, 1)), name(dt.date(2026, 1, 2))]
         self.assertEqual(backup_retention.to_delete(names, daily=1, weekly=0, monthly=0), [name(dt.date(2026, 1, 1))])
 
 
