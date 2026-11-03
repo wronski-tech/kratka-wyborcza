@@ -7,6 +7,8 @@
 # Environment:
 #   DATABASE_URL   owner connection (default: local docker-compose database)
 #   BACKUP_KEEP    number of newest dumps to keep in backup_dir (default 7; 0 keeps all)
+#   PG_DUMP        pg_dump command (default pg_dump), e.g. "docker compose exec -T postgres pg_dump" to use
+#                  the server's own pg_dump when the host has none (deploy/backup_storagebox.sh)
 #   BACKUP_SCHEMAS space-separated schemas to dump (default: everything). The mart schema can be
 #                  rebuilt from parquet with scripts/build_mart.py, so "public" alone is enough when
 #                  only logs, feedback and legacy tables matter.
@@ -33,7 +35,11 @@ if [ "${#schema_args[@]}" -gt 0 ]; then
 fi
 
 # Write to a temporary name first so an interrupted dump never looks like a valid backup.
-pg_dump --format=custom --no-owner "${schema_args[@]}" --file "$target.partial" "$DATABASE_URL"
+# The dump goes to stdout, so PG_DUMP may run in a container.
+if ! ${PG_DUMP:-pg_dump} --format=custom --no-owner "${schema_args[@]}" "$DATABASE_URL" > "$target.partial"; then
+  rm -f -- "$target.partial"
+  exit 1
+fi
 mv "$target.partial" "$target"
 echo "backup written: $target ($(du -h "$target" | cut -f1))"
 

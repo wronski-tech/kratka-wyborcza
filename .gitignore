@@ -52,3 +52,7 @@ infra/**/*.tfstate*
 infra/**/*.tfvars
 infra/**/backend-*.hcl
 deploy/caddy.env
+# Storage Box backup settings and key on the server (deploy/backup_storagebox.sh).
+deploy/backup.env
+deploy/storagebox_key
+deploy/storagebox_key.pub

@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Nightly backup of the `public` schema to the Storage Box (`deploy/backup_storagebox.sh`, `plujka-backup.timer` installed by cloud-init): the server's own `pg_dump` in the postgres container, upload checked by SHA-256 before it gets its final name, retention 7 daily / 4 weekly / 6 monthly (`scripts/backup_retention.py`, which never deletes when backups have stopped). `scripts/backup_db.sh` takes the `pg_dump` command from `PG_DUMP`. One-time setup in docs/DEPLOYMENT.md.
+
 - Backup restore test in CI: the `public` backup is restored into an empty database by the documented procedure and compared with its source (`scripts/check_restore.py`: tables, indexes, functions, sequences and row counts; an empty source fails).
 
 - Load test with a fake model (`scripts/load_test.py`, run by CI on the built mart with its latency table in the job summary): concurrent questions and browse requests, p50/p95/max per endpoint, failing on any failed request. One API process answers about 8 questions per second besides the model (CPU-bound; docs/DEPLOYMENT.md). The fake OpenAI server is shared with the end-to-end tests (`scripts/fake_openai.py`).

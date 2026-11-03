@@ -74,5 +74,9 @@ runcmd:
   - git clone --branch ${git_ref} ${repo_url} /srv/plujka
   - printf 'DOMAIN=%s\nACME_EMAIL=%s\n' '${domain}' '${acme_email}' > /srv/plujka/deploy/caddy.env
   - chown -R deploy:deploy /srv/plujka
+  # Nightly backup to the Storage Box; it waits for deploy/backup.env (docs/DEPLOYMENT.md).
+  - cp /srv/plujka/deploy/systemd/plujka-backup.service /srv/plujka/deploy/systemd/plujka-backup.timer /etc/systemd/system/
+  - systemctl daemon-reload
+  - systemctl enable plujka-backup.timer
   - systemctl enable plujka.service
   - systemctl enable --now unattended-upgrades fail2ban

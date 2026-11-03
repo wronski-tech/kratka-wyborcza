@@ -176,11 +176,30 @@ API host) and the OpenSearch indexes (`question_logs`, `sql_examples`). Copy the
 the dump; the examples index is rebuilt from `sql_examples.jsonl` at startup, and the question log
 can be snapshotted with OpenSearch snapshots if its history matters.
 
-Example cron entry (03:15 every night):
+### Nightly backup to the Storage Box
 
-```cron
-15 3 * * * cd /srv/plujka && DATABASE_URL=... scripts/backup_db.sh /var/backups/plujka >> /var/log/plujka-backup.log 2>&1
+On the Hetzner server `plujka-backup.timer` (`deploy/systemd/`, installed by cloud-init) runs
+`deploy/backup_storagebox.sh` at 03:15 UTC: a dump of the `public` schema made by the server's own `pg_dump`
+inside the postgres container, uploaded to the Storage Box over SSH (port 23), checked by SHA-256 on the box
+and only then renamed to its final name. Retention on the box is 7 daily, 4 weekly and 6 monthly backups
+(`scripts/backup_retention.py`: the newest backup of each period, counting only periods that have one, so
+nothing is deleted when backups stop); the newest 3 stay in `/mnt/data/backups`. The mart is not part of
+it: CI publishes it (release `mart-latest`) and `deploy/deploy_mart.sh` restores it.
+
+Once per server, as `deploy` in `/srv/plujka` (user and host: `terraform output storage_box_username` and
+`storage_box_server`; the first command asks for the Storage Box password):
+
+```bash
+ssh-keygen -t ed25519 -N '' -f deploy/storagebox_key
+ssh -p 23 u123456@u123456.your-storagebox.de install-ssh-key < deploy/storagebox_key.pub
+printf 'STORAGE_BOX=u123456@u123456.your-storagebox.de\nSTORAGE_BOX_KEY=/srv/plujka/deploy/storagebox_key\n' > deploy/backup.env
+sudo systemctl start plujka-backup.service && journalctl -u plujka-backup.service -n 20
 ```
+
+The timer does nothing until `deploy/backup.env` exists. On a server created before the timer existed,
+install it with `sudo cp deploy/systemd/plujka-backup.* /etc/systemd/system/ && sudo systemctl daemon-reload
+&& sudo systemctl enable --now plujka-backup.timer`. Restore a backup from the box with
+`scp -P 23 -i deploy/storagebox_key u123456@u123456.your-storagebox.de:plujka/<name>.dump .`, then as above.
 
 ## Load test
 

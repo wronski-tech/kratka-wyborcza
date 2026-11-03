@@ -192,7 +192,7 @@ gdy nowy serwer powstaje z Terraformu, przechodzi próbę odtworzenia i ma alert
 - [x] 38. Test odtwarzania z backupu w CI.
 
 **Backup i odtwarzanie**
-- [ ] 39. Nocny backup `public` na Storage Box, retencja 7 dni / 4 tygodnie / 6 miesięcy.
+- [x] 39. Nocny backup `public` na Storage Box, retencja 7 dni / 4 tygodnie / 6 miesięcy.
 - [ ] 40. Backup `feedback.jsonl` i konfiguracji.
 - [ ] 41. Snapshoty OpenSearch albo log pytań w Postgresie (pgvector).
 - [ ] 42. Comiesięczna próba odtworzenia na nowym serwerze.
