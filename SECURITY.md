@@ -23,3 +23,5 @@ Out of scope: third-party services (OpenAI, PKW websites), misconfiguration of s
 
 - Do not commit API keys or `.env` files (see `.gitignore`).
 - Restrict exposure of OpenSearch and PostgreSQL ports in production; the Compose file maps them for local development.
+- On the production server, run `deploy/security_check.sh` and follow the checklist in
+  [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#production-security-checklist).

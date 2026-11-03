@@ -18,6 +18,40 @@ dashboards and how the staged data is versioned. Configuration variables are lis
 7. Uptime monitoring from outside: the repository variable `KRATKA_WYBORCZA_URL` ([below](#uptime-monitoring)), and
    alerts from inside: `ALERT_WEBHOOK_SECRET` ([Alerts](#alerts)), and error tracking: `SENTRY_DSN`
    ([Error tracking](#error-tracking)).
+8. The [production security checklist](#production-security-checklist), with `deploy/security_check.sh`
+   passing on the server.
+
+## Production security checklist
+
+Run `deploy/security_check.sh` on the server (as `deploy` in `/srv/kratka-wyborcza`) after the first setup, after
+every change of `.env` or the server, and monthly with the restore drill. It changes nothing and fails
+(exit 1) on any of:
+
+- `.env` not mode 600 or not owned by `deploy`; an empty, default or short (< 16 characters) password
+  (Postgres owner and reader, OpenSearch, Grafana); the UI's `KRATKA_WYBORCZA_API_KEY` among `ADMIN_API_KEYS`;
+- no `deploy/backup.env` or no `BACKUP_AGE_RECIPIENT`; the Storage Box key not mode 600; an age private
+  key (`AGE-SECRET-KEY-1…`) in a file near the repository or the home directory;
+- a TCP port other than 22, 80 and 443 listening outside loopback; SSH accepting passwords;
+- fail2ban or unattended-upgrades not running; `kratka-wyborcza-backup.timer` not enabled; no complete backup in
+  the last 30 hours;
+- through the public address: no HSTS header, a `Server` header, http not redirected to https,
+  `/api/metrics` answering, or a certificate with less than 14 days left (Caddy renews at 30).
+
+It warns about an empty `API_KEYS` (the API open to direct calls), no daily token budget and a pending
+reboot. What the script cannot see, check by hand once and after any change:
+
+- [ ] Two-factor login on GitHub, Hetzner (Cloud and Robot, for the Storage Box) and OpenAI.
+- [ ] OpenAI: a project of its own with a monthly budget limit; the key belongs to that project.
+- [ ] GitHub: `main` protected (pull requests or pushes only with the CI checks green), secret scanning with
+      push protection and Dependabot alerts on; `DEPLOY_SSH_KEY` used only by the deploy workflow.
+- [ ] Hetzner: the firewall allows SSH only from `admin_cidrs`; the Cloud API token and the Terraform state
+      credentials stay on the operator's computer; delete protection on the production volume and box.
+- [ ] Password manager: every `.env` secret, the backup's age private key (plus an offline copy), the
+      Storage Box password, the Grafana admin password.
+- [ ] A leaked key: remove it from `API_KEYS` / `ADMIN_API_KEYS` (or rotate `OPENAI_API_KEY` in the OpenAI
+      project), `docker compose ... up -d api`, and look for its use in the cost panel and the logs.
+- [ ] Personal data: the question log and feedback hold what users typed, without IPs; client IPs are in
+      Caddy's access log (in Loki for 30 days) and in the rate limit's memory or Redis; backups are encrypted.
 
 ## Production on Hetzner
 

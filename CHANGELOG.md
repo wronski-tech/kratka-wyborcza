@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Production security checklist (docs/DEPLOYMENT.md) and `deploy/security_check.sh`, a read-only check on the server: secrets and file modes, open ports, SSH, fail2ban and updates, backup freshness and encryption, no backup private key on the disk, HSTS, http → https, `/api/metrics` hidden, certificate expiry.
+
 - Error tracking with Sentry or GlitchTip (`SENTRY_DSN`): unhandled errors and ERROR log lines, tagged with the request id, the environment and the deployed commit; no client IPs, API keys or local variables.
 
 - Central logs with a request id: Caddy and the UI send `X-Request-ID` (the API makes one otherwise); it is in every API log line, the response header, the question log entry and the body of a 500 response, and the UI shows it with an error. Grafana Alloy ships every container's output to Loki (30 days), searchable in Grafana; the dashboard shows the API's warnings and errors. Container logs rotate (cloud-init `daemon.json`).
