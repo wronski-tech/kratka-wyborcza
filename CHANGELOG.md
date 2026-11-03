@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Uptime monitoring from outside the server: `uptime.yml` checks `/api/health` (mart loaded) and the UI every 10 minutes, opens the issue "Plujka is down" after three failed tries and closes it when the site answers again (repository variable `PLUJKA_URL`).
+
 - Backups on the Storage Box are encrypted with age to a public key (`BACKUP_AGE_RECIPIENT` in `deploy/backup.env`, required); the private key stays in the password manager, never on the server. The restore drill decrypts with `AGE_IDENTITY`.
 
 - Monthly restore drill on a new server: `deploy/restore_drill.sh` restores the newest Storage Box backups (fresh, checksum-checked, refused on a server with history), the feedback and the OpenSearch question log, and reports what came back; `restore-drill.yml` opens the checklist issue on the 1st of every month (runbook in docs/DEPLOYMENT.md).

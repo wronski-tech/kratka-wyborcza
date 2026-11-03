@@ -15,6 +15,7 @@ dashboards and how the staged data is versioned. Configuration variables are lis
    `DAILY_TOKEN_LIMIT_PER_CLIENT` to cap what one key or IP can spend on OpenAI per day.
 5. A scheduled backup (`scripts/backup_db.sh`) and a restore test.
 6. `OPENAI_API_KEY`; without it every question falls back to the legacy Sejm templates.
+7. Uptime monitoring from outside: the repository variable `PLUJKA_URL` ([below](#uptime-monitoring)).
 
 ## Production on Hetzner
 
@@ -276,6 +277,29 @@ it takes about 30 minutes.
    delete the line ending in `deploy@plujka-drill`, upload it back), then `terraform destroy -var-file=staging.tfvars -var environment=drill -var
    domain=drill.plujka.example.org` and the DNS record. Note the result (backup age, counts, anything
    that failed) in the issue and close it.
+
+## Uptime monitoring
+
+The workflow `uptime.yml` checks the site from GitHub's runners, outside the server and Hetzner, every
+10 minutes: `GET /api/health` must say `status: ok` with the mart loaded, and the UI page must answer, through
+Caddy and TLS (an expired certificate fails too). Three failed tries a minute apart open the issue
+"Plujka is down" with the reason; that run fails, so GitHub also mails the failure once. Later checks
+leave the open issue alone, and the first check that passes comments "Up again" and closes it, so the
+issue's open and close times are the outage.
+
+Setup, once, in the repository settings (Secrets and variables → Actions → Variables): `PLUJKA_URL`, e.g.
+`https://plujka.example.org`, and optionally `ALERT_ASSIGNEES` (GitHub logins, comma-separated) to be
+assigned, and so notified, on every alert; otherwise watch the repository for issues. Without `PLUJKA_URL`
+the check is skipped. Run it by hand with `gh workflow run uptime.yml`.
+
+GitHub's schedule is best effort: runs may start several minutes late, and GitHub turns scheduled workflows
+off in a repository without activity for 60 days (re-enable it in the Actions tab). For alerts within a
+minute, add an external monitor (e.g. UptimeRobot or Better Stack, free tier) on
+`https://<domain>/api/health` with the keyword `"data_ready":true`.
+
+When the alert opens: `ssh deploy@<server> 'cd /srv/plujka && docker compose -f docker-compose.yml -f
+deploy/docker-compose.prod.yml ps'`, then the logs of the failing service (`... logs --tail 100 api`);
+`deploy/smoke_test.sh https://<domain>` tells which part answers.
 
 ## Load test
 

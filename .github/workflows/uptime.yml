@@ -1,0 +1,74 @@
+# Availability check from outside the server (docs/DEPLOYMENT.md, "Uptime monitoring"): every 10 minutes
+# GET /api/health (status ok, mart loaded) and the UI page through Caddy, three tries a minute apart. When
+# they fail, an issue "Plujka is down" is opened (assigned to ALERT_ASSIGNEES, GitHub notifies them and the
+# repository's watchers) and that run fails (GitHub mails the failure too); when the site answers again, the
+# issue gets a comment and is closed. Needs the repository variable PLUJKA_URL.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: uptime
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BASE: ${{ vars.PLUJKA_URL }}
+      ASSIGNEES: ${{ vars.ALERT_ASSIGNEES }}
+      TITLE: Plujka is down
+    steps:
+      - name: Check the site
+        id: check
+        run: |
+          if [ -z "$BASE" ]; then
+            echo "::notice::set the repository variable PLUJKA_URL to monitor the site"
+            echo "state=skipped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          probe() {
+            curl -fsS --max-time 20 "$BASE/api/health" | jq -e '.status == "ok" and .data_ready' >/dev/null \
+              || { echo "GET /api/health failed or the mart is not loaded"; return 1; }
+            curl -fsS --max-time 20 -o /dev/null "$BASE/" || { echo "GET / (UI) failed"; return 1; }
+          }
+          for try in 1 2 3; do
+            if reason=$(probe 2>&1); then
+              echo "state=up" >> "$GITHUB_OUTPUT"
+              echo "up: $BASE"
+              exit 0
+            fi
+            echo "try $try: $reason"
+            [ "$try" = 3 ] || sleep 60
+          done
+          echo "state=down" >> "$GITHUB_OUTPUT"
+          { echo "reason<<EOF"; echo "$reason"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+
+      - name: Open or close the alert issue
+        if: steps.check.outputs.state != 'skipped'
+        env:
+          STATE: ${{ steps.check.outputs.state }}
+          REASON: ${{ steps.check.outputs.reason }}
+        run: |
+          open=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number,title \
+            --jq "map(select(.title == env.TITLE)) | .[0].number // empty")
+          now=$(date -u '+%Y-%m-%d %H:%M UTC')
+          run="$GITHUB_SERVER_URL/$GH_REPO/actions/runs/$GITHUB_RUN_ID"
+          if [ "$STATE" = down ] && [ -z "$open" ]; then
+            gh issue create --title "$TITLE" ${ASSIGNEES:+--assignee "$ASSIGNEES"} --body "$BASE does not answer since $now: $REASON ([check]($run)).
+
+          Runbook: docs/DEPLOYMENT.md, \"Uptime monitoring\". This issue closes itself when the site answers again."
+            exit 1  # only the run that opens the alert fails: one failure mail, not one every 10 minutes
+          elif [ "$STATE" = down ]; then
+            echo "still down, alert #$open already open"
+          elif [ -n "$open" ]; then
+            gh issue close "$open" --comment "Up again at $now ([check]($run))."
+          fi

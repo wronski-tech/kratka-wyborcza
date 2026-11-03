@@ -199,7 +199,7 @@ gdy nowy serwer powstaje z Terraformu, przechodzi próbę odtworzenia i ma alert
 - [x] 43. Szyfrowanie backupów, klucz poza serwerem.
 
 **Monitoring i bezpieczeństwo**
-- [ ] 44. Monitoring dostępności z zewnątrz z alertem.
+- [x] 44. Monitoring dostępności z zewnątrz z alertem.
 - [ ] 45. Prometheus + Grafana (Postgres, węzeł, API).
 - [ ] 46. Alerty: dysk, wolne zapytania, 5xx, tokeny, backup.
 - [ ] 47. Centralne logi z identyfikatorem żądania.
