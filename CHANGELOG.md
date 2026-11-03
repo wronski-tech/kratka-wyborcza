@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The nightly backup also archives feedback (`feedback.jsonl`) and the server configuration (`plujka-files-*.tar.gz`: `.env` with every password, key, secret and token value removed, `caddy.env`, `backup.env`), with the same retention kept separately for dumps and archives.
+
 - Nightly backup of the `public` schema to the Storage Box (`deploy/backup_storagebox.sh`, `plujka-backup.timer` installed by cloud-init): the server's own `pg_dump` in the postgres container, upload checked by SHA-256 before it gets its final name, retention 7 daily / 4 weekly / 6 monthly (`scripts/backup_retention.py`, which never deletes when backups have stopped). `scripts/backup_db.sh` takes the `pg_dump` command from `PG_DUMP`. One-time setup in docs/DEPLOYMENT.md.
 
 - Backup restore test in CI: the `public` backup is restored into an empty database by the documented procedure and compared with its source (`scripts/check_restore.py`: tables, indexes, functions, sequences and row counts; an empty source fails).

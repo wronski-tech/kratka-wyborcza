@@ -39,6 +39,13 @@ class TestRetention(unittest.TestCase):
         self.assertEqual(backup_retention.to_delete(names, daily=0, weekly=1, monthly=0),
                          [name(dt.date(2026, 12, 31), "031500"), name(dt.date(2026, 12, 31), "120000")])
 
+    def test_dumps_and_file_archives_are_separate_series(self) -> None:
+        day1, day2 = dt.date(2026, 1, 1), dt.date(2026, 1, 2)
+        files = [f"plujka-files-{d:%Y%m%d}-031600.tar.gz" for d in (day1, day2)]
+        # One day each: the newer dump and the newer archive stay, though the archive of day 2 is the newest of all.
+        self.assertEqual(backup_retention.to_delete([name(day1), name(day2), *files], daily=1, weekly=0, monthly=0),
+                         [name(day1), files[0]])
+
     def test_other_files_are_never_deleted(self) -> None:
         names = ["plujka-20260101-031500.dump.partial", "notes.txt", name(dt.date(2026, 1, 1)), name(dt.date(2026, 1, 2))]
         self.assertEqual(backup_retention.to_delete(names, daily=1, weekly=0, monthly=0), [name(dt.date(2026, 1, 1))])

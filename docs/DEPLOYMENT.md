@@ -172,18 +172,26 @@ python scripts/check_restore.py "$SOURCE_URL" "$RESTORED_URL" --schemas public
 ```
 
 What a database backup does not cover: thumbs-down feedback (`data/feedback/feedback.jsonl` on the
-API host) and the OpenSearch indexes (`question_logs`, `sql_examples`). Copy the feedback file with
-the dump; the examples index is rebuilt from `sql_examples.jsonl` at startup, and the question log
-can be snapshotted with OpenSearch snapshots if its history matters.
+API host), the server configuration and the OpenSearch indexes (`question_logs`, `sql_examples`). On the
+server the nightly backup below archives feedback and configuration next to the dump; the examples
+index is rebuilt from `sql_examples.jsonl` at startup.
 
 ### Nightly backup to the Storage Box
 
 On the Hetzner server `plujka-backup.timer` (`deploy/systemd/`, installed by cloud-init) runs
-`deploy/backup_storagebox.sh` at 03:15 UTC: a dump of the `public` schema made by the server's own `pg_dump`
-inside the postgres container, uploaded to the Storage Box over SSH (port 23), checked by SHA-256 on the box
-and only then renamed to its final name. Retention on the box is 7 daily, 4 weekly and 6 monthly backups
-(`scripts/backup_retention.py`: the newest backup of each period, counting only periods that have one, so
-nothing is deleted when backups stop); the newest 3 stay in `/mnt/data/backups`. The mart is not part of
+`deploy/backup_storagebox.sh` at 03:15 UTC. It uploads two files to the Storage Box over SSH (port 23), each
+checked by SHA-256 on the box and only then renamed to its final name:
+
+- `plujka-YYYYmmdd-HHMMSS.dump`: the `public` schema, dumped by the server's own `pg_dump` inside the
+  postgres container;
+- `plujka-files-YYYYmmdd-HHMMSS.tar.gz`: `feedback/` (the API's feedback directory: thumbs-down answers and
+  person reports) and `config/`: `.env` with the values of every `*PASSWORD*`, `*KEY*`, `*SECRET*` and
+  `*TOKEN*` variable removed (limits, `MART_DB`, image tag and URLs stay), `deploy/caddy.env` and
+  `deploy/backup.env`. Secrets are in no backup: keep them in a password manager.
+
+Retention on the box is 7 daily, 4 weekly and 6 monthly backups of each kind (`scripts/backup_retention.py`:
+the newest backup of each period, counting only periods that have one, so nothing is deleted when backups
+stop); the newest 3 of each stay in `/mnt/data/backups`. The mart is not part of
 it: CI publishes it (release `mart-latest`) and `deploy/deploy_mart.sh` restores it.
 
 Once per server, as `deploy` in `/srv/plujka` (user and host: `terraform output storage_box_username` and
@@ -199,7 +207,9 @@ sudo systemctl start plujka-backup.service && journalctl -u plujka-backup.servic
 The timer does nothing until `deploy/backup.env` exists. On a server created before the timer existed,
 install it with `sudo cp deploy/systemd/plujka-backup.* /etc/systemd/system/ && sudo systemctl daemon-reload
 && sudo systemctl enable --now plujka-backup.timer`. Restore a backup from the box with
-`scp -P 23 -i deploy/storagebox_key u123456@u123456.your-storagebox.de:plujka/<name>.dump .`, then as above.
+`scp -P 23 -i deploy/storagebox_key u123456@u123456.your-storagebox.de:plujka/<name>.dump .`, then as above;
+for the files, `tar -xzf plujka-files-<stamp>.tar.gz`, copy `feedback/*` to `/mnt/data/feedback/` and use
+`config/env` as `.env` with the secrets filled in.
 
 ## Load test
 
