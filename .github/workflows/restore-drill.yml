@@ -1,0 +1,35 @@
+# Monthly reminder for the restore drill on a new server (docs/DEPLOYMENT.md, "Restore drill"): opens an
+# issue with the checklist. The drill needs the Hetzner token, the Storage Box and the secrets, so a person
+# runs it (deploy/restore_drill.sh) and closes the issue with the result.
+name: Restore drill
+
+on:
+  schedule:
+    - cron: "0 7 1 * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Open the checklist issue
+        run: |
+          title="Restore drill $(date -u +%Y-%m)"
+          if [ -n "$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[].number')" ]; then
+            echo "already open: $title"
+            exit 0
+          fi
+          runbook="https://github.com/$GH_REPO/blob/main/docs/DEPLOYMENT.md#restore-drill"
+          gh issue create --title "$title" --body "Monthly restore of the newest backups on a new server ([runbook]($runbook)).
+
+          - [ ] Drill server created (\`terraform apply ... -var environment=drill\`), DNS record set
+          - [ ] \`.env\` from the password manager, \`deploy/deploy_mart.sh\`
+          - [ ] Storage Box key and \`deploy/drill.env\` (not \`backup.env\`)
+          - [ ] \`deploy/restore_drill.sh https://<drill domain>\` passed; backup age and counts noted below
+          - [ ] Key removed from the Storage Box, \`terraform destroy\`, DNS record removed"

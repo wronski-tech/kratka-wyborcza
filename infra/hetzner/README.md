@@ -42,7 +42,8 @@ Box for backups. The mart is not built on the server: CI builds and checks it an
    night.
 
 Staging uses the same module with its own state key and `staging.tfvars` (smaller server, no
-Storage Box).
+Storage Box). The monthly restore drill creates and destroys a throwaway server the same
+way (`-var environment=drill`, docs/DEPLOYMENT.md "Restore drill").
 
 ## Resize and replacement
 

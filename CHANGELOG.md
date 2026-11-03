@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Monthly restore drill on a new server: `deploy/restore_drill.sh` restores the newest Storage Box backups (fresh, checksum-checked, refused on a server with history), the feedback and the OpenSearch question log, and reports what came back; `restore-drill.yml` opens the checklist issue on the 1st of every month (runbook in docs/DEPLOYMENT.md).
+
 - The question log is kept in Postgres (`public.question_log`: the document and the question's embedding, `vector(128)`), so the nightly backup covers it; OpenSearch `question_logs` is an index rebuilt from it with `scripts/reindex_question_log.py` (same ids, no duplicates on a rerun).
 
 - The nightly backup also archives feedback (`feedback.jsonl`) and the server configuration (`plujka-files-*.tar.gz`: `.env` with every password, key, secret and token value removed, `caddy.env`, `backup.env`), with the same retention kept separately for dumps and archives.

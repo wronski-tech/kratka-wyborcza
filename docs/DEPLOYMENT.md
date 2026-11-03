@@ -218,6 +218,44 @@ install it with `sudo cp deploy/systemd/plujka-backup.* /etc/systemd/system/ && 
 for the files, `tar -xzf plujka-files-<stamp>.tar.gz`, copy `feedback/*` to `/mnt/data/feedback/` and use
 `config/env` as `.env` with the secrets filled in.
 
+### Restore drill
+
+Once a month (the workflow `restore-drill.yml` opens an issue with this checklist on the 1st) restore the
+newest backups on a new, throwaway server and check the service answers from them. The drill needs the
+Hetzner token, the Storage Box password and the secrets from the password manager, so a person runs it;
+it takes about 30 minutes.
+
+1. Server: from `infra/hetzner`, with the staging variables, its own name and state key (no Storage Box of
+   its own):
+
+   ```bash
+   terraform init -reconfigure -backend-config=backend-production.hcl -backend-config=key=drill/terraform.tfstate
+   terraform apply -var-file=staging.tfvars -var environment=drill -var domain=drill.plujka.example.org
+   ```
+
+   Point the DNS record of that domain at the output `ipv4`.
+2. Secrets and mart, as for any server (`infra/hetzner/README.md`, steps 6–7): `.env` from the password
+   manager, `sudo systemctl start plujka`, `deploy/deploy_mart.sh`.
+3. Storage Box access, as `deploy` in `/srv/plujka`: a new key for this server and `deploy/drill.env`
+   (not `backup.env`: the drill server must not run the nightly backup):
+
+   ```bash
+   ssh-keygen -t ed25519 -N '' -f deploy/storagebox_key
+   ssh -p 23 u123456@u123456.your-storagebox.de install-ssh-key < deploy/storagebox_key.pub
+   printf 'STORAGE_BOX=u123456@u123456.your-storagebox.de\nSTORAGE_BOX_KEY=/srv/plujka/deploy/storagebox_key\n' > deploy/drill.env
+   ```
+
+4. The drill: `deploy/restore_drill.sh https://drill.plujka.example.org`. It refuses a server with
+   questions logged before today (production), takes the newest dump and files archive, fails when either
+   is older than 36 hours or its checksum differs from the box, restores `public` with the API stopped,
+   copies the feedback, lists `.env` variables that differ from the backed-up configuration, rebuilds the
+   OpenSearch question log, prints what came back (logged questions and the newest one, saved views,
+   feedback lines; an empty question log fails) and ends with the smoke test.
+5. Clean up: remove this server's key from `.ssh/authorized_keys` on the box (fetch it with `scp -P 23`,
+   delete the line ending in `deploy@plujka-drill`, upload it back), then `terraform destroy -var-file=staging.tfvars -var environment=drill -var
+   domain=drill.plujka.example.org` and the DNS record. Note the result (backup age, counts, anything
+   that failed) in the issue and close it.
+
 ## Load test
 
 `scripts/load_test.py` starts the API in its own process with a fake OpenAI server (`scripts/fake_openai.py`)
