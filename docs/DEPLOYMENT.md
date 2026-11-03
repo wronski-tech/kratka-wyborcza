@@ -15,7 +15,8 @@ dashboards and how the staged data is versioned. Configuration variables are lis
    `DAILY_TOKEN_LIMIT_PER_CLIENT` to cap what one key or IP can spend on OpenAI per day.
 5. A scheduled backup (`scripts/backup_db.sh`) and a restore test.
 6. `OPENAI_API_KEY`; without it every question falls back to the legacy Sejm templates.
-7. Uptime monitoring from outside: the repository variable `PLUJKA_URL` ([below](#uptime-monitoring)).
+7. Uptime monitoring from outside: the repository variable `PLUJKA_URL` ([below](#uptime-monitoring)), and
+   alerts from inside: `ALERT_WEBHOOK_SECRET` ([Alerts](#alerts)).
 
 ## Production on Hetzner
 
@@ -330,6 +331,31 @@ On a server created before the metrics, create the data directories once:
 `sudo mkdir -p /mnt/data/prometheus /mnt/data/grafana && sudo chown 65534:65534 /mnt/data/prometheus && sudo
 chown 472:0 /mnt/data/grafana`. node-exporter runs in the compose network, so its network counters are the
 container's, not the server's.
+
+## Alerts
+
+Prometheus evaluates `docker/monitoring/alerts.yml` and Alertmanager (in the `monitoring` profile, on the
+server with the stack) sends firing and resolved alerts to one Slack-compatible incoming webhook:
+
+| Alert | When |
+| ----- | ---- |
+| `TargetDown` | the API, the server or Postgres does not answer Prometheus for 5 minutes |
+| `DiskAlmostFull` | a disk (`/`, `/mnt/data`) is over 85 % full for 10 minutes |
+| `SlowQuery` | a transaction in a `plujka*` database runs over 2 minutes (restores, dumps and psql excluded) |
+| `ServerErrors` | over 5 % of API requests end in 5xx for 5 minutes, with at least some traffic |
+| `TokenSpike` | over 2 million model tokens in the last hour |
+| `BackupStale` | the last complete Storage Box backup is over 30 hours old |
+| `BackupNeverRan` | no backup recorded on this server for 2 hours (no `deploy/backup.env`; fires locally too) |
+
+The backup script records its last complete run in `/mnt/data/backups/metrics/backup.prom`, which
+node-exporter reads. Set the webhook in `.env` as `ALERT_WEBHOOK_SECRET` (a secret: anyone with it can post):
+a Slack or Mattermost incoming webhook, or a Discord webhook with `/slack` appended. Without it alerts only
+show in Prometheus (http://localhost:9090/alerts) and Alertmanager (:9093, on the server through the SSH tunnel
+with `-L 9093:localhost:9093`). After changing `.env`, `docker compose ... up -d alertmanager`.
+
+Change thresholds in `alerts.yml` and its tests in `alerts.test.yml`; CI runs `promtool test rules`. To check
+the delivery, send a test alert: `docker compose ... exec alertmanager amtool alert add Test severity=warning
+--annotation=summary="test" --alertmanager.url=http://localhost:9093` (it arrives after about a minute).
 
 ## Load test
 

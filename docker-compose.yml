@@ -158,9 +158,32 @@ services:
               "--storage.tsdb.retention.time=30d"]
     volumes:
       - ./docker/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
+    profiles:
+      - monitoring
+
+  # Sends alerts (docker/monitoring/alerts.yml) to a Slack-compatible webhook; without one they only show here.
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: plujka-alertmanager
+    environment:
+      ALERT_WEBHOOK_SECRET: ${ALERT_WEBHOOK_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - >-
+        if [ -n "$$ALERT_WEBHOOK_SECRET" ]; then receiver=chat; else receiver=none; fi;
+        url=$$(printf %s "$${ALERT_WEBHOOK_SECRET:-http://localhost/disabled}" | sed 's/[&|\\]/\\&/g');
+        sed -e "s|__RECEIVER__|$$receiver|" -e "s|__WEBHOOK__|$$url|" /etc/alertmanager/template.yml > /tmp/alertmanager.yml;
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
+    volumes:
+      - ./docker/monitoring/alertmanager.yml:/etc/alertmanager/template.yml:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "9093:9093"
     profiles:
       - monitoring
 
@@ -210,3 +233,4 @@ volumes:
   opensearch_data:
   prometheus_data:
   grafana_data:
+  alertmanager_data:

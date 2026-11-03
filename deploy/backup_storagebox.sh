@@ -16,6 +16,8 @@
 #   STORAGE_BOX_DIR=plujka                              directory on the box (default plujka)
 #   BACKUP_DIR=/mnt/data/backups                        local copies, the newest 3 of each kind are kept (default)
 #   FEEDBACK_DIR=/mnt/data/feedback                     the API's feedback directory (default)
+# After a complete run it records the time in $BACKUP_DIR/metrics/backup.prom, which node-exporter reads for
+# the BackupStale alert (docker/monitoring/alerts.yml).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -78,3 +80,9 @@ for old in "${expired[@]}"; do
   box rm "$remote_dir/$old"
   echo "removed from the Storage Box: $old"
 done
+
+# Only a run that got this far counts as a backup; written whole, then renamed, so node-exporter never reads half.
+mkdir -p "$backup_dir/metrics"
+printf '# HELP plujka_backup_last_success_timestamp_seconds Time of the last complete backup to the Storage Box.\n# TYPE plujka_backup_last_success_timestamp_seconds gauge\nplujka_backup_last_success_timestamp_seconds %s\n' \
+  "$(date +%s)" > "$backup_dir/metrics/backup.prom.tmp"
+mv "$backup_dir/metrics/backup.prom.tmp" "$backup_dir/metrics/backup.prom"

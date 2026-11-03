@@ -232,6 +232,13 @@ jobs:
           POSTGRES_PASSWORD=x MART_READER_PASSWORD=x GRAFANA_ADMIN_PASSWORD=x \
             docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml config -q
 
+      - name: Alert rules and Alertmanager config
+        run: |
+          docker run --rm -v "$PWD/docker/monitoring:/m" -w /m --entrypoint promtool prom/prometheus:v2.55.1 check rules alerts.yml
+          docker run --rm -v "$PWD/docker/monitoring:/m" -w /m --entrypoint promtool prom/prometheus:v2.55.1 test rules alerts.test.yml
+          sed -e 's/__RECEIVER__/chat/' -e 's|__WEBHOOK__|https://hooks.example.org/x|' docker/monitoring/alertmanager.yml > /tmp/am.yml
+          docker run --rm -v /tmp/am.yml:/am.yml --entrypoint amtool prom/alertmanager:v0.27.0 check-config /am.yml
+
       - name: Build images
         run: docker compose --profile tools build
 
@@ -250,11 +257,13 @@ jobs:
       # Prometheus scrapes all four targets and has the API's /ask counter; Grafana provisioned the dashboard.
       - name: Metrics stack
         run: |
-          docker compose --profile monitoring up -d prometheus grafana node-exporter postgres-exporter
+          docker compose --profile monitoring up -d prometheus alertmanager grafana node-exporter postgres-exporter
           up='[.data.result[] | select(.value[1] == "1")] | length == 4'
           for i in $(seq 1 30); do curl -fsS 'localhost:9090/api/v1/query?query=up' | jq -e "$up" >/dev/null && break; sleep 5; done
           curl -fsS 'localhost:9090/api/v1/query?query=up' | jq -e "$up"
           curl -fsS 'localhost:9090/api/v1/query?query=plujka_ask_total' | jq -e '.data.result | length > 0'
+          curl -fsS localhost:9090/api/v1/rules | jq -e '[.data.groups[].rules[] | select(.health == "ok")] | length == 7'
+          curl -fsS localhost:9090/api/v1/alertmanagers | jq -e '.data.activeAlertmanagers | length == 1'
           for i in $(seq 1 30); do curl -fsS -u admin:admin localhost:3000/api/health >/dev/null && break; sleep 2; done
           curl -fsS -u admin:admin localhost:3000/api/dashboards/uid/plujka | jq -e '.dashboard.title == "Plujka"'
 

@@ -1,0 +1,18 @@
+# Alertmanager (docs/DEPLOYMENT.md, Alerts). The compose entrypoint fills in __RECEIVER__ ("chat" when
+# ALERT_WEBHOOK_SECRET is set, else "none": alerts show in Prometheus and Alertmanager only) and __WEBHOOK__,
+# a Slack-compatible incoming webhook (Slack, Mattermost, Discord with /slack appended).
+route:
+  receiver: __RECEIVER__
+  group_by: [alertname]
+  group_wait: 1m
+  group_interval: 10m
+  repeat_interval: 12h
+
+receivers:
+  - name: none
+  - name: chat
+    slack_configs:
+      - api_url: __WEBHOOK__
+        send_resolved: true
+        title: '{{ if eq .Status "firing" }}Plujka alert{{ else }}Plujka resolved{{ end }}: {{ .CommonLabels.alertname }}'
+        text: '{{ range .Alerts }}[{{ .Labels.severity }}] {{ .Annotations.summary }}{{ "\n" }}{{ end }}'

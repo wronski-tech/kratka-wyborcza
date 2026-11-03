@@ -60,7 +60,14 @@ services:
       - "127.0.0.1:9090:9090"
     volumes: !override
       - ./docker/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - /mnt/data/prometheus:/prometheus
+    restart: unless-stopped
+
+  alertmanager:
+    profiles: !reset []
+    ports: !override
+      - "127.0.0.1:9093:9093"
     restart: unless-stopped
 
   grafana:
@@ -78,6 +85,8 @@ services:
 
   node-exporter:
     profiles: !reset []
+    # The backup's last complete run (deploy/backup_storagebox.sh) for the BackupStale alert.
+    command: ["--path.rootfs=/host", "--collector.textfile.directory=/host/mnt/data/backups/metrics"]
     restart: unless-stopped
 
   postgres-exporter:
