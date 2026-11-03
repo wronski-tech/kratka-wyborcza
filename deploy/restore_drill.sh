@@ -29,8 +29,10 @@ fail() { echo "restore drill failed: $*" >&2; exit 1; }
 
 # The restore replaces the public schema: refuse on a server with history (production), allow a new one
 # whose question log holds at most today's smoke-test questions.
-old=$(psql -c "SELECT CASE WHEN to_regclass('public.question_log') IS NULL THEN 0 ELSE
-  (SELECT count(*) FROM question_log WHERE created_at < now() - interval '1 day') END")
+old=0
+if [ "$(psql -c "SELECT to_regclass('public.question_log') IS NOT NULL")" = t ]; then
+  old=$(psql -c "SELECT count(*) FROM question_log WHERE created_at < now() - interval '1 day'")
+fi
 [ "$old" = 0 ] || fail "this server has $old questions logged before today; run the drill on a new server"
 
 # The newest backup of each kind, by the UTC stamp in its name.
