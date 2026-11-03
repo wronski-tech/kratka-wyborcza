@@ -33,6 +33,7 @@ SQL safety), `docs/DATA.md` (sources), `docs/DEPLOYMENT.md` (API keys, Redis lim
 | `scripts/add_sql_example.py` | Adds a curated SQL example after running it; `--check` runs them all; `--review` accepts queued thumbs-up answers |
 | `scripts/triage_feedback.py` | Groups thumbs-down answers with the LLM (`feedback_groups.md`) and proposes corrected, guarded SQL (`example_proposals.jsonl`) for `add_sql_example.py --review` |
 | `scripts/run_eval.py`, `tests/eval/questions.jsonl` | Evaluation set (question → reference SQL or expected clarification); `--check` runs the reference queries, otherwise grades the model per family (nightly `eval.yml`, `--baseline` flags regressions after a model or prompt change) |
+| `scripts/status_page.py`, `.github/workflows/uptime.yml`, `status-page.yml` | Uptime checks from outside (alert issues) and the public status page built from them and the `status` announcements |
 | `scripts/backup_db.sh` | `pg_dump` backup with retention |
 | `scripts/derive_gmina_borders.py`, `api/services/mart/gmina_borders.csv` | Gminas on the national border or the coast, derived from `streamlit_app/geo/gminy.json`; read into `mart.unit_attributes` |
 | `scripts/check_sources.py`, `data/source_manifest.json` | Detects republished KBW files (HEAD vs manifest), re-stages them, names the family-years to rebuild |

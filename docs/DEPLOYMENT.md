@@ -337,6 +337,38 @@ When the alert opens: `ssh deploy@<server> 'cd /srv/kratka-wyborcza && docker co
 deploy/docker-compose.prod.yml ps'`, then the logs of the failing service (`... logs --tail 100 api`);
 `deploy/smoke_test.sh https://<domain>` tells which part answers.
 
+## Status page
+
+A public status page on GitHub Pages, so it answers when the server does not: `status-page.yml` builds it
+with `scripts/status_page.py` from GitHub issues and deploys it. It shows the current state (works, a notice,
+down), the open announcements with their updates, 90 daily bars and the availability over 90 days, the
+outages with start, end and length, and announcements closed in the last 14 days. It is rebuilt whenever
+`uptime.yml` opens or closes an alert, on every change of an announcement and daily.
+
+- Outages are the "Kratka Wyborcza is down" issues opened and closed by `uptime.yml` (only issues opened by GitHub
+  Actions count, so nobody can fake one); an open one means down now.
+- Announcements are issues with the label `status`, which only maintainers can set; the body is the
+  message, comments by the owner, members or collaborators are its updates (other comments are not
+  shown), closing it ends it. Plain text: Markdown is shown as typed.
+
+Setup, once: Settings → Pages → Source "GitHub Actions"; create the label `status`; the repository variable
+`KRATKA_WYBORCZA_URL` (as for uptime monitoring) is required. The page is at
+`https://<owner>.github.io/<repository>/` (or a custom domain set in the Pages settings, e.g.
+`status.kratka-wyborcza.example.org`). Put that address in `.env` as `STATUS_PAGE_URL`: the UI links it from API
+errors. Run it by hand with `gh workflow run status-page.yml`.
+
+**Communicating an outage or maintenance**
+
+1. Planned work, a day or more ahead: an issue with the label `status`, e.g. title "Prace serwisowe
+   5 listopada, 22:00–23:00", body: what will not work and for how long. In `.env`, `KRATKA_WYBORCZA_NOTICE` with one
+   sentence for the UI (shown above the page with a link to the status page), then
+   `docker compose ... up -d streamlit`.
+2. During the work or an unplanned outage: comments on the issue ("Zaczynamy", "Przywrócone pytania, mapy
+   jeszcze nie", "Zakończone"). An unplanned outage shows on the page by itself once `uptime.yml` opens
+   its alert; add an announcement when users need to know more (cause, expected end).
+3. Afterwards: close the issue, empty `KRATKA_WYBORCZA_NOTICE` and recreate the UI. For a longer outage, a last
+   comment with the cause and what changed.
+
 ## Metrics
 
 Prometheus and Grafana (Compose profile `monitoring`; on the server they start with the stack) keep 30 days of:

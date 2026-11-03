@@ -1,0 +1,59 @@
+# Public status page on GitHub Pages (docs/DEPLOYMENT.md, "Status page"), built by scripts/status_page.py from
+# the uptime alerts ("Kratka Wyborcza is down", opened and closed by uptime.yml) and the issues labelled "status"
+# (maintainers' announcements, e.g. planned maintenance; their comments are updates). Hosted by GitHub, so it
+# stays up when the server is down. uptime.yml calls this workflow whenever it opens or closes an alert.
+name: Status page
+
+on:
+  workflow_call:
+  issues:
+    types: [opened, edited, closed, reopened, labeled, unlabeled]
+  issue_comment:
+    types: [created, edited, deleted]
+  schedule:
+    - cron: "5 0 * * *"   # daily, so the 90-day bars move on without events
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: status-page
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Needs KRATKA_WYBORCZA_URL (the monitored site) and Pages set to "GitHub Actions"; other issues do not change the page.
+    if: >-
+      vars.KRATKA_WYBORCZA_URL != '' && (github.event.issue == null || github.event.issue.title == 'Kratka Wyborcza is down'
+      || contains(github.event.issue.labels.*.name, 'status') || github.event.action == 'unlabeled')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/status_page.py
+          sparse-checkout-cone-mode: false
+
+      - name: Build the page
+        run: |
+          gh issue list --state all --limit 500 --search '"Kratka Wyborcza is down" in:title' \
+            --json number,title,state,createdAt,closedAt,author > alerts.json
+          gh issue list --state all --limit 100 --label status \
+            --json number,title,body,state,createdAt,closedAt,url,comments > notices.json
+          python3 scripts/status_page.py --alerts alerts.json --notices notices.json --out site --site-url "${{ vars.KRATKA_WYBORCZA_URL }}"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -205,4 +205,4 @@ gdy nowy serwer powstaje z Terraformu, przechodzi próbę odtworzenia i ma alert
 - [x] 47. Centralne logi z identyfikatorem żądania.
 - [x] 48. Śledzenie błędów (Sentry / GlitchTip).
 - [x] 49. Lista kontrolna bezpieczeństwa produkcji.
-- [ ] 50. Strona statusu i komunikacja przerw.
+- [x] 50. Strona statusu i komunikacja przerw.

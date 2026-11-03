@@ -2,7 +2,8 @@
 # GET /api/health (status ok, mart loaded) and the UI page through Caddy, three tries a minute apart. When
 # they fail, an issue "Kratka Wyborcza is down" is opened (assigned to ALERT_ASSIGNEES, GitHub notifies them and the
 # repository's watchers) and that run fails (GitHub mails the failure too); when the site answers again, the
-# issue gets a comment and is closed. Needs the repository variable KRATKA_WYBORCZA_URL.
+# issue gets a comment and is closed. Each opening or closing rebuilds the status page (status-page.yml).
+# Needs the repository variable KRATKA_WYBORCZA_URL.
 name: Uptime
 
 on:
@@ -20,6 +21,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.alert.outputs.changed }}
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -53,6 +56,7 @@ jobs:
           { echo "reason<<EOF"; echo "$reason"; echo "EOF"; } >> "$GITHUB_OUTPUT"
 
       - name: Open or close the alert issue
+        id: alert
         if: steps.check.outputs.state != 'skipped'
         env:
           STATE: ${{ steps.check.outputs.state }}
@@ -63,6 +67,7 @@ jobs:
           now=$(date -u '+%Y-%m-%d %H:%M UTC')
           run="$GITHUB_SERVER_URL/$GH_REPO/actions/runs/$GITHUB_RUN_ID"
           if [ "$STATE" = down ] && [ -z "$open" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
             gh issue create --title "$TITLE" ${ASSIGNEES:+--assignee "$ASSIGNEES"} --body "$BASE does not answer since $now: $REASON ([check]($run)).
 
           Runbook: docs/DEPLOYMENT.md, \"Uptime monitoring\". This issue closes itself when the site answers again."
@@ -70,5 +75,17 @@ jobs:
           elif [ "$STATE" = down ]; then
             echo "still down, alert #$open already open"
           elif [ -n "$open" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
             gh issue close "$open" --comment "Up again at $now ([check]($run))."
           fi
+
+  # Issues opened by this workflow's token trigger no workflows, so the status page is rebuilt from here.
+  status-page:
+    needs: check
+    if: always() && needs.check.outputs.changed == 'true'
+    permissions:
+      contents: read
+      issues: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/status-page.yml

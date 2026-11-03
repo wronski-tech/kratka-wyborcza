@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Status page on GitHub Pages (`status-page.yml`, `scripts/status_page.py`): current state, maintainers' announcements (issues labelled `status`) with updates, 90 daily bars, availability and outages from the uptime alerts; rebuilt when an alert opens or closes. The UI shows `KRATKA_WYBORCZA_NOTICE` above the page and links `STATUS_PAGE_URL` from it and from API errors; the outage communication steps are in docs/DEPLOYMENT.md.
+
 - Production security checklist (docs/DEPLOYMENT.md) and `deploy/security_check.sh`, a read-only check on the server: secrets and file modes, open ports, SSH, fail2ban and updates, backup freshness and encryption, no backup private key on the disk, HSTS, http → https, `/api/metrics` hidden, certificate expiry.
 
 - Error tracking with Sentry or GlitchTip (`SENTRY_DSN`): unhandled errors and ERROR log lines, tagged with the request id, the environment and the deployed commit; no client IPs, API keys or local variables.
@@ -39,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Prometheus and Grafana (profile `monitoring`, on the server with the stack, reached through an SSH tunnel): the API's `GET /metrics` (requests and latency per route, `/ask` statuses, tokens, cost; summed over the workers), node-exporter and postgres-exporter, and the provisioned dashboard "Plujka". Production needs `GRAFANA_ADMIN_PASSWORD` in `.env`.
 
-- Uptime monitoring from outside the server: `uptime.yml` checks `/api/health` (mart loaded) and the UI every 10 minutes, opens the issue "Plujka is down" after three failed tries and closes it when the site answers again (repository variable `PLUJKA_URL`).
+- Uptime monitoring from outside the server: `uptime.yml` checks `/api/health` (mart loaded) and the UI every 10 minutes, opens the issue "Kratka Wyborcza is down" after three failed tries and closes it when the site answers again (repository variable `KRATKA_WYBORCZA_URL`).
 
 - Backups on the Storage Box are encrypted with age to a public key (`BACKUP_AGE_RECIPIENT` in `deploy/backup.env`, required); the private key stays in the password manager, never on the server. The restore drill decrypts with `AGE_IDENTITY`.
 

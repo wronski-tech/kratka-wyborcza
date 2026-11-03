@@ -40,6 +40,10 @@ API_URL = os.getenv("API_URL", "http://localhost:8000")
 # Sent as X-API-Key when the API requires keys (API_KEYS on the API side).
 API_KEY = os.getenv("KRATKA_WYBORCZA_API_KEY", "")
 API_HEADERS = {"X-API-Key": API_KEY} if API_KEY else {}
+# Outage communication (docs/DEPLOYMENT.md, Status page): a notice shown above everything, e.g. planned
+# maintenance, and the public status page, linked from the notice and from API errors.
+NOTICE = os.getenv("KRATKA_WYBORCZA_NOTICE", "").strip()
+STATUS_PAGE_URL = os.getenv("STATUS_PAGE_URL", "").strip()
 # Same limit as the API (QUESTION_MAX_CHARS); the field stops typing there.
 QUESTION_MAX_CHARS = int(os.getenv("QUESTION_MAX_CHARS", "500"))
 # Result column that identifies a unit -> boundary file (gminy/powiaty by TERYT, voivodeships by name;
@@ -167,7 +171,8 @@ def _ask(question: str, entity_refs: list[dict] | None = None, previous: dict | 
         response.raise_for_status()
         return response.json()
     except requests.RequestException as error:
-        st.error(f"Coś poszło nie tak z API: {error}\n\n" + _t("Identyfikator zgłoszenia") + f": `{request_id}`")
+        st.error(f"Coś poszło nie tak z API: {error}\n\n" + _t("Identyfikator zgłoszenia") + f": `{request_id}`"
+                 + (f"\n\n[{_t('Status usługi')}]({STATUS_PAGE_URL})" if STATUS_PAGE_URL else ""))
         return None
 
 
@@ -1166,6 +1171,8 @@ if "widget" not in st.query_params:
         """,
         unsafe_allow_html=True,
     )
+    if NOTICE:
+        st.warning(NOTICE + (f" [{_t('Status usługi')}]({STATUS_PAGE_URL})" if STATUS_PAGE_URL else ""), icon="📢")
 
 
 ELECTION_LABELS = {

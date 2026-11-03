@@ -92,6 +92,9 @@ services:
     environment:
       API_URL: http://api:8000
       KRATKA_WYBORCZA_API_KEY: ${KRATKA_WYBORCZA_API_KEY:-}
+      # Outage communication (docs/DEPLOYMENT.md, Status page): a notice above the page, and the status page.
+      KRATKA_WYBORCZA_NOTICE: ${KRATKA_WYBORCZA_NOTICE:-}
+      STATUS_PAGE_URL: ${STATUS_PAGE_URL:-}
     ports:
       - "8501:8501"
     depends_on:
