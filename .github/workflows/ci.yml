@@ -226,8 +226,11 @@ jobs:
       - name: Validate compose files and profiles
         run: |
           docker compose config -q
-          docker compose --profile tools --profile redis --profile observability config -q
+          docker compose --profile tools --profile redis --profile observability --profile monitoring config -q
           docker compose -f docker-compose.yml -f docker-compose.dev.yml config -q
+          touch deploy/caddy.env
+          POSTGRES_PASSWORD=x MART_READER_PASSWORD=x GRAFANA_ADMIN_PASSWORD=x \
+            docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml config -q
 
       - name: Build images
         run: docker compose --profile tools build
@@ -243,6 +246,17 @@ jobs:
           curl -fsS -X POST localhost:8000/ask -H 'Content-Type: application/json' \
             -d '{"question": "Frekwencja w referendum 2023"}' | jq -e '.intent == "dynamic_sql" and (.answer.text | length > 0)'
           for i in $(seq 1 30); do curl -fsS localhost:8501/_stcore/health && break; sleep 2; done
+
+      # Prometheus scrapes all four targets and has the API's /ask counter; Grafana provisioned the dashboard.
+      - name: Metrics stack
+        run: |
+          docker compose --profile monitoring up -d prometheus grafana node-exporter postgres-exporter
+          up='[.data.result[] | select(.value[1] == "1")] | length == 4'
+          for i in $(seq 1 30); do curl -fsS 'localhost:9090/api/v1/query?query=up' | jq -e "$up" >/dev/null && break; sleep 5; done
+          curl -fsS 'localhost:9090/api/v1/query?query=up' | jq -e "$up"
+          curl -fsS 'localhost:9090/api/v1/query?query=plujka_ask_total' | jq -e '.data.result | length > 0'
+          for i in $(seq 1 30); do curl -fsS -u admin:admin localhost:3000/api/health >/dev/null && break; sleep 2; done
+          curl -fsS -u admin:admin localhost:3000/api/dashboards/uid/plujka | jq -e '.dashboard.title == "Plujka"'
 
       - name: Logs on failure
         if: failure()

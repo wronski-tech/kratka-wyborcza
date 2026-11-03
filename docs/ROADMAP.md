@@ -200,7 +200,7 @@ gdy nowy serwer powstaje z Terraformu, przechodzi próbę odtworzenia i ma alert
 
 **Monitoring i bezpieczeństwo**
 - [x] 44. Monitoring dostępności z zewnątrz z alertem.
-- [ ] 45. Prometheus + Grafana (Postgres, węzeł, API).
+- [x] 45. Prometheus + Grafana (Postgres, węzeł, API).
 - [ ] 46. Alerty: dysk, wolne zapytania, 5xx, tokeny, backup.
 - [ ] 47. Centralne logi z identyfikatorem żądania.
 - [ ] 48. Śledzenie błędów (Sentry / GlitchTip).

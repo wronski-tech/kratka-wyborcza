@@ -25,7 +25,7 @@ from fastapi.responses import JSONResponse
 from psycopg.conninfo import conninfo_to_dict
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from api.services import answer, config, costs, db, dynamic_sql, feedback_store, mcp, opensearch_store, report_pdf, router, speech
+from api.services import answer, config, costs, db, dynamic_sql, feedback_store, mcp, metrics, opensearch_store, report_pdf, router, speech
 from api.services.mart import derived as mart_derived
 from api.services.mart import examples as sql_examples
 from api.services.mart import safe_sql
@@ -425,6 +425,27 @@ app = FastAPI(
     lifespan=lifespan,
     openapi_tags=OPENAPI_TAGS,
 )
+
+
+@app.middleware("http")
+async def _count_request(request: Request, call_next: Any) -> Response:
+    """Request count and duration per route template for Prometheus (an exception counts as 500)."""
+    started = time.monotonic()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        return response
+    finally:
+        route = getattr(request.scope.get("route"), "path", "unmatched")
+        metrics.observe_request(request.method, route, status, time.monotonic() - started)
+
+
+@app.get("/metrics", include_in_schema=False)
+def prometheus_metrics() -> Response:
+    """Prometheus metrics (requests, latency, /ask statuses, tokens); Caddy does not publish this path."""
+    body, content_type = metrics.render()
+    return Response(body, media_type=content_type)
 
 
 class EntityRef(BaseModel):
@@ -1653,6 +1674,7 @@ def ask(request: AskRequest, http_request: Request, api_key: str | None = Depend
     result["result"] = [{k: _json_value(v) for k, v in row.items()} for row in result.get("result") or []]
     telemetry = _telemetry(result, started)
     token_budget.add(client_key, telemetry["prompt_tokens"] + telemetry["completion_tokens"])
+    metrics.observe_ask(telemetry)
     by_model = _tokens_by_model(result)
     if by_model:
         try:

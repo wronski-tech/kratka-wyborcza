@@ -830,7 +830,8 @@ the same id) with `status` (`template`, `first_pass`, `repaired`,
 `cached`, `clarify`, `rejected`, `failed`, `skipped`), `latency_ms`, `row_count`, `answer_source`,
 `prompt_tokens`, `completion_tokens`, `error` and `prompt_version`. `params._dynamic_sql_meta` in the response holds
 the matched entities, examples used, `schema_relations`, `prompt_chars` and per-phase
-`timings_ms`. Logging never fails a request: without Postgres or OpenSearch the entry is only missing
+`timings_ms`. The same statuses, tokens and cost are Prometheus counters on `GET /metrics`
+([DEPLOYMENT.md](DEPLOYMENT.md#metrics)). Logging never fails a request: without Postgres or OpenSearch the entry is only missing
 there. Dashboards over the question log: see
 [DEPLOYMENT.md](DEPLOYMENT.md#telemetry-dashboards).
 

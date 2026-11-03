@@ -149,6 +149,64 @@ services:
     profiles:
       - observability
 
+  # Metrics (docs/DEPLOYMENT.md, Metrics): Prometheus scrapes the API's /metrics, the server and Postgres;
+  # Grafana shows the provisioned dashboard "Plujka" at http://localhost:3000.
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: plujka-prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus",
+              "--storage.tsdb.retention.time=30d"]
+    volumes:
+      - ./docker/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: plujka-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/plujka.json
+    volumes:
+      - ./docker/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/plujka.yml:ro
+      - ./docker/monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/plujka.yml:ro
+      - ./docker/monitoring/grafana/plujka.json:/etc/grafana/dashboards/plujka.json:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: plujka-node-exporter
+    command: ["--path.rootfs=/host"]
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    profiles:
+      - monitoring
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    container_name: plujka-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: postgresql://plujka:plujka@postgres:5432/plujka?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - monitoring
+
 volumes:
   postgres_data:
   opensearch_data:
+  prometheus_data:
+  grafana_data:

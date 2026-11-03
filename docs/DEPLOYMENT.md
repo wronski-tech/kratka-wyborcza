@@ -301,6 +301,36 @@ When the alert opens: `ssh deploy@<server> 'cd /srv/plujka && docker compose -f 
 deploy/docker-compose.prod.yml ps'`, then the logs of the failing service (`... logs --tail 100 api`);
 `deploy/smoke_test.sh https://<domain>` tells which part answers.
 
+## Metrics
+
+Prometheus and Grafana (Compose profile `monitoring`; on the server they start with the stack) keep 30 days of:
+
+- the API's `GET /metrics` (`api/services/metrics.py`): `plujka_http_requests_total` and
+  `plujka_http_request_duration_seconds` per route template and status, `plujka_ask_total` per SQL status and
+  answer source, `plujka_llm_tokens_total`, `plujka_llm_cost_usd_total`. Both uvicorn workers write to
+  `PROMETHEUS_MULTIPROC_DIR` (a tmpfs) and the endpoint sums them. Caddy answers `/api/metrics` with 404;
+- the server (node-exporter): CPU, memory, disks (`/` and the volume `/mnt/data`), load;
+- PostgreSQL (postgres-exporter): connections by state, database sizes, the longest running transaction.
+
+Grafana opens on the provisioned dashboard "Plujka" (`docker/monitoring/grafana/plujka.json`, read-only:
+change the file, not the UI). Locally:
+
+```bash
+docker compose --profile monitoring up -d   # Grafana http://localhost:3000 (admin / admin), Prometheus :9090
+```
+
+On the server both listen on its loopback only; set `GRAFANA_ADMIN_PASSWORD` in `.env` (the stack does not
+start without it), then open a tunnel and log in as `admin` at http://localhost:3000:
+
+```bash
+ssh -L 3000:localhost:3000 -L 9090:localhost:9090 deploy@<server>
+```
+
+On a server created before the metrics, create the data directories once:
+`sudo mkdir -p /mnt/data/prometheus /mnt/data/grafana && sudo chown 65534:65534 /mnt/data/prometheus && sudo
+chown 472:0 /mnt/data/grafana`. node-exporter runs in the compose network, so its network counters are the
+container's, not the server's.
+
 ## Load test
 
 `scripts/load_test.py` starts the API in its own process with a fake OpenAI server (`scripts/fake_openai.py`)

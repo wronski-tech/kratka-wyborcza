@@ -26,6 +26,10 @@ services:
       MART_DATABASE_URL: postgresql://plujka_mart_reader:${MART_READER_PASSWORD:?set MART_READER_PASSWORD in .env}@postgres:5432/${MART_DB:-plujka_mart_a}
       PLUJKA_ENV: production
       FEEDBACK_JSONL_PATH: /app/feedback/feedback.jsonl
+      # Both workers write their metrics here and /metrics sums them (api/services/metrics.py).
+      PROMETHEUS_MULTIPROC_DIR: /tmp/metrics
+    tmpfs:
+      - /tmp/metrics
     # Client addresses from Caddy's X-Forwarded-For (the API is reachable only inside the compose network).
     command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api",
               "--proxy-headers", "--forwarded-allow-ips", "*", "--workers", "2"]
@@ -46,6 +50,40 @@ services:
 
   redis:
     profiles: !reset []
+    restart: unless-stopped
+
+  # Metrics run on the server too; Grafana and Prometheus listen on the server's loopback only, reached through
+  # an SSH tunnel (docs/DEPLOYMENT.md, Metrics).
+  prometheus:
+    profiles: !reset []
+    ports: !override
+      - "127.0.0.1:9090:9090"
+    volumes: !override
+      - ./docker/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /mnt/data/prometheus:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    profiles: !reset []
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+    ports: !override
+      - "127.0.0.1:3000:3000"
+    volumes: !override
+      - ./docker/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/plujka.yml:ro
+      - ./docker/monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/plujka.yml:ro
+      - ./docker/monitoring/grafana/plujka.json:/etc/grafana/dashboards/plujka.json:ro
+      - /mnt/data/grafana:/var/lib/grafana
+    restart: unless-stopped
+
+  node-exporter:
+    profiles: !reset []
+    restart: unless-stopped
+
+  postgres-exporter:
+    profiles: !reset []
+    environment:
+      DATA_SOURCE_NAME: postgresql://plujka:${POSTGRES_PASSWORD}@postgres:5432/plujka?sslmode=disable
     restart: unless-stopped
 
   caddy:

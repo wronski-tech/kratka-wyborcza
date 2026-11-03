@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Prometheus and Grafana (profile `monitoring`, on the server with the stack, reached through an SSH tunnel): the API's `GET /metrics` (requests and latency per route, `/ask` statuses, tokens, cost; summed over the workers), node-exporter and postgres-exporter, and the provisioned dashboard "Plujka". Production needs `GRAFANA_ADMIN_PASSWORD` in `.env`.
+
 - Uptime monitoring from outside the server: `uptime.yml` checks `/api/health` (mart loaded) and the UI every 10 minutes, opens the issue "Plujka is down" after three failed tries and closes it when the site answers again (repository variable `PLUJKA_URL`).
 
 - Backups on the Storage Box are encrypted with age to a public key (`BACKUP_AGE_RECIPIENT` in `deploy/backup.env`, required); the private key stays in the password manager, never on the server. The restore drill decrypts with `AGE_IDENTITY`.

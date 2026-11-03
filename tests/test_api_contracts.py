@@ -176,6 +176,33 @@ class TestAskEndpoint(unittest.TestCase):
         answer = self.client.post("/ask", json={"question": "Wynik PiS w 2023?"}).json()["answer"]
         self.assertEqual(answer["follow_ups"], ["A w 2019?", "A w podziale na województwa?", "Jak to się zmieniło w porównaniu z 2019?"])
 
+    def test_prometheus_metrics(self) -> None:
+        from prometheus_client import parser
+
+        def samples() -> dict[tuple, float]:
+            text = self.client.get("/metrics").text
+            return {(s.name, tuple(sorted(s.labels.items()))): s.value
+                    for family in parser.text_string_to_metric_families(text) for s in family.samples}
+
+        meta = {"status": "repaired", "tokens": {"prompt_tokens": 1200, "completion_tokens": 80}}
+        self.route.return_value = {**self.ROUTED, "params": {"_dynamic_sql_meta": meta}}
+        before = samples()
+        self.client.post("/ask", json={"question": "q"})
+        self.client.get("/views/0123456789ab")
+        after = samples()
+
+        def grew(name: str, **labels: str) -> float:
+            key = (name, tuple(sorted(labels.items())))
+            return after.get(key, 0) - before.get(key, 0)
+
+        self.assertEqual(grew("plujka_ask_total", status="repaired", answer_source="fallback"), 1)
+        self.assertEqual(grew("plujka_llm_tokens_total", kind="prompt"), 1200)
+        self.assertEqual(grew("plujka_llm_tokens_total", kind="completion"), 80)
+        self.assertEqual(grew("plujka_http_requests_total", method="POST", route="/ask", status="200"), 1)
+        # Path parameters stay out of the labels: one series per route template, not per view id.
+        self.assertTrue(any(dict(labels).get("route") == "/views/{view_id}" for (_, labels) in after))
+        self.assertFalse(any("0123456789ab" in str(labels) for (_, labels) in after))
+
     def test_transcribe_returns_text_only(self) -> None:
         wav = b"RIFF....WAVEfmt "
         post = lambda body: self.client.post("/transcribe", content=body, headers={"Content-Type": "audio/wav"})  # noqa: E731
