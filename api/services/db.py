@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import json
+from collections.abc import Iterator
 from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 from api.services.config import DATABASE_URL
 from api.services.kbw_geo import district_expr_sql
@@ -350,6 +353,19 @@ def init_database() -> None:
                 );
                 """
             )
+            # Question log: every /ask (the OpenSearch question_logs document and its kNN embedding). The durable
+            # copy, in the nightly backup; OpenSearch is an index rebuilt from it (scripts/reindex_question_log.py).
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS question_log (
+                    id BIGSERIAL PRIMARY KEY,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    document JSONB NOT NULL,
+                    question_embedding vector(128)
+                );
+                CREATE INDEX IF NOT EXISTS question_log_created_at ON question_log (created_at);
+                """
+            )
             # Saved views: generated queries the API answered with, re-run later without the LLM (GET /views).
             cur.execute(
                 """
@@ -370,6 +386,32 @@ def save_view(question: str, sql: str) -> str:
         conn.execute("INSERT INTO saved_views (id, question, sql) VALUES (%s, %s, %s) ON CONFLICT (id) DO NOTHING",
                      (view_id, question, sql))
     return view_id
+
+
+def log_question(entry: dict[str, Any]) -> int:
+    """Store one question log entry (``opensearch_store.question_entry``); return its id."""
+    document = {k: v for k, v in entry.items() if k != "question_embedding"}
+    embedding = entry.get("question_embedding")
+    with get_connection() as conn:
+        row = conn.execute(
+            "INSERT INTO question_log (created_at, document, question_embedding) VALUES (%s, %s, %s::vector) RETURNING id",
+            (entry["created_at"], Jsonb(document, dumps=lambda o: json.dumps(o, default=str)),
+             json.dumps(embedding) if embedding else None),
+        ).fetchone()
+    return int(row[0])
+
+
+def question_log_entries(since: str | None = None) -> Iterator[tuple[int, dict[str, Any]]]:
+    """``(id, entry)`` of the question log, oldest first, from ``since`` (a timestamp) when given."""
+    # A server-side cursor (the log may be long), which needs a transaction.
+    with get_connection() as conn, conn.transaction(), conn.cursor(name="question_log") as cur:
+        cur.execute(
+            "SELECT id, document, question_embedding::text FROM question_log"
+            " WHERE %(since)s::timestamptz IS NULL OR created_at >= %(since)s::timestamptz ORDER BY id",
+            {"since": since},
+        )
+        for log_id, document, embedding in cur:
+            yield log_id, {**document, **({"question_embedding": json.loads(embedding)} if embedding else {})}
 
 
 def record_usage(key_id: str, by_model: dict[str, dict[str, int]]) -> None:

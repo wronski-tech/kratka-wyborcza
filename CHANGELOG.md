@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The question log is kept in Postgres (`public.question_log`: the document and the question's embedding, `vector(128)`), so the nightly backup covers it; OpenSearch `question_logs` is an index rebuilt from it with `scripts/reindex_question_log.py` (same ids, no duplicates on a rerun).
+
 - The nightly backup also archives feedback (`feedback.jsonl`) and the server configuration (`plujka-files-*.tar.gz`: `.env` with every password, key, secret and token value removed, `caddy.env`, `backup.env`), with the same retention kept separately for dumps and archives.
 
 - Nightly backup of the `public` schema to the Storage Box (`deploy/backup_storagebox.sh`, `plujka-backup.timer` installed by cloud-init): the server's own `pg_dump` in the postgres container, upload checked by SHA-256 before it gets its final name, retention 7 daily / 4 weekly / 6 monthly (`scripts/backup_retention.py`, which never deletes when backups have stopped). `scripts/backup_db.sh` takes the `pg_dump` command from `PG_DUMP`. One-time setup in docs/DEPLOYMENT.md.

@@ -64,23 +64,28 @@ def ensure_index() -> None:
     client.indices.create(index=INDEX_NAME, body=mapping)
 
 
-def log_question(question: str, detected_intent: str, sql: str, params: dict, telemetry: dict | None = None) -> None:
-    """Index one answered question with routing details and telemetry; never raises.
+def question_entry(question: str, detected_intent: str, sql: str, params: dict, telemetry: dict | None = None) -> dict[str, Any]:
+    """One question log document: routing details, telemetry and the question's kNN embedding.
 
     ``telemetry`` holds flat fields such as status, latency_ms, row_count, answer_source,
-    prompt_tokens, completion_tokens and error (see ``api.main.ask``).
+    prompt_tokens, completion_tokens and error (see ``api.main.ask``). The same document goes to
+    Postgres (``db.log_question``, the durable copy) and to this index.
     """
-    payload = {
+    return {
         "question": question,
         "detected_intent": detected_intent,
         "sql": sql,
         "params": params,
         "created_at": datetime.now(timezone.utc).isoformat(),
         **(telemetry or {}),
+        "question_embedding": _embedding_for_knn(question),
     }
+
+
+def log_question(entry: dict[str, Any], doc_id: int | None = None) -> None:
+    """Index one question log entry under its Postgres id (so a reindex replaces it); never raises."""
     try:
-        payload["question_embedding"] = _embedding_for_knn(question)
-        _client().index(index=INDEX_NAME, body=payload)
+        _client().index(index=INDEX_NAME, body=entry, id=str(doc_id) if doc_id is not None else None)
     except Exception:
         logger.exception("OpenSearch question log failed")
 

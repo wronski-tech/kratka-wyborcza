@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY api /app/api
 COPY data /app/data
 COPY docs/MART.md docs/DEFINITIONS.md /app/docs/
+# Rebuilds the OpenSearch question log from Postgres (docs/DEPLOYMENT.md, Backups).
+COPY scripts/reindex_question_log.py /app/scripts/
 
 EXPOSE 8000
 

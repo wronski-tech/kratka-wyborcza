@@ -1664,13 +1664,13 @@ def ask(request: AskRequest, http_request: Request, api_key: str | None = Depend
         result["intent"], telemetry["status"], telemetry["row_count"], telemetry["latency_ms"],
         telemetry["answer_source"], telemetry["prompt_tokens"], telemetry["completion_tokens"],
     )
-    opensearch_store.log_question(
-        question=request.question,
-        detected_intent=result["intent"],
-        sql=result["sql"],
-        params=result["params"],
-        telemetry=telemetry,
-    )
+    entry = opensearch_store.question_entry(request.question, result["intent"], result["sql"], result["params"], telemetry)
+    try:
+        log_id: int | None = db.log_question(entry)
+    except psycopg.Error as exc:
+        log_id = None
+        log.warning("question log not saved in Postgres: %s", exc)
+    opensearch_store.log_question(entry, log_id)
     return AskResponse.model_validate(result)
 
 

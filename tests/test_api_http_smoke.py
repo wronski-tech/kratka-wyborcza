@@ -78,14 +78,27 @@ class TestApiHttpSmoke(unittest.TestCase):
 
         from api.main import app
 
+        from api.services import db
+
+        indexed = []
         with patch("api.main.router.route_question", return_value=_ROUTER_STUB):
-            with patch("api.main.opensearch_store.log_question", lambda *a, **k: None):
+            with patch("api.main.opensearch_store.log_question", lambda entry, doc_id: indexed.append((doc_id, entry))):
                 with TestClient(app) as client:
                     response = client.post("/ask", json={"question": "smoke test"})
                     self.assertEqual(response.status_code, 200)
                     body = response.json()
                     self.assertEqual(body.get("intent"), "kbw_party_vote_share")
                     self.assertEqual(body.get("result"), [{"ok": 1}])
+        # The durable question log in Postgres gives back what OpenSearch indexed, under the same id.
+        [(doc_id, entry)] = indexed
+        self.assertIsInstance(doc_id, int)
+        stored = dict(db.question_log_entries(since=entry["created_at"]))[doc_id]
+        self.assertEqual(stored["question"], "smoke test")
+        self.assertEqual(stored["sql"], "SELECT 1 AS ok")
+        self.assertEqual(len(stored["question_embedding"]), 128)
+        self.assertAlmostEqual(stored["question_embedding"][5], entry["question_embedding"][5], places=5)
+        self.assertEqual({k: v for k, v in stored.items() if k != "question_embedding"},
+                         {k: v for k, v in entry.items() if k != "question_embedding"})
 
 
 if __name__ == "__main__":

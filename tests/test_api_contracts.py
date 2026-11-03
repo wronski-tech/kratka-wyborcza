@@ -99,6 +99,7 @@ class TestAskEndpoint(unittest.TestCase):
             patch("api.main.dynamic_sql.loaded_years", return_value={"sejm": [2019, 2023]}),
             patch("api.main.db.save_view", return_value="0123456789ab"),
             patch("api.main.db.record_usage"),
+            patch("api.main.db.log_question", return_value=1),
         ]
         self.route = self.patches[0].start()
         for p in self.patches[1:]:

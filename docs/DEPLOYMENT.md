@@ -173,8 +173,15 @@ python scripts/check_restore.py "$SOURCE_URL" "$RESTORED_URL" --schemas public
 
 What a database backup does not cover: thumbs-down feedback (`data/feedback/feedback.jsonl` on the
 API host), the server configuration and the OpenSearch indexes (`question_logs`, `sql_examples`). On the
-server the nightly backup below archives feedback and configuration next to the dump; the examples
-index is rebuilt from `sql_examples.jsonl` at startup.
+server the nightly backup below archives feedback and configuration next to the dump. The OpenSearch
+indexes need no snapshots: the examples index is rebuilt from `sql_examples.jsonl` at startup, and the
+question log is kept in Postgres too (`public.question_log`, in the dump), so after a restore or a lost
+OpenSearch volume rebuild `question_logs` from it (documents keep their Postgres id, so a rerun adds no
+duplicates):
+
+```bash
+docker compose exec api python scripts/reindex_question_log.py [--since 2026-11-01]
+```
 
 ### Nightly backup to the Storage Box
 
@@ -231,7 +238,8 @@ add workers before adding threads, and add the model's latency (seconds) to thes
 
 ## Telemetry dashboards
 
-Every `/ask` writes a document to the OpenSearch index `question_logs` with `created_at`,
+Every `/ask` writes a row to `public.question_log` (`document` holds the fields below, plus the
+question's embedding) and the same document to the OpenSearch index `question_logs` with `created_at`,
 `status` (`first_pass`, `repaired`, `cached`, `clarify`, `rejected`, `failed`, `skipped`,
 `template`), `latency_ms`, `row_count`, `answer_source`, `prompt_tokens`, `completion_tokens`,
 `error`, `detected_intent`, `question` and `sql`.
@@ -248,6 +256,9 @@ example:
   `question`, `error`, `sql` — the best source for new curated examples (`scripts/add_sql_example.py`);
 - cost: sum of `prompt_tokens` and `completion_tokens` per day;
 - latency: 50th/95th percentile of `latency_ms` per day.
+
+Without Dashboards, ask Postgres, e.g. statuses of the last week:
+`SELECT document->>'status', count(*) FROM question_log WHERE created_at > now() - interval '7 days' GROUP BY 1`.
 
 The bundled OpenSearch runs without its security plugin; do not expose ports 9200 or 5601 publicly.
 

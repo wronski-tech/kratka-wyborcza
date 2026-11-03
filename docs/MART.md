@@ -825,11 +825,13 @@ answer with the reasons in Polish.
 ## Observability
 
 Every `/ask` writes one log line (`ask intent=… status=… rows=… latency_ms=… answer=… tokens=…/…`)
-and one OpenSearch document in the question log with `status` (`template`, `first_pass`, `repaired`,
+and one question log entry (a `public.question_log` row, indexed into OpenSearch `question_logs` under
+the same id) with `status` (`template`, `first_pass`, `repaired`,
 `cached`, `clarify`, `rejected`, `failed`, `skipped`), `latency_ms`, `row_count`, `answer_source`,
 `prompt_tokens`, `completion_tokens`, `error` and `prompt_version`. `params._dynamic_sql_meta` in the response holds
 the matched entities, examples used, `schema_relations`, `prompt_chars` and per-phase
-`timings_ms`. Logging never fails a request. Dashboards over the question log: see
+`timings_ms`. Logging never fails a request: without Postgres or OpenSearch the entry is only missing
+there. Dashboards over the question log: see
 [DEPLOYMENT.md](DEPLOYMENT.md#telemetry-dashboards).
 
 ## Configuration
