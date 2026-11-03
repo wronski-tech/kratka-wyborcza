@@ -10,8 +10,10 @@ import pathlib
 import re
 import secrets
 import time
+import uuid
 import zipfile
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from email.utils import parsedate_to_datetime
@@ -32,7 +34,23 @@ from api.services.mart import safe_sql
 from api.services.mart import schema as mart_schema
 from api.services.rate_limit import make_limiter, make_token_budget
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+# The id of the request being served, in every log line of it (request_id=...), its X-Request-ID response
+# header and its question log entry. Caddy sets the header per request; otherwise one is made here.
+_request_id: ContextVar[str] = ContextVar("request_id", default="-")
+_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
+
+
+_make_record = logging.getLogRecordFactory()
+
+
+def _record_with_request_id(*args: Any, **kwargs: Any) -> logging.LogRecord:
+    record = _make_record(*args, **kwargs)
+    record.request_id = _request_id.get()
+    return record
+
+
+logging.setLogRecordFactory(_record_with_request_id)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s")
 log = logging.getLogger("plujka.api")
 ask_limiter = make_limiter(config.ASK_RATE_LIMIT_PER_MINUTE, config.REDIS_URL)
 token_budget = make_token_budget(config.DAILY_TOKEN_LIMIT_PER_CLIENT, config.REDIS_URL)
@@ -428,17 +446,31 @@ app = FastAPI(
 
 
 @app.middleware("http")
-async def _count_request(request: Request, call_next: Any) -> Response:
-    """Request count and duration per route template for Prometheus (an exception counts as 500)."""
+async def _observe_request(request: Request, call_next: Any) -> Response:
+    """Request id, one access log line, and count and duration per route template for Prometheus.
+
+    An unhandled exception is logged with its traceback and answered with 500 and the request id, so a user's
+    report names the log lines.
+    """
+    incoming = request.headers.get("x-request-id", "")
+    request_id = incoming if _REQUEST_ID_RE.match(incoming) else uuid.uuid4().hex
+    token = _request_id.set(request_id)
     started = time.monotonic()
-    status = 500
     try:
-        response = await call_next(request)
-        status = response.status_code
+        try:
+            response = await call_next(request)
+        except Exception:
+            log.exception("unhandled error in %s %s", request.method, request.url.path)
+            response = JSONResponse({"detail": "Internal server error.", "request_id": request_id}, status_code=500)
+        response.headers["X-Request-ID"] = request_id
+        route = getattr(request.scope.get("route"), "path", "unmatched")
+        seconds = time.monotonic() - started
+        metrics.observe_request(request.method, route, response.status_code, seconds)
+        if route != "/metrics":
+            log.info("http %s %s status=%s ms=%d", request.method, request.url.path, response.status_code, seconds * 1000)
         return response
     finally:
-        route = getattr(request.scope.get("route"), "path", "unmatched")
-        metrics.observe_request(request.method, route, status, time.monotonic() - started)
+        _request_id.reset(token)
 
 
 @app.get("/metrics", include_in_schema=False)
@@ -684,6 +716,7 @@ def _telemetry(result: dict[str, Any], started: float) -> dict[str, Any]:
         "cost_usd": round(costs.spent(_tokens_by_model(result)), 6),
         "error": meta.get("error") or (result.get("params") or {}).get("_dynamic_sql_error"),
         "prompt_version": dynamic_sql.PROMPT_VERSION,
+        "request_id": _request_id.get(),
     }
 
 

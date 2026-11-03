@@ -32,7 +32,7 @@ services:
       - /tmp/metrics
     # Client addresses from Caddy's X-Forwarded-For (the API is reachable only inside the compose network).
     command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api",
-              "--proxy-headers", "--forwarded-allow-ips", "*", "--workers", "2"]
+              "--proxy-headers", "--forwarded-allow-ips", "*", "--workers", "2", "--no-access-log"]
     ports: !reset []
     volumes: !override
       - /mnt/data/feedback:/app/feedback
@@ -81,6 +81,17 @@ services:
       - ./docker/monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/plujka.yml:ro
       - ./docker/monitoring/grafana/plujka.json:/etc/grafana/dashboards/plujka.json:ro
       - /mnt/data/grafana:/var/lib/grafana
+    restart: unless-stopped
+
+  loki:
+    profiles: !reset []
+    volumes: !override
+      - ./docker/monitoring/loki.yml:/etc/loki/loki.yml:ro
+      - /mnt/data/loki:/loki
+    restart: unless-stopped
+
+  alloy:
+    profiles: !reset []
     restart: unless-stopped
 
   node-exporter:

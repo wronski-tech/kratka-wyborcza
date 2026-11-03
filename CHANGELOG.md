@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Central logs with a request id: Caddy and the UI send `X-Request-ID` (the API makes one otherwise); it is in every API log line, the response header, the question log entry and the body of a 500 response, and the UI shows it with an error. Grafana Alloy ships every container's output to Loki (30 days), searchable in Grafana; the dashboard shows the API's warnings and errors. Container logs rotate (cloud-init `daemon.json`).
+
 - Alerts: Prometheus rules for a target down, a disk over 85 %, a transaction over 2 minutes, over 5 % server errors, a token spike and a stale or missing backup (the backup script records its last complete run for node-exporter), tested with `promtool` in CI; Alertmanager sends them to a Slack-compatible webhook (`ALERT_WEBHOOK_SECRET`).
 
 - Prometheus and Grafana (profile `monitoring`, on the server with the stack, reached through an SSH tunnel): the API's `GET /metrics` (requests and latency per route, `/ask` statuses, tokens, cost; summed over the workers), node-exporter and postgres-exporter, and the provisioned dashboard "Plujka". Production needs `GRAFANA_ADMIN_PASSWORD` in `.env`.

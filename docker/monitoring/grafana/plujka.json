@@ -807,6 +807,53 @@
         "graphMode": "none",
         "textMode": "auto"
       }
+    },
+    {
+      "id": 18,
+      "type": "row",
+      "title": "Logs",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "panels": []
+    },
+    {
+      "id": 19,
+      "type": "logs",
+      "title": "API warnings and errors",
+      "description": "Search one request with {service=\"api\"} |= \"<request id>\" in Explore",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=\"api\"} |~ \" (WARNING|ERROR|CRITICAL) \"",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "prettifyLogMessage": false
+      }
     }
   ],
   "templating": {

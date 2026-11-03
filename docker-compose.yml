@@ -207,6 +207,32 @@ services:
     profiles:
       - monitoring
 
+  # Logs of every container (docs/DEPLOYMENT.md, Logs): Alloy reads them through the Docker API, Loki keeps them
+  # 30 days, Grafana searches them (Explore, data source Loki).
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: plujka-loki
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./docker/monitoring/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    profiles:
+      - monitoring
+
+  alloy:
+    image: grafana/alloy:v1.4.3
+    container_name: plujka-alloy
+    command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./docker/monitoring/config.alloy:/etc/alloy/config.alloy:ro
+      # Read access to the Docker API is root on the host in effect; Alloy only lists containers and reads logs.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      - loki
+    profiles:
+      - monitoring
+
   node-exporter:
     image: prom/node-exporter:v1.8.2
     container_name: plujka-node-exporter
@@ -234,3 +260,5 @@ volumes:
   prometheus_data:
   grafana_data:
   alertmanager_data:
+  loki_data:
+  alloy_data:

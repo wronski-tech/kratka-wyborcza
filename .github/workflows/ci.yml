@@ -257,7 +257,7 @@ jobs:
       # Prometheus scrapes all four targets and has the API's /ask counter; Grafana provisioned the dashboard.
       - name: Metrics stack
         run: |
-          docker compose --profile monitoring up -d prometheus alertmanager grafana node-exporter postgres-exporter
+          docker compose --profile monitoring up -d prometheus alertmanager grafana node-exporter postgres-exporter loki alloy
           up='[.data.result[] | select(.value[1] == "1")] | length == 4'
           for i in $(seq 1 30); do curl -fsS 'localhost:9090/api/v1/query?query=up' | jq -e "$up" >/dev/null && break; sleep 5; done
           curl -fsS 'localhost:9090/api/v1/query?query=up' | jq -e "$up"
@@ -266,6 +266,11 @@ jobs:
           curl -fsS localhost:9090/api/v1/alertmanagers | jq -e '.data.activeAlertmanagers | length == 1'
           for i in $(seq 1 30); do curl -fsS -u admin:admin localhost:3000/api/health >/dev/null && break; sleep 2; done
           curl -fsS -u admin:admin localhost:3000/api/dashboards/uid/plujka | jq -e '.dashboard.title == "Plujka"'
+          # Alloy ships the API's log lines (with their request ids) to Loki.
+          loki='localhost:3000/api/datasources/proxy/uid/loki/loki/api/v1'
+          for i in $(seq 1 30); do curl -fsS -u admin:admin "$loki/label/service/values" | jq -e '.data | index("api")' >/dev/null && break; sleep 5; done
+          curl -fsS -u admin:admin -G "$loki/query_range" --data-urlencode 'query={service="api"} |= "request_id="' \
+            | jq -e '.data.result | length > 0'
 
       - name: Logs on failure
         if: failure()

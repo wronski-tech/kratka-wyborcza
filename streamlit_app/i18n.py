@@ -93,6 +93,7 @@ EN = {
     "Wykorzystano dzienny limit pytań do modelu. Spróbuj ponownie jutro albo skorzystaj z „Przeglądaj wyniki”.":
         "The daily model budget is used up. Try again tomorrow or use “Browse results”.",
     "Pytanie jest za długie albo puste.": "The question is too long or empty.",
+    "Identyfikator zgłoszenia": "Request id",
     "Zapytanie napisane wcześniej przez model i sprawdzone przez strażnika SQL; wynik prosto z bazy, bez ponownego pytania modelu.":
         "A query written earlier by the model and checked by the SQL guard; the result comes straight from the database, without asking the model again.",
     "Losowe gotowe zestawienie: sprawdzone zapytanie, bez LLM.": "A random ready-made report: a verified query, no LLM.",

@@ -19,8 +19,11 @@
 		respond 404
 	}
 
+	# One id per request, in Caddy's access log (the API echoes it as a response header) and in every API log line.
 	handle_path /api/* {
-		reverse_proxy api:8000
+		reverse_proxy api:8000 {
+			header_up X-Request-ID {http.request.uuid}
+		}
 	}
 
 	handle {

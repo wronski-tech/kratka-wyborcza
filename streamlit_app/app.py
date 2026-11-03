@@ -143,7 +143,10 @@ def _ask(question: str, entity_refs: list[dict] | None = None, previous: dict | 
     if previous:
         payload["previous"] = previous
     # One id per browser session: the API limits questions per session (SESSION_QUESTION_LIMIT).
-    headers = {**API_HEADERS, "X-Session-Id": st.session_state.setdefault("session_id", uuid.uuid4().hex)}
+    # The request id is in every API log line of this question: shown with an error, it finds them.
+    request_id = uuid.uuid4().hex
+    headers = {**API_HEADERS, "X-Session-Id": st.session_state.setdefault("session_id", uuid.uuid4().hex),
+               "X-Request-ID": request_id}
     try:
         response = requests.post(f"{API_URL}/ask", json=payload, headers=headers, timeout=60)
         if response.status_code == 429:
@@ -164,7 +167,7 @@ def _ask(question: str, entity_refs: list[dict] | None = None, previous: dict | 
         response.raise_for_status()
         return response.json()
     except requests.RequestException as error:
-        st.error(f"Coś poszło nie tak z API: {error}")
+        st.error(f"Coś poszło nie tak z API: {error}\n\n" + _t("Identyfikator zgłoszenia") + f": `{request_id}`")
         return None
 
 

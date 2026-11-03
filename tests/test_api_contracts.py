@@ -176,6 +176,24 @@ class TestAskEndpoint(unittest.TestCase):
         answer = self.client.post("/ask", json={"question": "Wynik PiS w 2023?"}).json()["answer"]
         self.assertEqual(answer["follow_ups"], ["A w 2019?", "A w podziale na województwa?", "Jak to się zmieniło w porównaniu z 2019?"])
 
+    def test_request_id_in_header_logs_question_log_and_errors(self) -> None:
+        with patch("api.main.opensearch_store.log_question") as logged, self.assertLogs("plujka.api", "INFO") as logs:
+            response = self.client.post("/ask", json={"question": "q"}, headers={"X-Request-ID": "caddy-0001-abcd"})
+        self.assertEqual(response.headers["X-Request-ID"], "caddy-0001-abcd")
+        self.assertEqual(logged.call_args.args[0]["request_id"], "caddy-0001-abcd")
+        # The line written inside the endpoint (a worker thread) carries the id too.
+        self.assertTrue(any(r.getMessage().startswith("ask intent=") and r.request_id == "caddy-0001-abcd"  # type: ignore[attr-defined]
+                            for r in logs.records))
+        # A header that is not a plain token is replaced, never echoed.
+        replaced = self.client.get("/nope", headers={"X-Request-ID": "x y"}).headers["X-Request-ID"]
+        self.assertRegex(replaced, r"^[0-9a-f]{32}$")
+        # An unhandled error answers 500 with the id, so a user's report leads to the traceback.
+        self.route.side_effect = RuntimeError("boom")
+        with self.assertLogs("plujka.api", "ERROR"):
+            failed = TestClient(app, raise_server_exceptions=False).post("/ask", json={"question": "q"},
+                                                                          headers={"X-Request-ID": "caddy-0002-abcd"})
+        self.assertEqual((failed.status_code, failed.json()["request_id"]), (500, "caddy-0002-abcd"))
+
     def test_prometheus_metrics(self) -> None:
         from prometheus_client import parser
 

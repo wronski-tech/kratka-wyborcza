@@ -29,6 +29,10 @@ packages:
   - unattended-upgrades
 
 write_files:
+  # Container logs rotate at 5 x 20 MB each; Loki keeps 30 days of them (docs/DEPLOYMENT.md, Logs).
+  - path: /etc/docker/daemon.json
+    content: |
+      {"log-driver": "json-file", "log-opts": {"max-size": "20m", "max-file": "5"}}
   - path: /etc/sysctl.d/90-opensearch.conf
     content: |
       vm.max_map_count=262144
@@ -70,10 +74,11 @@ runcmd:
   # The volume is attached right after the server is created; wait for it before mounting.
   - timeout 600 sh -c 'until [ -e /dev/disk/by-id/scsi-0HC_Volume_${volume_id} ]; do sleep 2; done' || exit 1
   - systemctl enable --now mnt-data.mount || exit 1
-  - mkdir -p /mnt/data/postgres /mnt/data/opensearch /mnt/data/feedback /mnt/data/caddy /mnt/data/backups /mnt/data/prometheus /mnt/data/grafana
+  - mkdir -p /mnt/data/postgres /mnt/data/opensearch /mnt/data/feedback /mnt/data/caddy /mnt/data/backups /mnt/data/prometheus /mnt/data/grafana /mnt/data/loki
   - chown 1000:1000 /mnt/data/opensearch
   - chown 65534:65534 /mnt/data/prometheus
   - chown 472:0 /mnt/data/grafana
+  - chown 10001:10001 /mnt/data/loki
   - git clone --branch ${git_ref} ${repo_url} /srv/plujka
   - printf 'DOMAIN=%s\nACME_EMAIL=%s\n' '${domain}' '${acme_email}' > /srv/plujka/deploy/caddy.env
   - chown -R deploy:deploy /srv/plujka

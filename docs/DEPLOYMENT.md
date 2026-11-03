@@ -329,8 +329,31 @@ ssh -L 3000:localhost:3000 -L 9090:localhost:9090 deploy@<server>
 
 On a server created before the metrics, create the data directories once:
 `sudo mkdir -p /mnt/data/prometheus /mnt/data/grafana && sudo chown 65534:65534 /mnt/data/prometheus && sudo
-chown 472:0 /mnt/data/grafana`. node-exporter runs in the compose network, so its network counters are the
+chown 472:0 /mnt/data/grafana` (and `/mnt/data/loki`, see [Logs](#logs)). node-exporter runs in the compose network, so its network counters are the
 container's, not the server's.
+
+## Logs
+
+Every request has an id: Caddy sets `X-Request-ID` (`{http.request.uuid}`) for `/api/*`, the UI sends its
+own for each question, and the API makes one otherwise. The API puts it in every log line of the request
+(`request_id=...`), in the `X-Request-ID` response header (so Caddy's JSON access log has it under
+`resp_headers`), in the question log entry (`request_id`), and in the body of a 500 response; the UI shows
+it with an error ("Identyfikator zgłoszenia"). A user's report with that id leads to everything the request did.
+
+In the `monitoring` profile (on the server with the stack) Grafana Alloy reads the output of every container
+through the Docker API and sends it to Loki, labelled `service` (compose service) and `stream`; Loki keeps
+30 days. In Grafana: the "Logs" row of the dashboard shows the API's warnings and errors, and Explore
+(data source Loki) finds one request:
+
+```logql
+{service=~"api|caddy"} |= "3f2c9a0e-..."
+```
+
+or, for example, every failed generated query: `{service="api"} |= "dynamic SQL failed"`. Alloy needs the
+Docker socket, which is root on the host in effect; it only lists containers and reads their logs. Docker
+rotates container logs at 5 × 20 MB per container (`/etc/docker/daemon.json` from cloud-init; on an older
+server write the same file, `sudo systemctl restart docker`, and recreate the containers). On a server created
+before Loki: `sudo mkdir -p /mnt/data/loki && sudo chown 10001:10001 /mnt/data/loki`.
 
 ## Alerts
 

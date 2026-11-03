@@ -824,7 +824,8 @@ answer with the reasons in Polish.
 
 ## Observability
 
-Every `/ask` writes one log line (`ask intent=… status=… rows=… latency_ms=… answer=… tokens=…/…`)
+Every `/ask` writes one log line (`ask intent=… status=… rows=… latency_ms=… answer=… tokens=…/…`, like every
+API log line prefixed with `request_id=…`; [DEPLOYMENT.md](DEPLOYMENT.md#logs))
 and one question log entry (a `public.question_log` row, indexed into OpenSearch `question_logs` under
 the same id) with `status` (`template`, `first_pass`, `repaired`,
 `cached`, `clarify`, `rejected`, `failed`, `skipped`), `latency_ms`, `row_count`, `answer_source`,
