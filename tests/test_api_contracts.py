@@ -327,7 +327,7 @@ class TestAgentEndpoints(unittest.TestCase):
 
     def test_protocol_handshake(self) -> None:
         init = self.rpc("initialize", {"protocolVersion": "2025-03-26"})["result"]
-        self.assertEqual((init["protocolVersion"], init["serverInfo"]["name"]), ("2025-03-26", "plujka"))
+        self.assertEqual((init["protocolVersion"], init["serverInfo"]["name"]), ("2025-03-26", "kratka-wyborcza"))
         self.assertEqual(self.rpc("initialize", {"protocolVersion": "1999-01-01"})["result"]["protocolVersion"], "2025-06-18")
         self.assertEqual({t["name"] for t in self.rpc("tools/list")["result"]["tools"]}, {"ask", "schema", "query"})
         self.assertEqual(self.rpc("resources/list")["error"]["code"], -32601)
@@ -463,7 +463,7 @@ class TestBrowseEndpoints(unittest.TestCase):
         response = self.client.get("/pdf/units/121903")
         self.assertEqual((response.status_code, response.headers["content-type"]), (200, "application/pdf"))
         self.assertTrue(response.content.startswith(b"%PDF"))
-        self.assertIn('filename="plujka-121903.pdf"', response.headers["content-disposition"])
+        self.assertIn('filename="kratka-wyborcza-121903.pdf"', response.headers["content-disposition"])
         self.assertEqual(self.client.get("/pdf/units/999999").status_code, 404)
         self.assertEqual(report_pdf.number(Decimal("7640753")), "7 640 753")
         self.assertEqual(report_pdf.number(39.0, 2), "39,00")

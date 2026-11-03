@@ -1,6 +1,6 @@
 # Architecture
 
-Plujka answers Polish election (PKW-style) questions with SQL against **PostgreSQL**: **LLM-written SQL over the relational `mart` schema** behind a parser guard and a read-only role ([MART.md](MART.md)), and **fixed SQL templates** for Sejm questions they cover. The answer text is either written by the LLM and checked number by number against the SQL rows, or a deterministic summary. Optional **OpenAI** writes SQL and answer text and improves intent extraction and embeddings; without it, the stack uses deterministic fallbacks.
+Kratka Wyborcza answers Polish election (PKW-style) questions with SQL against **PostgreSQL**: **LLM-written SQL over the relational `mart` schema** behind a parser guard and a read-only role ([MART.md](MART.md)), and **fixed SQL templates** for Sejm questions they cover. The answer text is either written by the LLM and checked number by number against the SQL rows, or a deterministic summary. Optional **OpenAI** writes SQL and answer text and improves intent extraction and embeddings; without it, the stack uses deterministic fallbacks.
 
 ## Request path (`POST /ask`)
 

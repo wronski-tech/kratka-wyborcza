@@ -4,7 +4,7 @@ from __future__ import annotations
 
 EN = {
     # Page and question
-    "Pluj faktami": "Facts, not spin",
+    "Kratka Wyborcza: dane, nie opinie": "Kratka Wyborcza: data, not opinions",
     "Twoje pytanie": "Your question (in Polish)",
     "np. Ile głosów miała KO w 2023? · posłowie PiS z Wrocławia": "e.g. Ile głosów miała KO w 2023? · posłowie PiS z Wrocławia",
     "Wyślij zapytanie": "Ask",

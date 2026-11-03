@@ -766,7 +766,7 @@ def _csv_file_name(text: str) -> str:
     """File name from the question (ASCII, no diacritics) and today's date."""
     folded = unicodedata.normalize("NFKD", text.lower().replace("ł", "l")).encode("ascii", "ignore").decode()
     slug = re.sub(r"[^a-z0-9]+", "-", folded).strip("-")[:60].rstrip("-") or "wynik"
-    return f"plujka-{slug}-{date.today().isoformat()}.csv"
+    return f"kratka-wyborcza-{slug}-{date.today().isoformat()}.csv"
 
 
 def _table_bytes(rows: list[dict], kind: str) -> bytes:
@@ -775,7 +775,7 @@ def _table_bytes(rows: list[dict], kind: str) -> bytes:
     buffer = io.BytesIO()
     if kind == "xlsx":
         frame.map(lambda v: ", ".join(map(str, v)) if isinstance(v, list) else str(v) if isinstance(v, dict) else v).to_excel(
-            buffer, index=False, sheet_name="plujka")
+            buffer, index=False, sheet_name="kratka-wyborcza")
     else:
         frame.to_parquet(buffer, index=False)
     return buffer.getvalue()
@@ -1088,7 +1088,7 @@ def _person_search() -> None:
 
 
 st.set_page_config(
-    page_title="Plujka KBW",
+    page_title="Kratka Wyborcza",
     page_icon="🗳️",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -1159,7 +1159,7 @@ if "widget" not in st.query_params:
     st.markdown(
         f"""
         <div class="plujka-hero">
-            <h2>{_t("Pluj faktami")}</h2>
+            <h2>{_t("Kratka Wyborcza: dane, nie opinie")}</h2>
             <p><a href="{switch}" target="_self" hreflang="{"pl" if LANG == "en" else "en"}">{other}</a>{
             " · " + _t("Odpowiedzi i dane są po polsku.") if LANG == "en" else ""}</p>
         </div>
@@ -1201,7 +1201,7 @@ def _election_card(kind: str, year: int, rnd: int) -> None:
     st.caption(" · ".join(n for n in notes if n))
     if kind in RESULT_ELECTIONS:
         _package_download(kind, year)
-        _pdf_download(f"/pdf/elections/{kind}/{year}", f"plujka-{kind}-{year}.pdf", "election_pdf")
+        _pdf_download(f"/pdf/elections/{kind}/{year}", f"kratka-wyborcza-{kind}-{year}.pdf", "election_pdf")
     sources = _source_files_markdown([(kind, year)])
     checks = _api_get(f"/checks/{kind}/{year}") or []
     left, right, _ = st.columns([1, 1, 2])
@@ -1237,7 +1237,7 @@ def _source_files_markdown(pairs: list[tuple[str, int]]) -> str:
 
 def _package_download(kind: str, year: int) -> None:
     """Zip with turnout and results at every level plus a column dictionary, fetched on request."""
-    name = f"plujka-{kind}-{year}.zip"
+    name = f"kratka-wyborcza-{kind}-{year}.zip"
     slot = st.empty()
     if st.session_state.get("package_name") != name:
         if not slot.button(_t("Przygotuj paczkę danych (zip)"), key="package_prepare",
@@ -1462,7 +1462,7 @@ def _embed_code(link: dict) -> None:
         what = st.radio(_t("Co osadzić"), ["mapa", "wykres"], horizontal=True, format_func=_t, key="embed_what")
         query = urlencode({"embed": "true", "widget": what, **{k: v for k, v in link.items() if v is not None}})
         st.code(f'<iframe src="{_page_url()}?{query}" width="100%" height="560" style="border:0" '
-                f'title="Plujka: {ELECTION_LABELS[link["wybory"]]} {link["rok"]}"></iframe>', language="html", wrap_lines=True)
+                f'title="Kratka Wyborcza: {ELECTION_LABELS[link["wybory"]]} {link["rok"]}"></iframe>', language="html", wrap_lines=True)
         st.caption("Wklej kod na swojej stronie. Wykres pokazuje do "
                    f"{MAX_CHART_ROWS} jednostek; dla gmin wybierz mapę albo zawęź województwo.")
 
@@ -1496,7 +1496,7 @@ def _widget() -> None:
     else:
         _render_map(shown, key="widget")
     browse = urlencode({k: v for k, v in q.items() if k not in ("widget", "embed")})
-    st.caption(f"Dane: PKW/KBW · [Plujka]({_page_url()}?{browse})")
+    st.caption(f"Dane: PKW/KBW · [Kratka Wyborcza]({_page_url()}?{browse})")
 
 
 @st.fragment
@@ -1556,7 +1556,7 @@ def _unit_card() -> None:
             st.markdown("**Zwycięzcy**")
             st.dataframe(winners.rename(columns={"election": "wybory", "year": "rok", "round": "tura", "name": "komitet / kandydat",
                                                  "votes": "głosy", "pct": "%"}), hide_index=True, use_container_width=True)
-        _pdf_download(f"/pdf/units/{card['unit']}", f"plujka-{card['unit']}.pdf", "unit_pdf")
+        _pdf_download(f"/pdf/units/{card['unit']}", f"kratka-wyborcza-{card['unit']}.pdf", "unit_pdf")
 
 
 SEAT_METHODS = {

@@ -21,7 +21,7 @@ logging.getLogger("fontTools").setLevel(logging.WARNING)
 
 LEVEL_NAMES = {"gmina": "gmina", "powiat": "powiat", "wojewodztwo": "województwo"}
 SOURCES = ("Źródła: oficjalne wyniki PKW i KBW (danewyborcze.kbw.gov.pl), statystyki GUS, Bank Danych "
-           "Lokalnych (CC BY 4.0). Każda liczba pochodzi z zapytania SQL do bazy Plujki, bez modelu językowego.")
+           "Lokalnych (CC BY 4.0). Każda liczba pochodzi z zapytania SQL do bazy Kratki Wyborczej, bez modelu językowego.")
 BAR_COLOR = (99, 102, 241)
 
 
@@ -41,7 +41,7 @@ class _Report(FPDF):
         self.add_font("DejaVu", "", str(folder / "DejaVuSans.ttf"))
         self.add_font("DejaVu", "B", str(folder / "DejaVuSans-Bold.ttf"))
         self.set_title(title)
-        self.set_author("Plujka")
+        self.set_author("Kratka Wyborcza")
         self.set_auto_page_break(True, margin=18)
         self.alias_nb_pages()
         self.add_page()
@@ -49,7 +49,7 @@ class _Report(FPDF):
         self.multi_cell(0, 8, title, new_x="LMARGIN", new_y="NEXT")
         self.set_font("DejaVu", "", 9)
         self.set_text_color(100, 116, 139)
-        self.cell(0, 6, f"Wygenerowano {date.today().isoformat()} · Plujka", new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 6, f"Wygenerowano {date.today().isoformat()} · Kratka Wyborcza", new_x="LMARGIN", new_y="NEXT")
         self.set_text_color(0, 0, 0)
         self.ln(2)
 

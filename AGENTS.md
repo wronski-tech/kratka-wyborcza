@@ -1,6 +1,6 @@
 # AGENTS.md — guide for AI coding agents
 
-Plujka answers questions in Polish about Polish elections (PKW/KBW data). Every fact in an answer
+Kratka Wyborcza answers questions in Polish about Polish elections (PKW/KBW data). Every fact in an answer
 comes from a SQL query over PostgreSQL. The LLM may interpret the question and write SQL, but it must
 never supply facts itself.
 
@@ -19,7 +19,7 @@ SQL safety), `docs/DATA.md` (sources), `docs/DEPLOYMENT.md` (API keys, Redis lim
 | `api/services/scope.py` | Polls, forecasts and future results: fixed refusal before any SQL or model call |
 | `api/services/definitions.py`, `docs/DEFINITIONS.md` | Definition questions (no year) answered with curated doc text, before any SQL or model call |
 | `api/services/answer.py` | Polish answer text; every number must appear in the SQL rows, else a deterministic summary; `CAVEATS` (fixed notes about data gaps) |
-| `api/services/metrics.py`, `docker/monitoring/` | Prometheus metrics on `GET /metrics` (route templates, `/ask` statuses, tokens); Prometheus and Grafana config with the "Plujka" dashboard |
+| `api/services/metrics.py`, `docker/monitoring/` | Prometheus metrics on `GET /metrics` (route templates, `/ask` statuses, tokens); Prometheus and Grafana config with the "Kratka Wyborcza" dashboard |
 | `api/services/rate_limit.py` | Limit for `POST /ask`: in-process sliding window, or shared through Redis (`REDIS_URL`) |
 | `api/services/mart/schema.py` | `mart` DDL with English `COMMENT`s, read-only role, list of queryable relations |
 | `api/services/mart/build_common.py`, `build_precincts.py` | Shared DuckDB macros, header matching, loading; precinct geography/protocol columns |

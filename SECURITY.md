@@ -8,7 +8,7 @@ Security fixes are applied to the default branch (`main`) when practical. Use th
 
 Please report security issues **privately** so they can be addressed before public disclosure.
 
-1. **Preferred:** Open a **GitHub Security Advisory** on this repository (if enabled), or email the repository maintainers with subject line `[SECURITY] Plujka`.
+1. **Preferred:** Open a **GitHub Security Advisory** on this repository (if enabled), or email the repository maintainers with subject line `[SECURITY] Kratka Wyborcza`.
 2. Include enough detail to reproduce (affected component, steps, impact). Do not attach exploit code in the first message if unnecessary.
 
 Maintainers will acknowledge receipt when possible and coordinate disclosure after a fix.

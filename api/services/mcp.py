@@ -22,7 +22,7 @@ INSTRUCTIONS = (
 TOOLS: list[dict[str, Any]] = [
     {
         "name": "ask",
-        "description": "Answer a question about Polish elections like the Plujka UI: the question is turned into SQL "
+        "description": "Answer a question about Polish elections like the Kratka Wyborcza UI: the question is turned into SQL "
                        "over the mart, run read-only, and the rows are described in Polish. Returns the answer, "
                        "the rows, the SQL and a clarification when the question is ambiguous.",
         "inputSchema": {
@@ -76,7 +76,7 @@ def handle(message: Any, tools: dict[str, Callable[[dict], dict]], version: str)
         result: dict[str, Any] = {
             "protocolVersion": requested if requested in PROTOCOL_VERSIONS else PROTOCOL_VERSIONS[0],
             "capabilities": {"tools": {"listChanged": False}},
-            "serverInfo": {"name": "plujka", "version": version},
+            "serverInfo": {"name": "kratka-wyborcza", "version": version},
             "instructions": INSTRUCTIONS,
         }
     elif method == "ping":

@@ -1,6 +1,6 @@
 # Availability check from outside the server (docs/DEPLOYMENT.md, "Uptime monitoring"): every 10 minutes
 # GET /api/health (status ok, mart loaded) and the UI page through Caddy, three tries a minute apart. When
-# they fail, an issue "Plujka is down" is opened (assigned to ALERT_ASSIGNEES, GitHub notifies them and the
+# they fail, an issue "Kratka Wyborcza is down" is opened (assigned to ALERT_ASSIGNEES, GitHub notifies them and the
 # repository's watchers) and that run fails (GitHub mails the failure too); when the site answers again, the
 # issue gets a comment and is closed. Needs the repository variable PLUJKA_URL.
 name: Uptime
@@ -25,7 +25,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       BASE: ${{ vars.PLUJKA_URL }}
       ASSIGNEES: ${{ vars.ALERT_ASSIGNEES }}
-      TITLE: Plujka is down
+      TITLE: Kratka Wyborcza is down
     steps:
       - name: Check the site
         id: check

@@ -1,5 +1,5 @@
 #cloud-config
-# First boot of the Plujka server: Docker, the data volume on /mnt/data, the repository in
+# First boot of the Kratka Wyborcza server: Docker, the data volume on /mnt/data, the repository in
 # /srv/plujka and a systemd unit that starts the stack once /srv/plujka/.env exists (secrets are
 # copied by the operator, never stored in Terraform or Git). See infra/hetzner/README.md.
 disable_root: true
@@ -39,7 +39,7 @@ write_files:
   - path: /etc/systemd/system/plujka.service
     content: |
       [Unit]
-      Description=Plujka (docker compose)
+      Description=Kratka Wyborcza (docker compose)
       After=docker.service mnt-data.mount
       Requires=docker.service mnt-data.mount
       ConditionPathExists=/srv/plujka/.env
@@ -57,7 +57,7 @@ write_files:
   - path: /etc/systemd/system/mnt-data.mount
     content: |
       [Unit]
-      Description=Plujka data volume
+      Description=Kratka Wyborcza data volume
 
       [Mount]
       What=/dev/disk/by-id/scsi-0HC_Volume_${volume_id}

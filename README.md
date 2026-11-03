@@ -1,4 +1,4 @@
-# Plujka
+# Kratka Wyborcza
 
 Polish election (PKW/KBW) analytics: a question in Polish becomes one checked, read-only SQL query over the relational `mart` schema in PostgreSQL; every number in the answer comes from that query. OpenAI writes the SQL and the answer text; OpenSearch keeps the question log and few-shot examples.
 
@@ -106,7 +106,7 @@ Uses `unittest` only (no DB). Optional Postgres-backed checks: `make test-integr
 - **`POST /ask`** — body `{"question": "...", "entity_refs": [...]?, "previous": {"question", "sql", "entity_refs"}?}` → JSON (`AskResponse` in `/docs`): `result` (numbers as JSON numbers), `intent`, `sql`, `params`, `answer`, `clarification`; `previous` makes it a follow-up ("A w 2019?"). With `API_KEYS` set, send `X-API-Key`.
 - **`GET /persons?name=`** and **`GET /persons/{person_id}`** — person search and every candidacy of a person (fixed SQL, read-only role).
 - **`GET /elections`**, **`GET /turnout`**, **`GET /results`**, **`GET /units?name=`**, **`GET /units/{teryt}`**, **`GET /seats/simulate`** — browsing without the LLM: loaded elections, turnout and party/candidate results per unit, unit search and a unit card (turnout, winners, GUS) across all elections, Sejm seats under another method or threshold (fixed SQL, read-only role).
-- **`POST /mcp`** — MCP server for agents (Streamable HTTP, JSON responses; e.g. `claude mcp add --transport http plujka https://<host>/api/mcp`). Tools: `ask` (the same path as `/ask`, with its limits), `schema` (loaded elections and the `COMMENT ON` descriptions the model gets, narrowed by an optional question) and `query` (the agent's own SQL). With `API_KEYS` set, send `X-API-Key`.
+- **`POST /mcp`** — MCP server for agents (Streamable HTTP, JSON responses; e.g. `claude mcp add --transport http kratka-wyborcza https://<host>/api/mcp`). Tools: `ask` (the same path as `/ask`, with its limits), `schema` (loaded elections and the `COMMENT ON` descriptions the model gets, narrowed by an optional question) and `query` (the agent's own SQL). With `API_KEYS` set, send `X-API-Key`.
 - **`POST /query`** — body `{"sql": "SELECT …"}`: an agent's read-only SQL through the same guards as the model's (`validate_mart_sql`, plan cost limit, read-only role, statement timeout) and the `/ask` rate limit; 400 with the reason when rejected or failed.
 - **`GET /costs?days=30`** — OpenAI tokens per UTC day, client (`key <hash>` or `no key`) and model, with a USD estimate (`LLM_PRICES_USD_PER_1M`); needs one of `ADMIN_API_KEYS`. The UI shows it at `?panel=koszty`.
 - **`GET /views/{view_id}`** — a saved view: the question and generated SQL of an earlier dynamic answer (`view_id` in the `/ask` response), re-run through `validate_mart_sql` and the read-only role without the LLM; 404 unknown, 410 when the SQL no longer passes the guard. Only SQL the API itself generated is stored (table `saved_views`), so a link cannot carry other SQL. The UI opens it with `?zestawienie=<id>`.

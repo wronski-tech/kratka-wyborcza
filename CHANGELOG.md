@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The project is now called Kratka Wyborcza (was Plujka): UI title and heading, API title, PDF reports, download file names, the MCP server name (`kratka-wyborcza`), the Grafana dashboard title, the Alertmanager alert title, the uptime issue title ("Kratka Wyborcza is down") and the docs. Technical identifiers stay: `PLUJKA_*` variables, `plujka*` databases and roles, `plujka_*` metrics, `/srv/plujka`, image and repository names.
+
 ### Fixed
 
 - A backup of chosen schemas (`BACKUP_SCHEMAS=public scripts/backup_db.sh`) could not be restored into an empty database: `pg_dump --schema` leaves out the extensions, so the `vector` columns and `pg_trgm` indexes failed. The dump now includes them.

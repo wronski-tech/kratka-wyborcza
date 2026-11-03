@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Back up the Plujka PostgreSQL database with pg_dump (custom format, compressed).
+# Back up the Kratka Wyborcza PostgreSQL database with pg_dump (custom format, compressed).
 #
 # Usage:
 #   DATABASE_URL=postgresql://plujka:...@host:5432/plujka scripts/backup_db.sh [backup_dir]

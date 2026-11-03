@@ -1,6 +1,6 @@
 # 03:15 UTC every night; a night missed while the server was off runs at the next boot.
 [Unit]
-Description=Nightly Plujka backup to the Storage Box
+Description=Nightly Kratka Wyborcza backup to the Storage Box
 
 [Timer]
 OnCalendar=*-*-* 03:15:00 UTC

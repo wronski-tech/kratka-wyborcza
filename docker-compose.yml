@@ -152,7 +152,7 @@ services:
       - observability
 
   # Metrics (docs/DEPLOYMENT.md, Metrics): Prometheus scrapes the API's /metrics, the server and Postgres;
-  # Grafana shows the provisioned dashboard "Plujka" at http://localhost:3000.
+  # Grafana shows the provisioned dashboard "Kratka Wyborcza" at http://localhost:3000.
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: plujka-prometheus

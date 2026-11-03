@@ -1,6 +1,6 @@
 # Deployment and operations
 
-How to run Plujka beyond a laptop: access control, a shared rate limit, backups, telemetry
+How to run Kratka Wyborcza beyond a laptop: access control, a shared rate limit, backups, telemetry
 dashboards and how the staged data is versioned. Configuration variables are listed in
 [MART.md](MART.md#configuration).
 
@@ -285,7 +285,7 @@ it takes about 30 minutes.
 The workflow `uptime.yml` checks the site from GitHub's runners, outside the server and Hetzner, every
 10 minutes: `GET /api/health` must say `status: ok` with the mart loaded, and the UI page must answer, through
 Caddy and TLS (an expired certificate fails too). Three failed tries a minute apart open the issue
-"Plujka is down" with the reason; that run fails, so GitHub also mails the failure once. Later checks
+"Kratka Wyborcza is down" with the reason; that run fails, so GitHub also mails the failure once. Later checks
 leave the open issue alone, and the first check that passes comments "Up again" and closes it, so the
 issue's open and close times are the outage.
 
@@ -314,7 +314,7 @@ Prometheus and Grafana (Compose profile `monitoring`; on the server they start w
 - the server (node-exporter): CPU, memory, disks (`/` and the volume `/mnt/data`), load;
 - PostgreSQL (postgres-exporter): connections by state, database sizes, the longest running transaction.
 
-Grafana opens on the provisioned dashboard "Plujka" (`docker/monitoring/grafana/plujka.json`, read-only:
+Grafana opens on the provisioned dashboard "Kratka Wyborcza" (`docker/monitoring/grafana/plujka.json`, read-only:
 change the file, not the UI). Locally:
 
 ```bash

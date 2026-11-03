@@ -456,7 +456,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="Plujka API",
+    title="Kratka Wyborcza API",
     version="0.1.0",
     lifespan=lifespan,
     openapi_tags=OPENAPI_TAGS,
@@ -1345,10 +1345,10 @@ def get_turnout(
 
 
 PACKAGE_LEVELS = ("country", "wojewodztwo", "powiat", "gmina")
-PACKAGE_README = """Plujka data package: {election} {year}
+PACKAGE_README = """Kratka Wyborcza data package: {election} {year}
 
 Source: official PKW/KBW files (see data/source_manifest.json in the repository), loaded into the
-Plujka mart; GUS statistics are not included. Files (UTF-8, comma-separated, dot decimal):
+Kratka Wyborcza mart; GUS statistics are not included. Files (UTF-8, comma-separated, dot decimal):
   turnout.csv  official turnout per unit and round (mart.v_turnout)
   results.csv  votes and percent per unit and round: party families (mart.v_party_results) or
                presidential candidates (mart.v_prezydent_results)
@@ -1396,7 +1396,7 @@ def data_package(
         archive.writestr("turnout.csv", _package_csv(turnout))
         archive.writestr("results.csv", _package_csv(results))
     return Response(buffer.getvalue(), media_type="application/zip",
-                    headers={"Content-Disposition": f'attachment; filename="plujka-{election}-{year}.zip"'})
+                    headers={"Content-Disposition": f'attachment; filename="kratka-wyborcza-{election}-{year}.zip"'})
 
 
 DISTRICT_GMINAS_SQL = """
@@ -1592,7 +1592,7 @@ def _pdf(content: bytes, name: str) -> Response:
 def unit_pdf(unit: str = Path(max_length=40, description="Gmina TERYT (6 digits), powiat TERYT (4 digits) or voivodeship name")) -> Response:
     """PDF report of one unit: the unit card (GUS statistics, turnout and winner of every election). Fixed SQL."""
     card = get_unit(unit).model_dump()
-    return _pdf(report_pdf.unit_report(card), f"plujka-{re.sub(r'[^0-9A-Za-z-]+', '_', unit)}.pdf")
+    return _pdf(report_pdf.unit_report(card), f"kratka-wyborcza-{re.sub(r'[^0-9A-Za-z-]+', '_', unit)}.pdf")
 
 
 @app.get("/pdf/elections/{election}/{year}", tags=["browse"], dependencies=[Depends(require_api_key)],
@@ -1609,7 +1609,7 @@ def election_pdf(
         (election_card(election, year, rnd).model_dump(), get_results(election, year, rnd, "country", None, None).model_dump()["rows"])
         for rnd in rounds
     ])
-    return _pdf(content, f"plujka-{election}-{year}.pdf")
+    return _pdf(content, f"kratka-wyborcza-{election}-{year}.pdf")
 
 
 class SeatSimulationRow(BaseModel):

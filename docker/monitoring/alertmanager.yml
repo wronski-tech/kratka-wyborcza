@@ -14,5 +14,5 @@ receivers:
     slack_configs:
       - api_url: __WEBHOOK__
         send_resolved: true
-        title: '{{ if eq .Status "firing" }}Plujka alert{{ else }}Plujka resolved{{ end }}: {{ .CommonLabels.alertname }}'
+        title: '{{ if eq .Status "firing" }}Kratka Wyborcza alert{{ else }}Kratka Wyborcza resolved{{ end }}: {{ .CommonLabels.alertname }}'
         text: '{{ range .Alerts }}[{{ .Labels.severity }}] {{ .Annotations.summary }}{{ "\n" }}{{ end }}'
