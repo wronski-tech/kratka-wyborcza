@@ -4,7 +4,7 @@ psycopg[binary]==3.2.1
 openai==1.52.2
 # openai 1.52 passes "proxies" to httpx, which httpx 0.28 removed (every client failed with a TypeError).
 httpx==0.27.2
-opensearch-py==2.7.1
+opensearch-py==3.2.0
 pydantic==2.14.2
 xlrd==2.0.2
 sqlglot==30.29.0
