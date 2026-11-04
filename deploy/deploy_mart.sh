@@ -9,7 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 tag="${1:-mart-latest}"
-repo="${KRATKA_WYBORCZA_REPO:-wronski-tech/plujka}"
+repo="${KRATKA_WYBORCZA_REPO:-wronski-tech/kratka-wyborcza}"
 dc=(docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml)
 work=/mnt/data/mart-deploy
 

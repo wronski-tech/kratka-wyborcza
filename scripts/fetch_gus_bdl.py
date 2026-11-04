@@ -66,7 +66,7 @@ from api.services.mart.build_gus import (  # noqa: E402
 )
 
 API = "https://bdl.stat.gov.pl/api/v1/"
-USER_AGENT = "kratka-wyborcza-gus-bdl/1.0 (+https://github.com/wronski-tech/plujka)"
+USER_AGENT = "kratka-wyborcza-gus-bdl/1.0 (+https://github.com/wronski-tech/kratka-wyborcza)"
 PAGE_SIZE = 100  # the API maximum
 # BDL levels fetched per variable: gmina-level variables also have powiat, voivodeship and country
 # aggregates; the unemployment rate and salaries are published down to powiats only.

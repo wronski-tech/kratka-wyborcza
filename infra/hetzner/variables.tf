@@ -56,7 +56,7 @@ variable "acme_email" {
 variable "repo_url" {
   description = "Git repository cloned on the server."
   type        = string
-  default     = "https://github.com/wronski-tech/plujka.git"
+  default     = "https://github.com/wronski-tech/kratka-wyborcza.git"
 }
 
 variable "git_ref" {

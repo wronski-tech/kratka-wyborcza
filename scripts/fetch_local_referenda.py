@@ -37,7 +37,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 BASE_URL = "https://wybory.gov.pl"
 TERMS = ("referendum_lokalne_2014_2018", "referendum_lokalne_2018_2024", "referendum_lokalne_2024_2029")
-USER_AGENT = "kratka-wyborcza-local-referenda/1.0 (+https://github.com/wronski-tech/plujka)"
+USER_AGENT = "kratka-wyborcza-local-referenda/1.0 (+https://github.com/wronski-tech/kratka-wyborcza)"
 MONTHS = {m: i for i, m in enumerate(("stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia",
                                        "września", "października", "listopada", "grudnia"), start=1)}
 COLUMNS = ["term", "referendum_id", "referendum_date", "teryt_wojewodztwo", "wojewodztwo", "teryt_powiat", "powiat",

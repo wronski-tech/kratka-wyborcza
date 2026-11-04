@@ -46,7 +46,7 @@ import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE_URL = "https://wybory2006.pkw.gov.pl/kbw/"
-USER_AGENT = "kratka-wyborcza-list-groups/1.0 (+https://github.com/wronski-tech/plujka)"
+USER_AGENT = "kratka-wyborcza-list-groups/1.0 (+https://github.com/wronski-tech/kratka-wyborcza)"
 CANDIDATES = ROOT / "data" / "kbw_stage_parquet" / "year=2006" / "2006" / "samorzad" / "2006-kand-rady-new.parquet"
 OUT = ROOT / "data" / "pkw_html" / "list_groups_2006.csv"
 VOIVODESHIPS = {

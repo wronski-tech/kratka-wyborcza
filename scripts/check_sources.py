@@ -35,7 +35,7 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE_URL = "https://danewyborcze.kbw.gov.pl/dane/"
-USER_AGENT = "kratka-wyborcza-source-check/1.0 (+https://github.com/wronski-tech/plujka)"
+USER_AGENT = "kratka-wyborcza-source-check/1.0 (+https://github.com/wronski-tech/kratka-wyborcza)"
 MANIFEST = ROOT / "data" / "source_manifest.json"
 MIRROR = ROOT / "data" / "kbw_mirror" / "dane"
 
