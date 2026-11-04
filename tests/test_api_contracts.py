@@ -15,6 +15,7 @@ import openai
 from fastapi.testclient import TestClient
 
 from api.services import config, llm_client, report_pdf, speech
+from api.services.rate_limit import SlidingWindowLimiter
 
 from api.main import (
     AskResponse,
@@ -100,6 +101,8 @@ class TestAskEndpoint(unittest.TestCase):
             patch("api.main.db.save_view", return_value="0123456789ab"),
             patch("api.main.db.record_usage"),
             patch("api.main.db.log_question", return_value=1),
+            # Each test counts its own questions; the app's limiter lives for the whole test process.
+            patch("api.main.ask_limiter", SlidingWindowLimiter(config.ASK_RATE_LIMIT_PER_MINUTE)),
         ]
         self.route = self.patches[0].start()
         for p in self.patches[1:]:
@@ -319,6 +322,9 @@ class TestAgentEndpoints(unittest.TestCase):
     """``POST /mcp`` and ``POST /query``: agent SQL meets the same guard before the read-only role."""
 
     def setUp(self) -> None:
+        limiter = patch("api.main.ask_limiter", SlidingWindowLimiter(config.ASK_RATE_LIMIT_PER_MINUTE))
+        limiter.start()
+        self.addCleanup(limiter.stop)
         self.client = TestClient(app)
 
     def rpc(self, method: str, params: dict | None = None, **headers: str) -> dict:
