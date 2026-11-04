@@ -333,7 +333,7 @@ _FUNCTION_LABELS = {
 _OPERATORS = {exp.EQ: "=", exp.NEQ: "≠", exp.GT: ">", exp.GTE: "≥", exp.LT: "<", exp.LTE: "≤"}
 
 
-def _column_label(column: exp.Expression, select: exp.Expression | None = None) -> str:
+def _column_label(column: exp.Expr, select: exp.Expr | None = None) -> str:
     """'rok', or 'rok (b)' for a qualified column of a self-join; ORDER/GROUP BY 2 names output column 2."""
     if isinstance(column, exp.Literal) and column.is_int and isinstance(select, exp.Select) \
             and 0 < int(column.this) <= len(select.expressions):
@@ -347,7 +347,7 @@ def _value(node: exp.Expression) -> str:
     return node.this if isinstance(node, exp.Literal) else node.sql("postgres")
 
 
-def _condition(node: exp.Expression) -> str:
+def _condition(node: exp.Expr) -> str:
     """One WHERE conjunct in Polish where it is a plain comparison, else its SQL."""
     if isinstance(node, exp.Binary) and type(node) in _OPERATORS and isinstance(node.left, exp.Column) and isinstance(node.right, (exp.Literal, exp.Column)):
         right = _column_label(node.right) if isinstance(node.right, exp.Column) else _value(node.right)

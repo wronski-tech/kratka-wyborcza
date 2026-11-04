@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The project is now called Kratka Wyborcza (was Plujka): UI title and heading, API title, PDF reports, download file names, the MCP server name (`kratka-wyborcza`), the Grafana dashboard title, the Alertmanager alert title, the uptime issue title ("Kratka Wyborcza is down") and the docs.
 - Technical names follow the new name too, and the GitHub repository is `wronski-tech/kratka-wyborcza` (GitHub redirects the old address): `KRATKA_WYBORCZA_*` variables (`_ENV`, `_API_KEY`, `_IMAGE_TAG`, `_RUN_DB_TESTS`, `_RUN_MART_TESTS`, `_REPO`, the repository variable `_URL`), the `kratka_wyborcza` owner, `kratka_wyborcza_mart_reader` and `kratka_wyborcza_mart_a` / `_b`, `kratka_wyborcza_*` metrics (the Grafana dashboard `kratka-wyborcza` and the alerts start from the new series), Redis keys, `/srv/kratka-wyborcza`, the `kratka-wyborcza*.service` units (the stack's unit now lives in `deploy/systemd/`), container and GHCR image names and `kratka-wyborcza-*` backups. A local database from before needs `docker compose down -v` and a new load.
+- sqlglot 30 (was 25). The guard tests pass unchanged, and the 403 curated and evaluation queries pass it with the same output except `NOT x ILIKE` now written `x NOT ILIKE` (same meaning).
 
 ### Fixed
 

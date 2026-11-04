@@ -49,7 +49,7 @@ class QueryTooExpensiveError(Exception):
     """The planner's cost estimate of a validated query is above ``MART_MAX_PLAN_COST``."""
 
 
-def _function_name(node: exp.Expression) -> str:
+def _function_name(node: exp.Expr) -> str:
     """Lower-case name of a function call node (anonymous or known)."""
     if isinstance(node, exp.Anonymous):
         # ``name`` drops identifier quotes: "pg_read_file"(...) must not slip past the pg_ check.
