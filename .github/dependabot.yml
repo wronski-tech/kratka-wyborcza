@@ -4,9 +4,12 @@ updates:
   - package-ecosystem: pip
     directories: ["/api", "/loader"]
     schedule: { interval: weekly }
+    # Minor and patch updates come in one pull request; every major update gets its own, since those
+    # usually need code changes (one library at a time).
     groups:
       python:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
   - package-ecosystem: docker
     directories: ["/docker"]
     schedule: { interval: weekly }
