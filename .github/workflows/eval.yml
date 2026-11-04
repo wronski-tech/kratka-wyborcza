@@ -115,7 +115,7 @@ jobs:
         if: env.OPENAI_API_KEY == ''
         run: echo "::notice::OPENAI_API_KEY secret is not set; only the evaluation set was checked"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && hashFiles('eval_report.json') != ''
         with:
           name: eval-report
