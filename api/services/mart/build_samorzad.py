@@ -273,7 +273,7 @@ def build_samorzad(con: duckdb.DuckDBPyConnection, sources: YearSources) -> list
     # 2014 registers have all given names in one column, some in capitals: 'JAN MARIA' -> 'Jan Maria'.
     con.execute(
         "CREATE OR REPLACE MACRO capw_(x) AS CASE WHEN upper(x) = x THEN array_to_string("
-        "list_transform(str_split(x, ' '), w -> upper(left(w, 1)) || lower(substr(w, 2))), ' ') ELSE x END"
+        "list_transform(str_split(x, ' '), lambda w: upper(left(w, 1)) || lower(substr(w, 2))), ' ') ELSE x END"
     )
     if year in COUNCILS_ONLY:
         build_rady.build_rady(con, sources)

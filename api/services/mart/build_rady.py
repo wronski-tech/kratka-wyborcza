@@ -398,12 +398,13 @@ def load_district_workbooks_1998(con: duckdb.DuckDBPyConnection, sources: YearSo
     if foreign:
         raise BuildError(f"year 1998: {foreign} precinct rows of {pattern} name another council or district than their workbook")
     for name, rows in (("lists", lists), ("candidates", cands)):
-        con.register(f"{prefix}_{name}_arrow", pa.table(rows))
+        # DuckDB reads the local Arrow table by its variable name (a replacement scan). con.register() would
+        # refuse to run while an earlier fetchone() result on this connection is unfinished (DuckDB 2).
+        arrow = pa.table(rows)  # noqa: F841
         con.execute(
             f"""CREATE OR REPLACE TABLE {prefix}_{name} AS
-                SELECT * REPLACE (int_(precinct_no) AS precinct_no, int_(votes) AS votes) FROM {prefix}_{name}_arrow"""
+                SELECT * REPLACE (int_(precinct_no) AS precinct_no, int_(votes) AS votes) FROM arrow"""
         )
-        con.unregister(f"{prefix}_{name}_arrow")
 
 
 # 2006 list blocs (grupy list): committees could join their lists in a council or voivodeship assembly

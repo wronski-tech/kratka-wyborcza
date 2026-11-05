@@ -119,8 +119,8 @@ CREATE MACRO pkey(teryt, nr) AS coalesce(clean_teryt(teryt), 'zagranica') || '/'
 -- Order-insensitive name key: 'Paweł Piotr KLESZCZ' and 'KLESZCZ Paweł Piotr' are equal.
 CREATE MACRO name_key(n) AS array_to_string(list_sort(str_split(upper(trim(regexp_replace(n, '\s+', ' ', 'g'))), ' ')), ' ');
 CREATE MACRO is_surname_token(t) AS upper(t) = t AND lower(t) <> t;
-CREATE MACRO surname(n) AS array_to_string(list_filter(str_split(trim(n), ' '), t -> is_surname_token(t)), ' ');
-CREATE MACRO given_names(n) AS array_to_string(list_filter(str_split(trim(n), ' '), t -> NOT is_surname_token(t)), ' ');
+CREATE MACRO surname(n) AS array_to_string(list_filter(str_split(trim(n), ' '), lambda t: is_surname_token(t)), ' ');
+CREATE MACRO given_names(n) AS array_to_string(list_filter(str_split(trim(n), ' '), lambda t: NOT is_surname_token(t)), ' ');
 -- 'KLESZCZ Paweł Piotr' -> 'Paweł Piotr KLESZCZ' (registers publish both orders).
 CREATE MACRO display_name(n) AS concat_ws(' ',
     NULLIF(given_names(regexp_replace(trim(n), '\s+', ' ', 'g')), ''),

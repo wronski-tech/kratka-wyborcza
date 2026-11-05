@@ -150,8 +150,10 @@ def strip_preamble(text: str) -> str:
     if not first[0].strip() and start + 1 < len(lines):
         group, start = first, start + 1
     header = fold_group_header(group, next(csv.reader([lines[start]], delimiter=delimiter)))
+    # The rewritten header keeps the file's line ending: DuckDB rejects a file that mixes "\n" and "\r\n".
+    ending = lines[start][len(lines[start].rstrip("\r\n")):] or "\n"
     out = io.StringIO()
-    csv.writer(out, delimiter=delimiter, lineterminator="\n").writerow(header)
+    csv.writer(out, delimiter=delimiter, lineterminator=ending).writerow(header)
     return out.getvalue() + "".join(lines[start + 1 :])
 
 
