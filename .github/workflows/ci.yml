@@ -161,18 +161,21 @@ jobs:
 
       # The nightly backup (public schema: question log tables, saved views, token usage) restored into an empty
       # database by the procedure in docs/DEPLOYMENT.md must have the same tables, indexes and rows.
+      # The server's own pg_dump and pg_restore, as on the production server: the runner's client may be newer
+      # than the server and write settings it does not know (pg_dump 18: transaction_timeout).
       - name: Backup and restore
         run: |
-          pg_dump --version
+          pg="docker exec -i ${{ job.services.postgres.id }}"
+          $pg pg_dump --version
           PYTHONPATH=. python -c "
           from api.services import db
           db.init_database()
           db.save_view('restore check', 'SELECT 1')
           db.record_usage('ci', {'gpt-4o-mini': {'prompt_tokens': 10, 'completion_tokens': 2}})"
-          BACKUP_SCHEMAS=public scripts/backup_db.sh /tmp/backups
+          PG_DUMP="$pg pg_dump" BACKUP_SCHEMAS=public scripts/backup_db.sh /tmp/backups
           psql "$DATABASE_URL" -c "CREATE DATABASE kratka_wyborcza_restore"
           restored=postgresql://kratka_wyborcza:kratka_wyborcza@localhost:5432/kratka_wyborcza_restore
-          pg_restore --clean --if-exists --no-owner --exit-on-error -d "$restored" /tmp/backups/kratka-wyborcza-*.dump
+          $pg pg_restore --clean --if-exists --no-owner --exit-on-error -d "$restored" < /tmp/backups/kratka-wyborcza-*.dump
           PYTHONPATH=. python scripts/check_restore.py "$DATABASE_URL" "$restored" --schemas public
 
       - name: Dump the mart
