@@ -60,7 +60,7 @@ def _embedding(text: str) -> list[float]:
 def ensure_index() -> None:
     """Create the examples index if missing and (re)index the curated examples (idempotent)."""
     client = _client()
-    if not client.indices.exists(SQL_EXAMPLES_INDEX):
+    if not client.indices.exists(index=SQL_EXAMPLES_INDEX):
         client.indices.create(
             index=SQL_EXAMPLES_INDEX,
             body={

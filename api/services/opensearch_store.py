@@ -30,7 +30,7 @@ def _client() -> OpenSearch:
 def ensure_index() -> None:
     """Ensure index."""
     client = _client()
-    if client.indices.exists(INDEX_NAME):
+    if client.indices.exists(index=INDEX_NAME):
         return
     mapping = {
         "settings": {"index": {"knn": True}},

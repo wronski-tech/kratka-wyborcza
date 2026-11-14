@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The API starts with opensearch-py 3: the index checks pass the index name as a keyword (`indices.exists(index=…)`), which opensearch-py 3 requires.
 - A backup of chosen schemas (`BACKUP_SCHEMAS=public scripts/backup_db.sh`) could not be restored into an empty database: `pg_dump --schema` leaves out the extensions, so the `vector` columns and `pg_trgm` indexes failed. The dump now includes them.
 - Marek Borowski's 2006 candidacies for mayor of Warsaw and the Mazowsze sejmik belong to his person (override); they were a separate local person, so a question about him offered himself twice.
 - „w Turku” is the town Turek again instead of a question about which TURKO was meant: names with a mobile „e” („Turek” → „Turku”, „Mielec” → „Mielcu”) are matched in their declined form even when they are too short for the near-identical match.
