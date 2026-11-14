@@ -102,7 +102,7 @@ class TestMainPage(unittest.TestCase):
         self.ask("Frekwencja w gminach w II turze 2020")
         self.assertIn("Model jest niedostępny.", [w.value for w in self.at.warning])
         next(b for b in self.at.button if b.label.startswith("📊 Otwórz „Przeglądaj wyniki”")).click().run()
-        self.assertEqual({k: self.at.query_params[k] for k in browse}, {k: [str(v)] for k, v in browse.items()})
+        self.assertEqual({k: self.at.query_params[k] for k in browse}, {k: str(v) for k, v in browse.items()})
 
     def test_limits_are_explained(self) -> None:
         self.at.run()

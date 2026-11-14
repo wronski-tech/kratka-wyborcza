@@ -194,7 +194,7 @@ HISTORY_SIZE = 20
 def _voice_input() -> None:
     """A recorded question, transcribed by the API (POST /transcribe) into the question field, where the user
     checks it before asking. Runs before the field is drawn, so it may set the field's value."""
-    audio = st.experimental_audio_input(_t("🎤 Albo nagraj pytanie"), key="voice_question")
+    audio = st.audio_input(_t("🎤 Albo nagraj pytanie"), key="voice_question")
     if audio is None:
         return
     recording = audio.getvalue()
@@ -274,7 +274,7 @@ def _chat_answer(i: int, turn: dict) -> None:
     if clarification:
         st.info(clarification.get("prompt") or "Doprecyzuj pytanie.")
         for j, option in enumerate(clarification.get("options") or []):
-            if st.button(option["label"], key=f"chat_clarify_{i}_{j}", use_container_width=True):
+            if st.button(option["label"], key=f"chat_clarify_{i}_{j}", width="stretch"):
                 _chat_ask(turn["question"], at=i, entity_refs=[{"kind": option["kind"], "ref": str(option["ref"])}])
         return
     _render_answer(data)
@@ -284,7 +284,7 @@ def _chat_answer(i: int, turn: dict) -> None:
         if reasons:
             st.caption(" ".join(reasons))
         return
-    st.dataframe(rows, use_container_width=True, hide_index=True, column_config=_code_columns(rows))
+    st.dataframe(rows, width="stretch", hide_index=True, column_config=_code_columns(rows))
     if not any("part" in row for row in rows):
         _render_chart(rows, ((data.get("params") or {}).get("_dynamic_sql_meta") or {}).get("chart"), source="PKW, KBW")
     if data.get("sql"):
@@ -302,7 +302,7 @@ def _history_sidebar() -> None:
             st.caption(_t("Pytania z tej sesji pojawią się tutaj."))
             return
         for i, turn in enumerate(history):
-            if st.button(turn["question"][:80], key=f"history_{i}", use_container_width=True):
+            if st.button(turn["question"][:80], key=f"history_{i}", width="stretch"):
                 st.session_state["last_ask"] = turn
         if st.button(_t("Wyczyść historię"), key="history_clear"):
             st.session_state["ask_history"] = []
@@ -386,7 +386,7 @@ def _image_export(svg: Callable[[], str], name: str, key: str) -> None:
 
 def _altair(chart: alt.Chart, name: str) -> None:
     """An Altair chart with the PNG/SVG export toggle (keyed by the chart, so each chart has its own)."""
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
     spec = chart.to_json()
     _image_export(lambda: vlc.vegalite_to_svg(spec), name,
                   key=f"chart_export_{hashlib.sha1(spec.encode()).hexdigest()[:12]}")
@@ -552,7 +552,7 @@ def _render_map(rows: list[dict], key: str = "answer", borders: dict | None = No
             map_style=None,
             tooltip={"text": f"{{name}}\n{value}: {{value}}"},
         ),
-        use_container_width=True,
+        width="stretch",
     )
     if classes:
         bounds = [low, *breaks]
@@ -653,7 +653,7 @@ def _render_clarification(question: str, data: dict) -> None:
     clarification = data["clarification"]
     st.info(clarification.get("prompt") or "Doprecyzuj pytanie.")
     for i, option in enumerate(clarification.get("options") or []):
-        clicked = st.button(option["label"], key=f"clarify_{i}_{option['ref']}", use_container_width=True)
+        clicked = st.button(option["label"], key=f"clarify_{i}_{option['ref']}", width="stretch")
         # Options with a ready query (API: one model call per clarification) run at once when picked.
         if option.get("description"):
             st.caption(option["description"])
@@ -674,7 +674,7 @@ def _render_follow_ups(data: dict, previous: dict, fp: str) -> None:
         return
     st.caption(_t("Możesz dopytać:"))
     for column, (i, suggestion) in zip(st.columns(len(suggestions)), enumerate(suggestions)):
-        if column.button(suggestion, key=f"follow_up_{fp}_{i}", use_container_width=True):
+        if column.button(suggestion, key=f"follow_up_{fp}_{i}", width="stretch"):
             with st.spinner("Szukam odpowiedzi…"):
                 chosen = _ask(suggestion, previous=previous)
             if chosen is not None:
@@ -689,7 +689,7 @@ def _render_feedback(q: str, data: dict, fp: str) -> None:
     if st.session_state.get("_feedback_ack_fp") == fp:
         st.caption("Dziękujemy — ocena została zapisana.")
     else:
-        if st.button(_t("👍 Dobra odpowiedź"), key=f"fb_up_{fp}", use_container_width=True):
+        if st.button(_t("👍 Dobra odpowiedź"), key=f"fb_up_{fp}", width="stretch"):
             try:
                 fb = requests.post(
                     f"{API_URL}/feedback",
@@ -706,7 +706,7 @@ def _render_feedback(q: str, data: dict, fp: str) -> None:
             "Jeśli wynik jest błędny, niepełny albo nie na temat, wyślij go do poprawy. "
             "Zapiszemy pytanie, SQL i odpowiedź, żeby poprawić logikę systemu."
         )
-        if st.button(_t("⚠️ Zgłoś odpowiedź do poprawy"), key=f"fb_down_{fp}", use_container_width=True):
+        if st.button(_t("⚠️ Zgłoś odpowiedź do poprawy"), key=f"fb_down_{fp}", width="stretch"):
             try:
                 fb = requests.post(
                     f"{API_URL}/feedback",
@@ -927,7 +927,7 @@ def _render_person_timeline(person_id: int, view_key: str = "person_view") -> No
     with st.container(border=True):
         head, close = st.columns([5, 1])
         head.markdown(f"#### 🗂️ {person['full_name']}")
-        if close.button(_t("Zamknij"), key=f"{view_key}_close_{person_id}", use_container_width=True):
+        if close.button(_t("Zamknij"), key=f"{view_key}_close_{person_id}", width="stretch"):
             st.session_state.pop(view_key, None)
             st.rerun()
         first, last = person.get("first_year"), person.get("last_year")
@@ -971,8 +971,8 @@ def _render_person_timeline(person_id: int, view_key: str = "person_view") -> No
                 )
                 .properties(height=alt.Step(40))
             )
-            st.altair_chart(chart, use_container_width=True)
-        st.dataframe(rows, use_container_width=True, hide_index=True)
+            st.altair_chart(chart, width="stretch")
+        st.dataframe(rows, width="stretch", hide_index=True)
         _csv_download(rows, f"kandydatury {person['full_name']}", key=f"csv_{view_key}_{person_id}")
         _person_gmina_votes(person_id, candidacies, view_key)
         _person_link_report(person_id, rows, view_key)
@@ -1000,7 +1000,7 @@ def _person_gmina_votes(person_id: int, candidacies: list[dict], view_key: str) 
     st.caption(f"Głosy w {len(rows)} gminach okręgu, zsumowane z protokołów obwodowych (bez głosów z zagranicy i statków); "
                "% = udział wśród ważnych głosów w gminie.")
     st.dataframe([{"gmina": r["gmina"], "powiat": r["powiat"], "głosy": r["votes"], "%": r["pct"]} for r in rows[:10]],
-                 hide_index=True, use_container_width=True)
+                 hide_index=True, width="stretch")
     _render_map([{"gmina": r["gmina"], "teryt_gmina": r["teryt_gmina"], "year": r["year"], "pct": r["pct"]} for r in rows],
                 key=f"{view_key}_gminas_{person_id}")
 
@@ -1044,7 +1044,7 @@ def _render_person_links(data: dict, entity_refs: list[dict] | None, key: str) -
                 chosen = st.selectbox(
                     _t("Osoba"), [p for p, _ in persons], format_func=labels.get, key=f"person_pick_{key}"
                 )
-            if st.button(_t("Zobacz wszystkie kandydatury"), key=f"person_open_{key}", use_container_width=True):
+            if st.button(_t("Zobacz wszystkie kandydatury"), key=f"person_open_{key}", width="stretch"):
                 st.session_state["person_view"] = chosen
     if st.session_state.get("person_view"):
         _render_person_timeline(st.session_state["person_view"])
@@ -1086,7 +1086,7 @@ def _person_search() -> None:
                 text.markdown(f"**{person['full_name']}** · kandydatury: {person['candidacies']}")
                 if person.get("detail"):
                     text.caption(person["detail"])
-                if button.button(_t("Pokaż"), key=f"person_search_open_{person['person_id']}", use_container_width=True):
+                if button.button(_t("Pokaż"), key=f"person_search_open_{person['person_id']}", width="stretch"):
                     st.session_state["person_search_view"] = person["person_id"]
         if st.session_state.get("person_search_view"):
             _render_person_timeline(st.session_state["person_search_view"], view_key="person_search_view")
@@ -1213,10 +1213,10 @@ def _election_card(kind: str, year: int, rnd: int) -> None:
     checks = _api_get(f"/checks/{kind}/{year}") or []
     left, right, _ = st.columns([1, 1, 2])
     if sources:
-        with left.popover(_t("Pliki źródłowe KBW/PKW"), use_container_width=True):
+        with left.popover(_t("Pliki źródłowe KBW/PKW"), width="stretch"):
             st.markdown(sources)
     if checks:
-        with right.popover(f"Zgodność z PKW: {len(checks)} kontroli ✓", use_container_width=True):
+        with right.popover(f"Zgodność z PKW: {len(checks)} kontroli ✓", width="stretch"):
             st.caption(
                 f"Przed wczytaniem {checks[0]['checked_at'][:10]} każda kontrola porównała dane z oficjalnymi "
                 "sumami PKW/KBW i nie znalazła ani jednego niezgodnego wiersza (inaczej wybory nie trafiłyby "
@@ -1441,7 +1441,7 @@ def _browse() -> None:
                                 reverse=order == "20 najwyższych")
                 shown = ranked[:20]
         # The year column stays in the rows for the map (former extents by year), not in the table.
-        st.dataframe(pd.DataFrame(shown).drop(columns=["year"], errors="ignore"), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(shown).drop(columns=["year"], errors="ignore"), hide_index=True, width="stretch")
         _csv_download(rows, f"{kind}_{year}_{view}_{level}", key="csv_browse")
         _render_chart(shown)
         borders = None
@@ -1545,7 +1545,7 @@ def _unit_card() -> None:
                         color=alt.Color("wybory:N", title=None, legend=alt.Legend(labelLimit=300)), tooltip=["wybory", "year", "turnout_pct"])
                 .properties(height=280, padding={"left": 5, "right": 5, "top": 5, "bottom": 25})
             )
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart, width="stretch")
         _compare_units(card)
         if card["level"] == "gmina":
             mayors = _api_get(f"/mayors/gmina/{card['unit']}") or []
@@ -1554,7 +1554,7 @@ def _unit_card() -> None:
                 st.dataframe(pd.DataFrame(mayors).assign(year=lambda d: d["year"].astype(str))[
                     ["year", "round", "full_name", "committee_name", "pct", "same_as_before"]].rename(columns={
                     "year": "rok", "round": "tura", "full_name": "imię i nazwisko", "committee_name": "komitet",
-                    "pct": "%", "same_as_before": "ta sama osoba co wcześniej"}), hide_index=True, use_container_width=True)
+                    "pct": "%", "same_as_before": "ta sama osoba co wcześniej"}), hide_index=True, width="stretch")
         winners = pd.DataFrame(card["winners"])
         if not winners.empty:
             winners = winners.sort_values(["year", "election", "round"], ascending=[False, True, True])
@@ -1562,7 +1562,7 @@ def _unit_card() -> None:
             winners["year"] = winners["year"].astype(str)
             st.markdown("**Zwycięzcy**")
             st.dataframe(winners.rename(columns={"election": "wybory", "year": "rok", "round": "tura", "name": "komitet / kandydat",
-                                                 "votes": "głosy", "pct": "%"}), hide_index=True, use_container_width=True)
+                                                 "votes": "głosy", "pct": "%"}), hide_index=True, width="stretch")
         _pdf_download(f"/pdf/units/{card['unit']}", f"kratka-wyborcza-{card['unit']}.pdf", "unit_pdf")
 
 
@@ -1604,7 +1604,7 @@ def _compare_units(card: dict) -> None:
                 color=alt.Color("jednostka:N", title=None), tooltip=["jednostka", "year", "turnout_pct"])
         .properties(height=240, padding={"left": 5, "right": 5, "top": 5, "bottom": 25})
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
 
 
 @st.fragment
@@ -1640,7 +1640,7 @@ def _seat_simulator() -> None:
         total = int(table["votes"].sum())
         shown = table[(table["seats_official"] > 0) | (table["seats_simulated"] > 0)]
         st.dataframe(shown.rename(columns={"party": "komitet", "votes": "głosy", "pct": "%", "seats_official": "mandaty (oficjalnie)",
-                                           "seats_simulated": "mandaty (symulacja)"}), hide_index=True, use_container_width=True)
+                                           "seats_simulated": "mandaty (symulacja)"}), hide_index=True, width="stretch")
         long = shown.melt(id_vars="party", value_vars=["seats_official", "seats_simulated"], var_name="wariant", value_name="mandaty")
         long["wariant"] = long["wariant"].map({"seats_official": "oficjalnie", "seats_simulated": "symulacja"})
         chart = (
@@ -1650,7 +1650,7 @@ def _seat_simulator() -> None:
                     yOffset="wariant:N", tooltip=["party", "wariant", "mandaty"])
             .properties(height=max(160, 52 * len(shown)), padding={"left": 5, "right": 5, "top": 5, "bottom": 25})
         )
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width="stretch")
         st.caption(f"Głosy na komitety bez mandatu: {wasted:,} z {total:,} ({100 * wasted / total:.1f}%). ".replace(",", " ")
                    + "Przeliczone z oficjalnych głosów na listy (mart.allocate_seats); próg liczony od głosów ważnych na listy w kraju."
                    + (" Połączona lista ma sumę głosów połączonych komitetów, tak jakby wyborcy głosowali tak samo." if len(merge) > 1 else ""))
@@ -1685,12 +1685,12 @@ def _candidates() -> None:
                     y=alt.Y("kobiety %:Q"), color=alt.Color("grupa:N", title=None), tooltip=["year", "grupa", "kobiety %"])
             .properties(height=240, padding={"left": 5, "right": 5, "top": 5, "bottom": 25})
         )
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width="stretch")
         table = stats.assign(year=stats["year"].astype(str)).rename(columns={
             "year": "rok", "candidates": "kandydaci", "women_pct": "kobiety %", "elected": "wybrani",
             "elected_women_pct": "kobiety wśród wybranych %", "median_age": "mediana wieku",
             "elected_median_age": "mediana wieku wybranych"})
-        st.dataframe(table.dropna(axis=1, how="all"), hide_index=True, use_container_width=True)
+        st.dataframe(table.dropna(axis=1, how="all"), hide_index=True, width="stretch")
         if chamber == "wbp":
             _mayor_terms()
         aged = [r["year"] for r in rows if r.get("median_age") is not None]
@@ -1706,7 +1706,7 @@ def _candidates() -> None:
             st.markdown(f"**{title}**")
             part = pd.DataFrame([r for r in ages if r["end_"] == end])
             if not part.empty:
-                st.dataframe(part[list(columns)].rename(columns=columns), hide_index=True, use_container_width=True)
+                st.dataframe(part[list(columns)].rename(columns=columns), hide_index=True, width="stretch")
         st.caption("Wiek z dnia wyborów, jak w plikach PKW (wybory samorządowe od 1998 r., Sejm i Senat 1991–1997).")
 
 
@@ -1717,12 +1717,12 @@ def _mayor_terms() -> None:
         return
     st.markdown("**Liczba wygranych wyborów na wójta / burmistrza (od 2002 r.)**")
     histogram = pd.DataFrame([{"kadencje": int(k), "osoby": v} for k, v in terms["histogram"].items()]).sort_values("kadencje")
-    st.dataframe(histogram, hide_index=True, use_container_width=True)
+    st.dataframe(histogram, hide_index=True, width="stretch")
     top = pd.DataFrame(terms["top"])
     top["lata"] = top["years"].map(lambda ys: ", ".join(map(str, ys)))
     top["gminy"] = top["gminas"].map(lambda gs: ", ".join(g for g in gs if g))
     st.dataframe(top[["full_name", "terms", "lata", "gminy"]].rename(columns={"full_name": "imię i nazwisko", "terms": "kadencje"}),
-                 hide_index=True, use_container_width=True)
+                 hide_index=True, width="stretch")
     st.caption("Wybory zwykłe (bez przedterminowych); osoby łączone po imionach, nazwisku, płci, roku urodzenia i powiecie.")
 
 
@@ -1756,7 +1756,7 @@ def _elected() -> None:
         columns = {"area": "województwo", "district_no": "okręg", "party": "komitet", "full_name": "imię i nazwisko",
                    "list_position": "miejsce na liście", "votes": "głosy"}
         st.dataframe(table[[c for c in columns if table[c].notna().any()]].rename(columns=columns),
-                     hide_index=True, use_container_width=True)
+                     hide_index=True, width="stretch")
 
 
 @st.fragment
@@ -1793,7 +1793,7 @@ def _precinct_results() -> None:
                    "turnout_pct": "frekwencja %", "eligible_voters": "uprawnieni", "address": "siedziba"}
         table = [{label: r[key] for key, label in columns.items()} for r in rows]
         st.caption(f"{len(rows)} obwodów. Wybierz numer, aby zobaczyć wszystkie wyniki obwodu.")
-        st.dataframe(table, hide_index=True, use_container_width=True)
+        st.dataframe(table, hide_index=True, width="stretch")
         _csv_download(table, f"obwody {gmina['name']} {kind} {year}", key="csv_precincts")
         numbers = [r["precinct_no"] for r in rows]
         street = st.text_input(_t("Mój obwód: ulica lub miejscowość"), placeholder="np. Bema", key="precinct_street").strip()
@@ -1850,7 +1850,7 @@ def _show_report(report: dict, key: str) -> None:
 def _report_body(data: dict, key: str) -> None:
     """Table, chart, map and SQL of a report or saved view (API ``ReportResult``)."""
     rows = data["rows"]
-    st.dataframe(rows, use_container_width=True, hide_index=True, column_config=_code_columns(rows))
+    st.dataframe(rows, width="stretch", hide_index=True, column_config=_code_columns(rows))
     _csv_download(rows, data["question"], key=f"csv_{key}_{data['id']}")
     _render_chart(rows)
     _render_map(rows, key=f"{key}_{data['id']}")
@@ -1904,14 +1904,14 @@ def _costs_panel() -> None:
                 color=alt.Color("model:N", title=_t("model")),
                 tooltip=["day:O", "model:N", "key:N", "sum(tokens):Q", "sum(usd):Q"],
             ).properties(height=220, title=_t("Tokeny dziennie według modelu")),
-            use_container_width=True,
+            width="stretch",
         )
         by_key = (table.groupby(["key", "model"], as_index=False)
                   [["questions", "prompt_tokens", "cached_tokens", "completion_tokens", "usd"]].sum(min_count=1))
         st.markdown(f"**{_t('Według klucza i modelu')}**")
-        st.dataframe(by_key.sort_values("usd", ascending=False), hide_index=True, use_container_width=True)
+        st.dataframe(by_key.sort_values("usd", ascending=False), hide_index=True, width="stretch")
         with st.expander(_t("Dzień po dniu")):
-            st.dataframe(table.drop(columns=["tokens"]), hide_index=True, use_container_width=True)
+            st.dataframe(table.drop(columns=["tokens"]), hide_index=True, width="stretch")
         missing = sorted(table.loc[table["usd"].isna(), "model"].unique())
         st.caption(_t("Koszt to szacunek z cen w LLM_PRICES_USD_PER_1M (USD za milion tokenów); klucze API są pokazane "
                       "jako skrót SHA-256.") + (f" {_t('Bez ceny')}: {', '.join(missing)}." if missing else ""))
@@ -1967,7 +1967,7 @@ def _rankings() -> None:
             table["lata"] = table["first_year"].astype(str) + "–" + table["last_year"].astype(str)
             st.dataframe(table[["full_name", "candidacies", "elected", "lata", "career_years", "votes", "wybory"]].rename(columns={
                 "full_name": "imię i nazwisko", "candidacies": "kandydowania", "elected": "wygrane", "career_years": "lat kariery",
-                "votes": "głosy"}), hide_index=True, use_container_width=True)
+                "votes": "głosy"}), hide_index=True, width="stretch")
             st.caption("Głosy: suma ze wszystkich kandydowań i tur. Osoby łączone po imionach i nazwisku (zob. „Szukaj osoby”).")
         st.markdown("**Przejścia między rodzinami partyjnymi (Sejm, Senat, PE)**")
         since = st.slider(_t("Kandydowania od roku"), 1991, 2023, 1991, key="switch_since")
@@ -1976,7 +1976,7 @@ def _rankings() -> None:
             flows = pd.DataFrame(switches)
             flows["przykłady"] = flows["examples"].map(", ".join)
             st.dataframe(flows[["from_family", "to_family", "persons", "przykłady"]].rename(columns={
-                "from_family": "z", "to_family": "do", "persons": "osoby"}), hide_index=True, use_container_width=True)
+                "from_family": "z", "to_family": "do", "persons": "osoby"}), hide_index=True, width="stretch")
             st.caption("Kolejne kandydowania tej samej osoby z list różnych rodzin (mart.party_families); listy koalicyjne "
                        "liczą się jako rodzina komitetu (np. Razem na liście Lewicy).")
 
@@ -1993,7 +1993,7 @@ def _data_coverage() -> None:
                 years[e["election"]].append(e["year"])
         st.dataframe(
             pd.DataFrame([{"wybory": ELECTION_LABELS.get(k, k), "lata": ", ".join(map(str, v))} for k, v in years.items()]),
-            hide_index=True, use_container_width=True,
+            hide_index=True, width="stretch",
         )
         version = _api_get("/data-version") or {}
         loaded = (version.get("mart_loaded_at") or "")[:10]
@@ -2022,7 +2022,7 @@ def _data_dictionary() -> None:
         st.markdown(f"**mart.{rel['relation']}** ({rel['kind']})")
         st.caption(rel["comment"] or "")
         st.dataframe(pd.DataFrame(rel["columns"]).rename(columns={"name": "kolumna", "type": "typ", "comment": "opis"}),
-                     hide_index=True, use_container_width=True)
+                     hide_index=True, width="stretch")
         flat = [{"relation": r["relation"], "kind": r["kind"], "relation_comment": r["comment"], **{f"column_{k}": v for k, v in c.items()}}
                 for r in relations for c in r["columns"]]
         _csv_download(flat, "slownik_danych", key="csv_dictionary")
@@ -2049,7 +2049,7 @@ def _gaps_and_sources() -> None:
                 table["last_modified"] = table["last_modified"].str[:10]
                 st.dataframe(table[["last_modified", "path", "bytes", "url"]].rename(columns={
                     "last_modified": "opublikowano", "path": "plik", "bytes": "bajty", "url": "adres"}),
-                    hide_index=True, use_container_width=True, column_config={"adres": st.column_config.LinkColumn("adres")})
+                    hide_index=True, width="stretch", column_config={"adres": st.column_config.LinkColumn("adres")})
                 st.caption("Pliki KBW/PKW, z których zbudowano bazę, od ostatnio (ponownie) opublikowanych. "
                            "Ponowną publikację wykrywa scripts/check_sources.py.")
 
@@ -2159,7 +2159,7 @@ with st.container(border=True):
     st.radio(_t("Styl odpowiedzi"), list(ANSWER_STYLES), key="answer_style", horizontal=True, format_func=_t,
              help=_t("Dziennikarski: prosto, z zaokrągleniami. Techniczny: dokładne wartości, nazwy miar i SQL rozwinięty."))
     if not chat_mode:
-        submitted = st.button(_t("Wyślij zapytanie"), type="primary", use_container_width=True)
+        submitted = st.button(_t("Wyślij zapytanie"), type="primary", width="stretch")
 
 if not chat_mode:
     _surprise()
@@ -2220,7 +2220,7 @@ if last:
                 part_rows = [{k: v for k, v in r.items() if k != "part"} for r in part_rows]
                 columns = [k for k in part_rows[0] if any(r.get(k) is not None for r in part_rows)]
                 part_rows = [{k: r.get(k) for k in columns} for r in part_rows]
-            st.dataframe(part_rows, use_container_width=True, hide_index=True, column_config=_code_columns(part_rows))
+            st.dataframe(part_rows, width="stretch", hide_index=True, column_config=_code_columns(part_rows))
             parts[title] = part_rows
         _csv_download(data["result"], q, key=f"csv_{fp}")
     _render_person_links(data, entity_refs, fp)
