@@ -265,7 +265,10 @@ jobs:
           for i in $(seq 1 30); do curl -fsS 'localhost:9090/api/v1/query?query=up' | jq -e "$up" >/dev/null && break; sleep 5; done
           curl -fsS 'localhost:9090/api/v1/query?query=up' | jq -e "$up"
           curl -fsS 'localhost:9090/api/v1/query?query=kratka_wyborcza_ask_total' | jq -e '.data.result | length > 0'
-          curl -fsS localhost:9090/api/v1/rules | jq -e '[.data.groups[].rules[] | select(.health == "ok")] | length == 7'
+          # A rule's health is "unknown" until its first evaluation (evaluation_interval: 30s).
+          rules='[.data.groups[].rules[] | select(.health == "ok")] | length == 7'
+          for i in $(seq 1 12); do curl -fsS localhost:9090/api/v1/rules | jq -e "$rules" >/dev/null && break; sleep 5; done
+          curl -fsS localhost:9090/api/v1/rules | jq -e "$rules"
           curl -fsS localhost:9090/api/v1/alertmanagers | jq -e '.data.activeAlertmanagers | length == 1'
           for i in $(seq 1 30); do curl -fsS -u admin:admin localhost:3000/api/health >/dev/null && break; sleep 2; done
           curl -fsS -u admin:admin localhost:3000/api/dashboards/uid/kratka-wyborcza | jq -e '.dashboard.title == "Kratka Wyborcza"'

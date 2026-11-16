@@ -2,7 +2,7 @@ fastapi==0.162.4
 uvicorn[standard]==0.54.0
 psycopg[binary]==3.3.8
 openai==3.49.0
-# openai 1.52 passes "proxies" to httpx, which httpx 0.28 removed (every client failed with a TypeError).
+# FastAPI's TestClient (tests) needs httpx; openai 3 ships its own client (httpx2).
 httpx==0.28.1
 opensearch-py==3.2.0
 pydantic==2.14.3
