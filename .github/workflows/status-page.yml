@@ -51,7 +51,7 @@ jobs:
             --json number,title,body,state,createdAt,closedAt,url,comments > notices.json
           python3 scripts/status_page.py --alerts alerts.json --notices notices.json --out site --site-url "${{ vars.KRATKA_WYBORCZA_URL }}"
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
